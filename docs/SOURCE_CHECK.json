@@ -1,0 +1,377 @@
+{
+  "checkedAt": "2026-11-04T03:50:45.837556+00:00",
+  "scope": "公式資料URLのHTTP到達確認。教材の専門家レビュー完了を示すものではありません。",
+  "results": [
+    {
+      "url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html",
+      "hasPage": true,
+      "textLength": 17697
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html",
+      "hasPage": true,
+      "textLength": 29015
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-security.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-security.html",
+      "hasPage": true,
+      "textLength": 14848
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html",
+      "hasPage": true,
+      "textLength": 14319
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html",
+      "hasPage": true,
+      "textLength": 23926
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html",
+      "hasPage": true,
+      "textLength": 23023
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html",
+      "hasPage": true,
+      "textLength": 30223
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html",
+      "hasPage": true,
+      "textLength": 19630
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonECS/latest/developerguide/Welcome.html",
+      "hasPage": true,
+      "textLength": 21728
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html",
+      "hasPage": true,
+      "textLength": 15820
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/CHAP_AuroraOverview.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/CHAP_AuroraOverview.html",
+      "hasPage": true,
+      "textLength": 17575
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html",
+      "hasPage": true,
+      "textLength": 16484
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html",
+      "hasPage": true,
+      "textLength": 26463
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Welcome.html",
+      "hasPage": true,
+      "textLength": 46722
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Versioning.html",
+      "hasPage": true,
+      "textLength": 18127
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+      "hasPage": true,
+      "textLength": 62276
+    },
+    {
+      "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html",
+      "hasPage": true,
+      "textLength": 43620
+    },
+    {
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2.html",
+      "hasPage": true,
+      "textLength": 41613
+    },
+    {
+      "url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html",
+      "hasPage": true,
+      "textLength": 16322
+    },
+    {
+      "url": "https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/Welcome.html",
+      "hasPage": true,
+      "textLength": 16949
+    },
+    {
+      "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html",
+      "hasPage": true,
+      "textLength": 14788
+    },
+    {
+      "url": "https://docs.aws.amazon.com/apigateway/latest/developerguide/welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/apigateway/latest/developerguide/welcome.html",
+      "hasPage": true,
+      "textLength": 23831
+    },
+    {
+      "url": "https://docs.aws.amazon.com/autoscaling/ec2/userguide/auto-scaling-benefits.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/autoscaling/ec2/userguide/auto-scaling-benefits.html",
+      "hasPage": true,
+      "textLength": 24815
+    },
+    {
+      "url": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-user-guide.html",
+      "hasPage": true,
+      "textLength": 24892
+    },
+    {
+      "url": "https://docs.aws.amazon.com/config/latest/developerguide/WhatIsConfig.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/config/latest/developerguide/WhatIsConfig.html",
+      "hasPage": true,
+      "textLength": 22068
+    },
+    {
+      "url": "https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html",
+      "hasPage": true,
+      "textLength": 18945
+    },
+    {
+      "url": "https://docs.aws.amazon.com/directconnect/latest/UserGuide/Welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/directconnect/latest/UserGuide/Welcome.html",
+      "hasPage": true,
+      "textLength": 22209
+    },
+    {
+      "url": "https://docs.aws.amazon.com/ebs/latest/userguide/what-is-ebs.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/ebs/latest/userguide/what-is-ebs.html",
+      "hasPage": true,
+      "textLength": 20119
+    },
+    {
+      "url": "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/efs/latest/ug/whatisefs.html",
+      "hasPage": true,
+      "textLength": 16698
+    },
+    {
+      "url": "https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html",
+      "hasPage": true,
+      "textLength": 28881
+    },
+    {
+      "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-listeners.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-listeners.html",
+      "hasPage": true,
+      "textLength": 24820
+    },
+    {
+      "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html",
+      "hasPage": true,
+      "textLength": 22946
+    },
+    {
+      "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-listeners.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/elasticloadbalancing/latest/network/load-balancer-listeners.html",
+      "hasPage": true,
+      "textLength": 41604
+    },
+    {
+      "url": "https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html",
+      "hasPage": true,
+      "textLength": 15234
+    },
+    {
+      "url": "https://docs.aws.amazon.com/fsx/latest/WindowsGuide/what-is.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/fsx/latest/WindowsGuide/what-is.html",
+      "hasPage": true,
+      "textLength": 27678
+    },
+    {
+      "url": "https://docs.aws.amazon.com/kms/latest/developerguide/overview.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/kms/latest/developerguide/overview.html",
+      "hasPage": true,
+      "textLength": 14234
+    },
+    {
+      "url": "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html",
+      "hasPage": true,
+      "textLength": 19645
+    },
+    {
+      "url": "https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html",
+      "hasPage": true,
+      "textLength": 15011
+    },
+    {
+      "url": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_introduction.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_introduction.html",
+      "hasPage": true,
+      "textLength": 25203
+    },
+    {
+      "url": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html",
+      "hasPage": true,
+      "textLength": 28004
+    },
+    {
+      "url": "https://docs.aws.amazon.com/redshift/latest/mgmt/welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/redshift/latest/mgmt/welcome.html",
+      "hasPage": true,
+      "textLength": 15840
+    },
+    {
+      "url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
+      "hasPage": true,
+      "textLength": 17765
+    },
+    {
+      "url": "https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html",
+      "hasPage": true,
+      "textLength": 13932
+    },
+    {
+      "url": "https://docs.aws.amazon.com/sns/latest/dg/welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/sns/latest/dg/welcome.html",
+      "hasPage": true,
+      "textLength": 22375
+    },
+    {
+      "url": "https://docs.aws.amazon.com/step-functions/latest/dg/welcome.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/step-functions/latest/dg/welcome.html",
+      "hasPage": true,
+      "textLength": 35411
+    },
+    {
+      "url": "https://docs.aws.amazon.com/streams/latest/dev/introduction.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/streams/latest/dev/introduction.html",
+      "hasPage": true,
+      "textLength": 18187
+    },
+    {
+      "url": "https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html",
+      "hasPage": true,
+      "textLength": 41655
+    },
+    {
+      "url": "https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/vpc/latest/privatelink/what-is-privatelink.html",
+      "hasPage": true,
+      "textLength": 17081
+    },
+    {
+      "url": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html",
+      "hasPage": true,
+      "textLength": 15615
+    },
+    {
+      "url": "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html",
+      "hasPage": true,
+      "textLength": 23312
+    },
+    {
+      "url": "https://docs.aws.amazon.com/vpn/latest/s2svpn/VPC_VPN.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/vpn/latest/s2svpn/VPC_VPN.html",
+      "hasPage": true,
+      "textLength": 23354
+    },
+    {
+      "url": "https://docs.aws.amazon.com/waf/latest/developerguide/shield-chapter.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/waf/latest/developerguide/shield-chapter.html",
+      "hasPage": true,
+      "textLength": 16887
+    },
+    {
+      "url": "https://docs.aws.amazon.com/waf/latest/developerguide/what-is-aws-waf.html",
+      "status": 200,
+      "finalUrl": "https://docs.aws.amazon.com/waf/latest/developerguide/what-is-aws-waf.html",
+      "hasPage": true,
+      "textLength": 21577
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import { additions } from './data/catalog.js';
+import './practice.js';
 const $ = (id) => document.getElementById(id);
 const services = [
   ['Application Load Balancer (ALB)','ネットワーク','HTTP / HTTPS の要求をルールやターゲットの状態に応じて振り分ける L7 ロードバランサー。','network','https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html','PX-02'],
@@ -10,7 +12,8 @@ const services = [
   ['Reverse Proxy','一般概念','受信側の代理としてリクエストを受け付ける仕組み。AWS 固有のサービス名ではありません。','network','https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html','PX-02'],
   ['ヘルスチェック','一般概念','対象の状態を確認し、振り分け判断などに使う仕組み。確認方法やしきい値は構成によって異なります。','security','https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html','HC-01']
 ];
-const labels = {home:'ダッシュボード',services:'サービス図鑑',animation:'アニメーション',roadmap:'ロードマップ',progress:'学習履歴'};
+services.push(...additions);
+const labels = {home:'ダッシュボード',practice:'資格問題演習',services:'サービス図鑑',animation:'アニメーション',roadmap:'ロードマップ',progress:'学習履歴'};
 let memory = {};
 function read(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { $('storage-warning').hidden=false; return memory[key] ?? fallback; } }
 function save(key,value) { memory[key]=value; try { localStorage.setItem(key,JSON.stringify(value)); } catch { $('storage-warning').hidden=false; } }
@@ -22,16 +25,23 @@ let history=read(progressKey, []);
 if (!Array.isArray(history)) history=[];
 history=history.filter(x=>x && typeof x.id==='string' && typeof x.title==='string' && typeof x.at==='string' && Number.isFinite(Date.parse(x.at)));
 const media=matchMedia('(prefers-color-scheme: dark)');
-function applyTheme(){ document.documentElement.dataset.theme=theme==='system' ? (media.matches?'dark':'light') : theme; }
-$('theme').value=theme; applyTheme(); media.addEventListener('change',applyTheme);
-$('theme').addEventListener('change',()=>{theme=$('theme').value;save(uiKey,{...preferences,theme});applyTheme();});
+function applyTheme(){
+  const resolved=theme==='system' ? (media.matches?'dark':'light') : theme;
+  document.documentElement.dataset.theme=resolved;
+  $('theme-toggle').textContent=resolved==='dark'?'☼ ライト':'☾ ダーク';
+  $('theme-toggle').setAttribute('aria-label',resolved==='dark'?'ライトモードに切り替える':'ダークモードに切り替える');
+  $('theme-system').setAttribute('aria-pressed',String(theme==='system'));
+}
+applyTheme();media.addEventListener('change',applyTheme);
+$('theme-toggle').addEventListener('click',()=>{theme=document.documentElement.dataset.theme==='dark'?'light':'dark';save(uiKey,{...preferences,theme});applyTheme();});
+$('theme-system').addEventListener('click',()=>{theme='system';save(uiKey,{...preferences,theme});applyTheme();});
 function element(tag, cls, text) { const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el; }
-function serviceCard(s){ const card=element('article','card panel');const image=element('img');image.src=`assets/card_${s[3]}.svg`;image.alt='';image.width=64;image.height=64;card.append(image,element('span','eyebrow',s[1]),element('h3','',s[0]),element('p','',s[2]));const link=element('a','','AWS 公式ドキュメント ↗');link.href=s[4];link.target='_blank';link.rel='noopener noreferrer';card.append(link);if(s[5]){const scene=element('a','','動きを見る →');scene.href=`#animation/${s[5]}`;card.append(scene);}return card; }
-$('service-count').textContent=services.length;
+function serviceCard(s){ const card=element('article','card panel');const image=element('span',`service-glyph glyph-${s[3]}`,s[0].includes('(ALB)')?'ALB':s[0].replace(/^(Amazon |AWS )/,'').split(' ')[0].slice(0,3).toUpperCase());image.setAttribute('aria-hidden','true');card.append(image,element('span','eyebrow',s[1]),element('h3','',s[0]),element('p','',s[2]));const link=element('a','','AWS 公式ドキュメント ↗');link.href=s[4];link.target='_blank';link.rel='noopener noreferrer';card.append(link);if(s[5]){const scene=element('a','','動きを見る →');scene.href=`#animation/${s[5]}`;card.append(scene);}return card; }
+$('service-count').textContent=services.filter(s=>s[1]!=='一般概念').length;
 [services[0],services[3],services[2]].forEach(s=>$('featured').append(serviceCard(s)));
 function filter(){const q=$('search').value.trim().toLocaleLowerCase();const result=services.filter(s=>(s[0]+s[1]+s[2]).toLocaleLowerCase().includes(q)&&($('category').value==='all'||s[1]===$('category').value));$('catalog').replaceChildren(...result.map(serviceCard));$('search-count').textContent=`${result.length} 件の教材${result.length?'':' — 条件を変えて検索してください。'}`;}
 $('search').addEventListener('input',filter);$('category').addEventListener('change',filter);filter();
-const stages=[['基本を知る','サービス図鑑で、コンピューティング・ストレージ・ネットワークの役割をつかむ。','図鑑を開く','#services'],['通信をたどる','Reverse Proxy・負荷分散・ヘルスチェックをステップごとに確認する。','アニメーションを開く','#animation'],['比較して設計する','DB・ストレージの使い分けと構成シミュレーター。','今後実装',null],['壊して、直して、試す','障害ラボと問題演習で設計判断を検証する。','今後実装',null]];
+const stages=[['基本を知る','サービス図鑑で、コンピューティング・ストレージ・ネットワークの役割をつかむ。','図鑑を開く','#services'],['通信をたどる','Reverse Proxy・負荷分散・ヘルスチェックをステップごとに確認する。','アニメーションを開く','#animation'],['比較して設計する','DB・ストレージの使い分けと構成シミュレーター。','今後実装',null],['問題で、理解を確かめる','分野別の演習と誤答の復習で、サービスの選定理由を言語化する。','問題演習を開く','#practice']];
 stages.forEach((s,i)=>{const c=element('article','panel roadmap-item');c.append(element('span','roadmap-number',`0${i+1}`));const body=element('div');body.append(element('h2','',s[0]),element('p','',s[1]));const a=element(s[3]?'a':'span',s[3]?'':'pill',s[2]);if(s[3])a.href=s[3];body.append(a);c.append(body);$('roadmap-list').append(c);});
 function updateHistory(){document.querySelectorAll('.completed-count').forEach(el=>el.textContent=new Set(history.map(x=>x.id)).size);$('history').replaceChildren();if(!history.length){$('history').append(element('h2','','最初の学習を、ここから。'),element('p','muted','まだ記録はありません。アニメーションを最後まで確認し、学習済みボタンで記録してください。'));const a=element('a','','教材を開く →');a.href='#animation';$('history').append(a);return;}const ul=element('ul');history.forEach(h=>{const li=element('li');const a=element('a','',h.title);a.href=`#animation/${h.id}`;li.append(a,element('small','',`学習済みとして記録 · ${new Intl.DateTimeFormat('ja-JP',{dateStyle:'medium',timeStyle:'short'}).format(new Date(h.at))}`));ul.append(li);});$('history').append(ul);}
 let scenes=[], scene=null, index=0, timer=null, playing=false;
