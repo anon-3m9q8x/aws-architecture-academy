@@ -1,27 +1,301 @@
-import { questions } from './data/questions.js';
-const $=id=>document.getElementById(id);
-const key='aaa.practice.attempts.v1';
-const questionMap=new Map(questions.map(q=>[q.id,q]));
-const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
-let attempts=[];
-try{const data=JSON.parse(localStorage.getItem(key)||'[]');if(Array.isArray(data))attempts=data.filter(a=>a&&questionMap.has(a.id)&&typeof a.correct==='boolean'&&Number.isFinite(Date.parse(a.at)));}catch{$('storage-warning').hidden=false;}
-let session=[],position=0,selections=new Set(),submitted=false,results=[];
-function latest(){const map=new Map();attempts.forEach(a=>map.set(a.id,a));return map;}
-function stats(){const last=latest();const wrong=[...last.values()].filter(a=>!a.correct).length;const correct=attempts.filter(a=>a.correct).length;$('attempt-count').textContent=attempts.length;$('accuracy-rate').textContent=attempts.length?`${Math.round(correct/attempts.length*100)}%`:'—';$('mistake-count').textContent=wrong;
- const history=$('practice-history');history.replaceChildren(el('span','eyebrow','PRACTICE INSIGHTS'),el('h2','','演習の学習状況'),el('p','muted',`${last.size} / ${questions.length} 問に回答 · 回答 ${attempts.length} 回 · 正答率 ${attempts.length?Math.round(correct/attempts.length*100)+'%':'未回答'} · 復習対象 ${wrong} 問`));
- const list=el('div','domain-results');[...new Set(questions.map(q=>q.domain))].forEach(domain=>{const subset=attempts.filter(a=>questionMap.get(a.id).domain===domain);const row=el('div','domain-row');row.append(el('span','',domain),el('span','',subset.length?`${Math.round(subset.filter(a=>a.correct).length/subset.length*100)}% · ${subset.length}回答`:'未回答'));list.append(row);});history.append(list);const a=el('a','','演習・復習を開く →');a.href='#practice';history.append(a);}
-function pool(){const last=latest();return questions.filter(q=>($('quiz-cert').value==='all'||q.certification===$('quiz-cert').value)&&($('quiz-domain').value==='all'||q.domain===$('quiz-domain').value)&&($('quiz-mode').value==='all'||($('quiz-mode').value==='wrong'?last.has(q.id)&&!last.get(q.id).correct:!last.has(q.id))));}
-function updatePool(){const count=pool().length;$('pool-count').textContent=`${count} 問が対象${count?'':' — 条件を変更してください'}`;$('quiz-start').disabled=!count;}
-[...new Set(questions.map(q=>q.domain))].forEach(domain=>{const o=el('option','',domain);o.value=domain;$('quiz-domain').append(o);});
-['quiz-cert','quiz-domain','quiz-mode','quiz-limit'].forEach(id=>$(id).addEventListener('change',updatePool));
-function render(){const q=session[position];selections=new Set();submitted=false;$('quiz-position').textContent=`QUESTION ${String(position+1).padStart(2,'0')} / ${session.length}`;$('quiz-progress').max=session.length;$('quiz-progress').value=position;$('quiz-domain-label').textContent=`${q.certification} · ${q.domain}`;$('quiz-type').textContent=q.selectCount===1?'単一選択':`複数選択・${q.selectCount}つ`;$('quiz-prompt').textContent=q.prompt;$('quiz-choices').replaceChildren();const legend=el('legend','',q.selectCount===1?'1つ選んでください':`${q.selectCount}つ選んでください`);$('quiz-choices').append(legend);
- q.choices.forEach((choice,i)=>{const label=el('label','choice');const input=el('input');input.type=q.selectCount===1?'radio':'checkbox';input.name='answer';input.value=i;input.addEventListener('change',()=>{if(submitted)return;if(q.selectCount===1)selections.clear();if(input.checked)selections.add(i);else selections.delete(i);$('quiz-submit').disabled=selections.size!==q.selectCount;});label.append(input,el('span','choice-letter',String.fromCharCode(65+i)),el('span','',choice.text));$('quiz-choices').append(label);});
- $('quiz-feedback').hidden=true;$('quiz-feedback').replaceChildren();$('quiz-next').hidden=true;$('quiz-submit').hidden=false;$('quiz-submit').disabled=true;$('quiz-next').textContent=position===session.length-1?'結果を見る →':'次の問題へ →';}
-$('quiz-start').addEventListener('click',()=>{const candidates=pool();for(let i=candidates.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[candidates[i],candidates[j]]=[candidates[j],candidates[i]];}session=candidates.slice(0,Number($('quiz-limit').value));if(!session.length)return;position=0;results=[];$('practice-setup').hidden=true;$('quiz-result').hidden=true;$('quiz-workspace').hidden=false;render();$('quiz-prompt').setAttribute('tabindex','-1');$('quiz-prompt').focus();});
-$('answer-form').addEventListener('submit',event=>{event.preventDefault();if(submitted||!session.length)return;const q=session[position];if(selections.size!==q.selectCount)return;submitted=true;const correct=q.choices.every((c,i)=>c.correct===selections.has(i));const attempt={id:q.id,correct,chosen:[...selections],at:new Date().toISOString()};attempts.push(attempt);results.push(attempt);try{localStorage.setItem(key,JSON.stringify(attempts));}catch{$('storage-warning').hidden=false;}
- $('quiz-choices').querySelectorAll('input').forEach(input=>input.disabled=true);$('quiz-submit').hidden=true;const box=$('quiz-feedback');box.hidden=false;box.append(el('h3',correct?'feedback-correct':'feedback-wrong',correct?'✓ 正解です':'もう一度、考え方を整理しましょう'));
- q.choices.forEach((choice,i)=>{const row=el('div',choice.correct?'explanation is-correct':'explanation');row.append(el('strong','',`${String.fromCharCode(65+i)} · ${choice.correct?'正解':'不正解'}${selections.has(i)?' / あなたの回答':''}`),el('p','',choice.explanation));box.append(row);});const source=el('a','source-link','公式ドキュメントで確認 ↗');source.href=q.source;source.target='_blank';source.rel='noopener noreferrer';box.append(source);$('quiz-next').hidden=false;$('quiz-progress').value=position+1;stats();updatePool();});
-function settings(){$('quiz-workspace').hidden=true;$('quiz-result').hidden=true;$('practice-setup').hidden=false;session=[];results=[];updatePool();}
-$('quiz-exit').addEventListener('click',settings);
-$('quiz-next').addEventListener('click',()=>{if(!submitted)return;if(position<session.length-1){position++;render();$('quiz-prompt').focus();return;}$('quiz-workspace').hidden=true;const box=$('quiz-result');box.hidden=false;box.replaceChildren();const correct=results.filter(r=>r.correct).length;box.append(el('p','eyebrow','SESSION COMPLETE'),el('h2','','今日の一歩、おつかれさまでした。'),el('div','result-score',`${correct} / ${session.length}`),el('p','muted',`このセッションの正答率 ${Math.round(correct/session.length*100)}% — AWS 公式試験のスコアではありません。`));const list=el('ul','session-summary');results.forEach(r=>{const item=el('li','',`${r.correct?'✓':'×'} ${questionMap.get(r.id).prompt}`);list.append(item);});box.append(list);const back=el('button','primary','設定に戻って学習を続ける');back.addEventListener('click',settings);box.append(back);if(correct<session.length){const review=el('button','','誤答を復習する');review.addEventListener('click',()=>{settings();$('quiz-mode').value='wrong';updatePool();});box.append(review);}box.setAttribute('tabindex','-1');box.focus();});
-stats();updatePool();
+import { questions } from "./data/questions.js";
+const $ = (id) => document.getElementById(id);
+const key = "aaa.practice.attempts.v1";
+$("question-count").textContent = questions.length;
+document
+  .querySelectorAll("[data-question-count]")
+  .forEach((n) => (n.textContent = questions.length));
+const questionMap = new Map(questions.map((q) => [q.id, q]));
+const el = (tag, cls, text) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+let attempts = [];
+try {
+  const data = JSON.parse(localStorage.getItem(key) || "[]");
+  if (Array.isArray(data))
+    attempts = data.filter(
+      (a) =>
+        a &&
+        questionMap.has(a.id) &&
+        typeof a.correct === "boolean" &&
+        Number.isFinite(Date.parse(a.at)),
+    );
+} catch {
+  $("storage-warning").hidden = false;
+}
+let session = [],
+  position = 0,
+  selections = new Set(),
+  submitted = false,
+  results = [];
+function latest() {
+  const map = new Map();
+  attempts.forEach((a) => map.set(a.id, a));
+  return map;
+}
+function stats() {
+  const last = latest();
+  const wrong = [...last.values()].filter((a) => !a.correct).length;
+  const correct = attempts.filter((a) => a.correct).length;
+  $("attempt-count").textContent = attempts.length;
+  $("accuracy-rate").textContent = attempts.length
+    ? `${Math.round((correct / attempts.length) * 100)}%`
+    : "—";
+  $("mistake-count").textContent = wrong;
+  const history = $("practice-history");
+  history.replaceChildren(
+    el("span", "eyebrow", "PRACTICE INSIGHTS"),
+    el("h2", "", "演習の学習状況"),
+    el(
+      "p",
+      "muted",
+      `${last.size} / ${questions.length} 問に回答 · 回答 ${attempts.length} 回 · 正答率 ${attempts.length ? Math.round((correct / attempts.length) * 100) + "%" : "未回答"} · 復習対象 ${wrong} 問`,
+    ),
+  );
+  const list = el("div", "domain-results");
+  [...new Set(questions.map((q) => q.domain))].forEach((domain) => {
+    const subset = attempts.filter(
+      (a) => questionMap.get(a.id).domain === domain,
+    );
+    const row = el("div", "domain-row");
+    row.append(
+      el("span", "", domain),
+      el(
+        "span",
+        "",
+        subset.length
+          ? `${Math.round((subset.filter((a) => a.correct).length / subset.length) * 100)}% · ${subset.length}回答`
+          : "未回答",
+      ),
+    );
+    list.append(row);
+  });
+  history.append(list);
+  const a = el("a", "", "演習・復習を開く →");
+  a.href = "#practice";
+  history.append(a);
+}
+function pool() {
+  const last = latest();
+  return questions.filter(
+    (q) =>
+      ($("quiz-cert").value === "all" ||
+        (q.certifications || [q.certification]).includes(
+          $("quiz-cert").value,
+        )) &&
+      ($("quiz-domain").value === "all" ||
+        q.domain === $("quiz-domain").value) &&
+      ($("quiz-difficulty").value === "all" ||
+        q.difficulty === Number($("quiz-difficulty").value)) &&
+      ($("quiz-mode").value === "all" ||
+        ($("quiz-mode").value === "wrong"
+          ? last.has(q.id) && !last.get(q.id).correct
+          : !last.has(q.id))),
+  );
+}
+function updatePool() {
+  const count = pool().length;
+  $("pool-count").textContent =
+    `${count} 問が対象${count ? "" : " — 条件を変更してください"}`;
+  $("quiz-start").disabled = !count;
+}
+[...new Set(questions.map((q) => q.domain))].forEach((domain) => {
+  const o = el("option", "", domain);
+  o.value = domain;
+  $("quiz-domain").append(o);
+});
+[
+  "quiz-cert",
+  "quiz-domain",
+  "quiz-difficulty",
+  "quiz-mode",
+  "quiz-limit",
+].forEach((id) => $(id).addEventListener("change", updatePool));
+function render() {
+  const q = session[position];
+  selections = new Set();
+  submitted = false;
+  $("quiz-position").textContent =
+    `QUESTION ${String(position + 1).padStart(2, "0")} / ${session.length}`;
+  $("quiz-progress").max = session.length;
+  $("quiz-progress").value = position;
+  $("quiz-domain-label").textContent =
+    `${(q.certifications || [q.certification]).join(" / ")} · ${q.domain} · 難易度${q.difficulty}`;
+  $("quiz-type").textContent =
+    q.selectCount === 1 ? "単一選択" : `複数選択・${q.selectCount}つ`;
+  $("quiz-prompt").textContent = q.prompt;
+  $("quiz-choices").replaceChildren();
+  const legend = el(
+    "legend",
+    "",
+    q.selectCount === 1
+      ? "1つ選んでください"
+      : `${q.selectCount}つ選んでください`,
+  );
+  $("quiz-choices").append(legend);
+  q.choices.forEach((choice, i) => {
+    const label = el("label", "choice");
+    const input = el("input");
+    input.type = q.selectCount === 1 ? "radio" : "checkbox";
+    input.name = "answer";
+    input.value = i;
+    input.addEventListener("change", () => {
+      if (submitted) return;
+      if (q.selectCount === 1) selections.clear();
+      if (input.checked) selections.add(i);
+      else selections.delete(i);
+      $("quiz-submit").disabled = selections.size !== q.selectCount;
+    });
+    label.append(
+      input,
+      el("span", "choice-letter", String.fromCharCode(65 + i)),
+      el("span", "", choice.text),
+    );
+    $("quiz-choices").append(label);
+  });
+  $("quiz-feedback").hidden = true;
+  $("quiz-feedback").replaceChildren();
+  $("quiz-next").hidden = true;
+  $("quiz-submit").hidden = false;
+  $("quiz-submit").disabled = true;
+  $("quiz-next").textContent =
+    position === session.length - 1 ? "結果を見る →" : "次の問題へ →";
+}
+$("quiz-start").addEventListener("click", () => {
+  const candidates = pool();
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  session = candidates.slice(0, Number($("quiz-limit").value));
+  if (!session.length) return;
+  position = 0;
+  results = [];
+  $("practice-setup").hidden = true;
+  $("quiz-result").hidden = true;
+  $("quiz-workspace").hidden = false;
+  render();
+  $("quiz-prompt").setAttribute("tabindex", "-1");
+  $("quiz-prompt").focus();
+});
+$("answer-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (submitted || !session.length) return;
+  const q = session[position];
+  if (selections.size !== q.selectCount) return;
+  submitted = true;
+  const correct = q.choices.every((c, i) => c.correct === selections.has(i));
+  const attempt = {
+    id: q.id,
+    correct,
+    chosen: [...selections],
+    at: new Date().toISOString(),
+  };
+  attempts.push(attempt);
+  results.push(attempt);
+  try {
+    localStorage.setItem(key, JSON.stringify(attempts));
+    window.dispatchEvent(new Event("learning-update"));
+  } catch {
+    $("storage-warning").hidden = false;
+  }
+  $("quiz-choices")
+    .querySelectorAll("input")
+    .forEach((input) => (input.disabled = true));
+  $("quiz-submit").hidden = true;
+  const box = $("quiz-feedback");
+  box.hidden = false;
+  box.append(
+    el(
+      "h3",
+      correct ? "feedback-correct" : "feedback-wrong",
+      correct ? "✓ 正解です" : "もう一度、考え方を整理しましょう",
+    ),
+  );
+  q.choices.forEach((choice, i) => {
+    const row = el(
+      "div",
+      choice.correct ? "explanation is-correct" : "explanation",
+    );
+    row.append(
+      el(
+        "strong",
+        "",
+        `${String.fromCharCode(65 + i)} · ${choice.correct ? "正解" : "不正解"}${selections.has(i) ? " / あなたの回答" : ""}`,
+      ),
+      el("p", "", choice.explanation),
+    );
+    box.append(row);
+  });
+  const source = el("a", "source-link", "公式ドキュメントで確認 ↗");
+  source.href = q.source;
+  source.target = "_blank";
+  source.rel = "noopener noreferrer";
+  box.append(source);
+  $("quiz-next").hidden = false;
+  $("quiz-progress").value = position + 1;
+  stats();
+  updatePool();
+});
+function settings() {
+  $("quiz-workspace").hidden = true;
+  $("quiz-result").hidden = true;
+  $("practice-setup").hidden = false;
+  session = [];
+  results = [];
+  updatePool();
+}
+$("quiz-exit").addEventListener("click", settings);
+$("quiz-next").addEventListener("click", () => {
+  if (!submitted) return;
+  if (position < session.length - 1) {
+    position++;
+    render();
+    $("quiz-prompt").focus();
+    return;
+  }
+  $("quiz-workspace").hidden = true;
+  const box = $("quiz-result");
+  box.hidden = false;
+  box.replaceChildren();
+  const correct = results.filter((r) => r.correct).length;
+  box.append(
+    el("p", "eyebrow", "SESSION COMPLETE"),
+    el("h2", "", "今日の一歩、おつかれさまでした。"),
+    el("div", "result-score", `${correct} / ${session.length}`),
+    el(
+      "p",
+      "muted",
+      `このセッションの正答率 ${Math.round((correct / session.length) * 100)}% — AWS 公式試験のスコアではありません。`,
+    ),
+  );
+  const list = el("ul", "session-summary");
+  results.forEach((r) => {
+    const item = el(
+      "li",
+      "",
+      `${r.correct ? "✓" : "×"} ${questionMap.get(r.id).prompt}`,
+    );
+    list.append(item);
+  });
+  box.append(list);
+  const back = el("button", "primary", "設定に戻って学習を続ける");
+  back.addEventListener("click", settings);
+  box.append(back);
+  if (correct < session.length) {
+    const review = el("button", "", "誤答を復習する");
+    review.addEventListener("click", () => {
+      settings();
+      $("quiz-mode").value = "wrong";
+      updatePool();
+    });
+    box.append(review);
+  }
+  box.setAttribute("tabindex", "-1");
+  box.focus();
+});
+stats();
+updatePool();

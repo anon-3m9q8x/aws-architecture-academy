@@ -1,4 +1,5 @@
-export const questions = [
+import { labQuestions } from './lab-questions.js';
+const baseQuestions = [
   {
     "id": "aws-001",
     "prompt": "静的画像をオブジェクトとして保存し、キーを指定して取得したい。最も適したサービスは？",
@@ -1320,3 +1321,5 @@ export const questions = [
     "reviewStatus": "独自教材・公式出典付き（専門家レビュー未実施）"
   }
 ];
+
+export const questions = [...baseQuestions, ...labQuestions];

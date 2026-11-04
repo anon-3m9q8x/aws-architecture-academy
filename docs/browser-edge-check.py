@@ -1,10 +1,11 @@
+import subprocess
 from pathlib import Path
 import json
 from playwright.sync_api import sync_playwright
-root=Path(__file__).resolve().parents[1];qs=json.loads((root/'data/questions.js').read_text().split(' = ',1)[1].rstrip(';\n'))
+root=Path(__file__).resolve().parents[1];qs=json.loads(subprocess.check_output(['node','--input-type=module','-e',"import {questions} from './data/questions.js';console.log(JSON.stringify(questions))"],cwd=root,text=True))
 with sync_playwright() as p:
  browser=p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox']);page=browser.new_page()
- page.goto('http://127.0.0.1:3300/#practice');page.locator('#quiz-domain').select_option('セキュリティ');page.locator('#quiz-limit').select_option('40');page.locator('#quiz-start').click()
+ page.goto('http://127.0.0.1:3300/#practice');page.locator('#quiz-domain').select_option('セキュリティ');page.locator('#quiz-limit').select_option('1000');page.locator('#quiz-start').click()
  checked=False
  while True:
   q=next(q for q in qs if q['prompt']==page.locator('#quiz-prompt').inner_text())

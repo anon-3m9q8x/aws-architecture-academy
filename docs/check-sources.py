@@ -1,9 +1,10 @@
+import subprocess
 from pathlib import Path
 import json,urllib.request,concurrent.futures,datetime
 root=Path(__file__).resolve().parents[1]
-qs=json.loads((root/'data/questions.js').read_text().split(' = ',1)[1].rstrip(';\n'))
+qs=json.loads(subprocess.check_output(['node','--input-type=module','-e',"import {questions} from './data/questions.js';console.log(JSON.stringify(questions))"],cwd=root,text=True))
 services=json.loads((root/'data/catalog.js').read_text().split(' = ',1)[1].rstrip(';\n'))
-urls=sorted({q['source'] for q in qs}|{s[4] for s in services})
+urls=sorted({q['source'] for q in qs}|{s['url'] for q in qs for s in q.get('sources',[])}|{s[4] for s in services})
 def check(url):
  try:
   with urllib.request.urlopen(url,timeout=20) as r:

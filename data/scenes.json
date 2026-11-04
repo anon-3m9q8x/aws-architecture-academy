@@ -459,6 +459,1259 @@
         "supportStepBack": true,
         "reducedMotion": "instant-step"
       }
+    },
+    {
+      "id": "lab-s3-cdn",
+      "title": "CloudFrontとS3で静的コンテンツを配信",
+      "objective": "S3を公開せず、CloudFront経由で世界中に低遅延で配信する流れ(キャッシュミスとキャッシュヒットの違い)を見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "user",
+            "label": "ユーザー",
+            "serviceKey": "Internet",
+            "x": 5.0,
+            "y": 50.0
+          },
+          {
+            "id": "cf",
+            "label": "CloudFront",
+            "serviceKey": "CloudFront",
+            "x": 41.25,
+            "y": 50.0
+          },
+          {
+            "id": "s3",
+            "label": "S3バケット",
+            "serviceKey": "S3",
+            "x": 81.25,
+            "y": 50.0
+          }
+        ],
+        "edges": [
+          {
+            "from": "user",
+            "to": "cf",
+            "kind": "request",
+            "label": "HTTPS"
+          },
+          {
+            "from": "cf",
+            "to": "s3",
+            "kind": "request",
+            "label": "OAC"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "user",
+          "target": "cf",
+          "via": [],
+          "label": "HTTPS GET /logo.png",
+          "narration": "ユーザーのリクエストは、最寄りのエッジロケーションのCloudFrontに届きます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "cf",
+          "target": null,
+          "via": [],
+          "label": "キャッシュなし(ミス)",
+          "narration": "初回はエッジにオブジェクトがないため(キャッシュミス)、オリジンのS3へ取りに行きます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "cf",
+          "target": "s3",
+          "via": [],
+          "label": "GET(OACで署名)",
+          "narration": "CloudFrontはOAC(オリジンアクセスコントロール)で署名してS3へリクエストします。バケットポリシーでCloudFrontからのアクセスだけを許可するので、バケットは公開しません。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "s3",
+          "target": "cf",
+          "via": [],
+          "label": "オブジェクトを返す",
+          "narration": "S3がオブジェクトをCloudFrontへ返します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "cf",
+          "target": "user",
+          "via": [],
+          "label": "レスポンス+キャッシュ保存",
+          "narration": "CloudFrontはオブジェクトをエッジにキャッシュしてからユーザーへ返します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "user",
+          "target": "cf",
+          "via": [],
+          "label": "2回目の GET",
+          "narration": "別のユーザーが同じファイルを要求します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "cf",
+          "target": "user",
+          "via": [],
+          "label": "キャッシュヒットで即応答",
+          "narration": "今度はエッジのキャッシュから返します。S3へのリクエストが減り、さらに低遅延になります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "S3は耐久性の高い保存先ですが、世界中への低遅延配信はCloudFrontのエッジキャッシュが担います。S3を公開しないことで、直接アクセスや意図しない公開を防げます。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "「グローバル」「低遅延」「S3を非公開のまま」→ CloudFront + OAC / 古いOAI(オリジンアクセスアイデンティティ)より、現在はOACが推奨",
+      "provenance": "AWS Architecture Lab.html"
+    },
+    {
+      "id": "lab-s3-event",
+      "title": "S3へのアップロードでLambdaを起動する",
+      "objective": "ファイルのアップロードをきっかけに、Lambdaが自動で処理する「イベント駆動」の流れを見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "up",
+            "label": "アップロード元",
+            "serviceKey": "Internet",
+            "x": 3.75,
+            "y": 50.0
+          },
+          {
+            "id": "s3",
+            "label": "S3(入力)",
+            "serviceKey": "S3",
+            "x": 33.75,
+            "y": 50.0
+          },
+          {
+            "id": "lam",
+            "label": "サムネ生成",
+            "serviceKey": "Lambda",
+            "x": 63.75,
+            "y": 50.0
+          },
+          {
+            "id": "ddb",
+            "label": "メタデータ",
+            "serviceKey": "DynamoDB",
+            "x": 92.5,
+            "y": 22.5
+          },
+          {
+            "id": "out",
+            "label": "S3(出力)",
+            "serviceKey": "S3",
+            "x": 92.5,
+            "y": 80.0
+          }
+        ],
+        "edges": [
+          {
+            "from": "up",
+            "to": "s3",
+            "kind": "request",
+            "label": "PutObject"
+          },
+          {
+            "from": "s3",
+            "to": "lam",
+            "kind": "request",
+            "label": "イベント"
+          },
+          {
+            "from": "lam",
+            "to": "s3",
+            "kind": "request",
+            "label": "GetObject"
+          },
+          {
+            "from": "lam",
+            "to": "ddb",
+            "kind": "request",
+            "label": "PutItem"
+          },
+          {
+            "from": "lam",
+            "to": "out",
+            "kind": "request",
+            "label": "PutObject"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "up",
+          "target": "s3",
+          "via": [],
+          "label": "PutObject(画像)",
+          "narration": "画像ファイルがS3バケットへアップロードされます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "s3",
+          "target": "lam",
+          "via": [],
+          "label": "ObjectCreated イベント",
+          "narration": "S3のイベント通知が、Lambda関数を呼び出します。ポーリングは不要で、アップロードのたびに自動で起動します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "lam",
+          "target": "s3",
+          "via": [],
+          "label": "GetObject(画像を読む)",
+          "narration": "Lambdaは、実行ロールに付けたIAMの権限でS3から元画像を読み込みます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "lam",
+          "target": "ddb",
+          "via": [],
+          "label": "PutItem(情報を保存)",
+          "narration": "画像のサイズや保存先などのメタデータをDynamoDBに書き込みます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "lam",
+          "target": "out",
+          "via": [],
+          "label": "PutObject(サムネイル)",
+          "narration": "サムネイルは別のバケットに保存します。入力と同じバケットだと、出力のたびにイベントが再発火して通知条件によっては再帰呼び出しを起こすため、バケットやプレフィックスを分離します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "アップロードのたびにサーバーを常時動かす必要がなく、処理があるときだけLambdaが動くため、低コストで運用の手間も小さくなります。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "「アップロード時に自動で処理」→ S3イベント通知 + Lambda / Lambdaがバケットを読むにはIAMの実行ロールが必要",
+      "provenance": "AWS Architecture Lab.html"
+    },
+    {
+      "id": "lab-ec2-web",
+      "title": "ALBの背後のEC2がRDSを使うWeb構成",
+      "objective": "インターネットからのリクエストが、ALB、EC2、RDSをどう通り、1台が止まってもどう継続するかを見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "user",
+            "label": "ユーザー",
+            "serviceKey": "Internet",
+            "x": 2.5,
+            "y": 50.0
+          },
+          {
+            "id": "alb",
+            "label": "ALB",
+            "serviceKey": "ALB",
+            "x": 28.75,
+            "y": 50.0
+          },
+          {
+            "id": "ea",
+            "label": "Web(AZ-a)",
+            "serviceKey": "EC2",
+            "x": 61.25,
+            "y": 25.0
+          },
+          {
+            "id": "eb",
+            "label": "Web(AZ-c)",
+            "serviceKey": "EC2",
+            "x": 61.25,
+            "y": 77.5
+          },
+          {
+            "id": "db",
+            "label": "RDS",
+            "serviceKey": "RDS",
+            "x": 92.5,
+            "y": 50.0
+          }
+        ],
+        "edges": [
+          {
+            "from": "user",
+            "to": "alb",
+            "kind": "request",
+            "label": "HTTPS"
+          },
+          {
+            "from": "alb",
+            "to": "ea",
+            "kind": "request",
+            "label": "HTTP"
+          },
+          {
+            "from": "alb",
+            "to": "eb",
+            "kind": "request",
+            "label": "HTTP"
+          },
+          {
+            "from": "ea",
+            "to": "db",
+            "kind": "request",
+            "label": "3306"
+          },
+          {
+            "from": "eb",
+            "to": "db",
+            "kind": "request",
+            "label": "3306"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "user",
+          "target": "alb",
+          "via": [],
+          "label": "HTTPS 443",
+          "narration": "ユーザーはALBのDNS名に、HTTPSで接続します。ALBはパブリックサブネットに置き、インターネットから受けます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "alb",
+          "target": "ea",
+          "via": [],
+          "label": "HTTP 80(ヘルスチェック合格)",
+          "narration": "ALBは、ヘルスチェックに合格したターゲットへ振り分けます。EC2のセキュリティグループは「ALBのセキュリティグループからの受信」だけを許可します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "ea",
+          "target": "db",
+          "via": [],
+          "label": "MySQL 3306",
+          "narration": "アプリがRDSへSQLを送ります。RDSのセキュリティグループは「EC2のセキュリティグループからの3306」だけを許可します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "db",
+          "target": "ea",
+          "via": [],
+          "label": "クエリ結果",
+          "narration": "RDSが結果を返し、アプリが画面を組み立てます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "ea",
+          "target": "user",
+          "via": [
+            "alb"
+          ],
+          "label": "レスポンス",
+          "narration": "結果は、ALB経由でユーザーへ返ります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "ea",
+          "target": null,
+          "via": [],
+          "label": "AZ-aのEC2が障害",
+          "narration": "1台のEC2が応答しなくなります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "alb",
+          "target": "eb",
+          "via": [],
+          "label": "障害のEC2を外して継続",
+          "narration": "ALBはヘルスチェックの失敗を検知して、正常なAZ-cのEC2だけに振り分けます。影響を抑えますが、検知・切替中の失敗や遅延が発生する可能性があります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "ALBがHTTPの入口を一本化し、複数AZのEC2へ振り分けることで、1台や1つのAZが止まってもサービスが続きます。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "「高可用性」→ 複数AZ + ALB + Auto Scaling / SGはステートフル(戻りの通信は自動で許可)",
+      "provenance": "AWS Architecture Lab.html"
+    },
+    {
+      "id": "lab-ec2-s3",
+      "title": "プライベートなEC2からS3へ最小コストで接続",
+      "objective": "インターネットに出ない構成で、EC2がS3を使うとき、VPCエンドポイントとNAT Gatewayの違いを見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "ec2",
+            "label": "アプリ",
+            "serviceKey": "EC2",
+            "x": 7.5,
+            "y": 50.0
+          },
+          {
+            "id": "vpce",
+            "label": "S3エンドポイント",
+            "serviceKey": "VPCE",
+            "x": 45.0,
+            "y": 25.0
+          },
+          {
+            "id": "nat",
+            "label": "NAT GW",
+            "serviceKey": "NAT",
+            "x": 45.0,
+            "y": 80.0
+          },
+          {
+            "id": "s3",
+            "label": "S3",
+            "serviceKey": "S3",
+            "x": 87.5,
+            "y": 50.0
+          }
+        ],
+        "edges": [
+          {
+            "from": "ec2",
+            "to": "vpce",
+            "kind": "request",
+            "label": "ルート"
+          },
+          {
+            "from": "vpce",
+            "to": "s3",
+            "kind": "request",
+            "label": "AWS網内"
+          },
+          {
+            "from": "ec2",
+            "to": "nat",
+            "kind": "request",
+            "label": ""
+          },
+          {
+            "from": "nat",
+            "to": "s3",
+            "kind": "request",
+            "label": ""
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "process",
+          "source": "ec2",
+          "target": null,
+          "via": [],
+          "label": "IAMロールで認証",
+          "narration": "EC2は、インスタンスプロファイルのIAMロールから一時的な認証情報を得ます。アクセスキーをコードに埋め込みません。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "ec2",
+          "target": "vpce",
+          "via": [],
+          "label": "S3宛 → ルートテーブル",
+          "narration": "サブネットのルートテーブルには、S3宛(プレフィックスリスト)をエンドポイントへ向けるルートがあります。関連付けを忘れると届きません。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "vpce",
+          "target": "s3",
+          "via": [],
+          "label": "GetObject(AWSネットワーク内)",
+          "narration": "通信はインターネットを経由せず、AWSのネットワーク内でS3へ届きます。Gateway型は追加料金がありません。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "s3",
+          "target": "ec2",
+          "via": [
+            "vpce"
+          ],
+          "label": "オブジェクト",
+          "narration": "応答も同じ経路で戻ります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "ec2",
+          "target": "nat",
+          "via": [],
+          "label": "(参考)NAT経由",
+          "narration": "NAT Gatewayを使っても届きますが、時間料金とデータ処理料金がかかります。S3とDynamoDBだけが目的なら、Gateway型エンドポイントの方が低コストです。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "S3とDynamoDBだけに接続できればよいなら、NATを使わずに無料のGateway型エンドポイントを使うのが最も低コストで安全です。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "S3とDynamoDBはGateway型(無料)、対応するAWSサービスではInterface型(PrivateLink)を検討",
+      "provenance": "AWS Architecture Lab.html"
+    },
+    {
+      "id": "lab-api-lambda",
+      "title": "API Gateway + Lambda + DynamoDB のサーバーレスAPI",
+      "objective": "認証、使用量制御、Lambda、DynamoDBを組み合わせた、サーバーレスAPIの流れを見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "user",
+            "label": "モバイルアプリ",
+            "serviceKey": "Internet",
+            "x": 2.5,
+            "y": 50.0
+          },
+          {
+            "id": "apigw",
+            "label": "API Gateway",
+            "serviceKey": "APIGW",
+            "x": 32.5,
+            "y": 50.0
+          },
+          {
+            "id": "cog",
+            "label": "Cognito",
+            "serviceKey": "Cognito",
+            "x": 32.5,
+            "y": 10.0
+          },
+          {
+            "id": "lam",
+            "label": "注文処理",
+            "serviceKey": "Lambda",
+            "x": 65.0,
+            "y": 50.0
+          },
+          {
+            "id": "ddb",
+            "label": "注文テーブル",
+            "serviceKey": "DynamoDB",
+            "x": 93.125,
+            "y": 50.0
+          }
+        ],
+        "edges": [
+          {
+            "from": "user",
+            "to": "apigw",
+            "kind": "request",
+            "label": "HTTPS"
+          },
+          {
+            "from": "apigw",
+            "to": "cog",
+            "kind": "request",
+            "label": "認可"
+          },
+          {
+            "from": "apigw",
+            "to": "lam",
+            "kind": "request",
+            "label": "統合"
+          },
+          {
+            "from": "lam",
+            "to": "ddb",
+            "kind": "request",
+            "label": "PutItem"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "user",
+          "target": "apigw",
+          "via": [],
+          "label": "POST /orders + トークン",
+          "narration": "アプリは、サインインで得たトークンを付けてAPIを呼びます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "apigw",
+          "target": "cog",
+          "via": [],
+          "label": "トークンを検証",
+          "narration": "API Gatewayが、Cognitoオーソライザーでトークンを検証します(IAM認証やLambdaオーソライザーも選べます)。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "cog",
+          "target": "apigw",
+          "via": [],
+          "label": "許可",
+          "narration": "検証に成功したので、処理を続けます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "apigw",
+          "target": null,
+          "via": [],
+          "label": "スロットリング・使用量プラン",
+          "narration": "API Gatewayは、リクエスト数の上限や使用量プラン、APIキーを確認します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "apigw",
+          "target": "lam",
+          "via": [],
+          "label": "Lambda統合で呼び出し",
+          "narration": "リクエストが、Lambda関数に渡されます。関数は同期的に実行されます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "lam",
+          "target": "ddb",
+          "via": [],
+          "label": "PutItem",
+          "narration": "Lambdaが注文をDynamoDBに保存します。必要な権限は、実行ロールで与えます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "ddb",
+          "target": "lam",
+          "via": [],
+          "label": "保存完了",
+          "narration": "DynamoDBが書き込み完了を返します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "lam",
+          "target": "user",
+          "via": [
+            "apigw"
+          ],
+          "label": "201 Created",
+          "narration": "結果が、API Gatewayを通ってアプリに返ります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "user",
+          "target": "apigw",
+          "via": [],
+          "label": "リクエスト過多",
+          "narration": "上限を超えたリクエストは、API Gatewayで止まります(429 Too Many Requests)。バックエンドは守られます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "サーバーを持たずに、認証、制御、処理、保存までを組み合わせられます。リクエスト数に応じて自動でスケールし、使った分だけの料金です。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "「サーバーレスAPI」→ API Gateway + Lambda + DynamoDB / Lambdaの権限は実行ロール、API Gatewayの認可はCognito/IAM/Lambdaオーソライザー",
+      "provenance": "AWS Architecture Lab.html"
+    },
+    {
+      "id": "lab-lambda-sqs",
+      "title": "SQSのメッセージをLambdaで処理(失敗時はDLQ)",
+      "objective": "キューのメッセージをLambdaが取得して処理し、失敗したものをDLQ(デッドレターキュー)へ退避する流れを見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "prod",
+            "label": "アプリ",
+            "serviceKey": "EC2",
+            "x": 2.5,
+            "y": 50.0
+          },
+          {
+            "id": "q",
+            "label": "メインキュー",
+            "serviceKey": "SQS",
+            "x": 32.5,
+            "y": 50.0
+          },
+          {
+            "id": "lam",
+            "label": "注文処理",
+            "serviceKey": "Lambda",
+            "x": 63.75,
+            "y": 50.0
+          },
+          {
+            "id": "ddb",
+            "label": "注文テーブル",
+            "serviceKey": "DynamoDB",
+            "x": 93.125,
+            "y": 20.0
+          },
+          {
+            "id": "dlq",
+            "label": "DLQ",
+            "serviceKey": "SQS",
+            "x": 93.125,
+            "y": 85.0
+          }
+        ],
+        "edges": [
+          {
+            "from": "prod",
+            "to": "q",
+            "kind": "request",
+            "label": "Send"
+          },
+          {
+            "from": "q",
+            "to": "lam",
+            "kind": "request",
+            "label": "ポーリング"
+          },
+          {
+            "from": "lam",
+            "to": "ddb",
+            "kind": "request",
+            "label": "PutItem"
+          },
+          {
+            "from": "q",
+            "to": "dlq",
+            "kind": "request",
+            "label": "超過で退避"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "prod",
+          "target": "q",
+          "via": [],
+          "label": "SendMessage",
+          "narration": "アプリが注文メッセージをキューに入れます。送信側は、処理の完了を待たずに先へ進めます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "q",
+          "target": "lam",
+          "via": [],
+          "label": "メッセージをバッチ取得",
+          "narration": "Lambdaのイベントソースマッピングがキューをポーリングして、メッセージをまとめて関数に渡します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "lam",
+          "target": "ddb",
+          "via": [],
+          "label": "PutItem",
+          "narration": "Lambdaが注文を保存します。成功すると、メッセージはキューから自動で削除されます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "lam",
+          "target": null,
+          "via": [],
+          "label": "処理に失敗(例外)",
+          "narration": "失敗すると、メッセージは削除されず、可視性タイムアウトが過ぎると再びキューで見えるようになります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "q",
+          "target": "lam",
+          "via": [],
+          "label": "再配信(リトライ)",
+          "narration": "同じメッセージが再度Lambdaに渡されます。重複して処理されても壊れないように(冪等に)作ります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "q",
+          "target": "dlq",
+          "via": [],
+          "label": "上限回数を超えるとDLQへ",
+          "narration": "受信回数の上限(maxReceiveCount)を超えたメッセージは、DLQへ退避されます。原因を調べて、あとで再処理できます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "キューをはさむことで、急な増加を平準化し、失敗しても再試行とDLQで取りこぼしを防げます。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "「疎結合」「バッファ」「取りこぼしなし」→ SQS / 失敗の退避 → DLQ",
+      "provenance": "AWS Architecture Lab.html"
+    },
+    {
+      "id": "lab-rds-multiaz",
+      "title": "RDS Multi-AZ の自動フェイルオーバー",
+      "objective": "同期レプリケーションされたスタンバイが、障害時に自動でプライマリに昇格する流れを見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "app",
+            "label": "アプリ",
+            "serviceKey": "EC2",
+            "x": 3.75,
+            "y": 50.0
+          },
+          {
+            "id": "p",
+            "label": "プライマリ",
+            "serviceKey": "RDS",
+            "x": 55.0,
+            "y": 25.0
+          },
+          {
+            "id": "s",
+            "label": "スタンバイ",
+            "serviceKey": "RDS",
+            "x": 55.0,
+            "y": 77.5
+          }
+        ],
+        "edges": [
+          {
+            "from": "app",
+            "to": "p",
+            "kind": "request",
+            "label": "書き込み"
+          },
+          {
+            "from": "p",
+            "to": "s",
+            "kind": "request",
+            "label": "同期"
+          },
+          {
+            "from": "app",
+            "to": "s",
+            "kind": "request",
+            "label": "障害後"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "app",
+          "target": "p",
+          "via": [],
+          "label": "書き込み(エンドポイントDNS)",
+          "narration": "アプリは、RDSのエンドポイント(DNS名)に接続します。通常は、プライマリが処理します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "p",
+          "target": "s",
+          "via": [],
+          "label": "同期レプリケーション",
+          "narration": "書き込みは、別AZのスタンバイへ同期的にコピーされてから完了します。データを失わずに切り替えられます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "p",
+          "target": null,
+          "via": [],
+          "label": "プライマリに障害",
+          "narration": "AZ-aで障害が起こります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "s",
+          "target": null,
+          "via": [],
+          "label": "自動フェイルオーバー",
+          "narration": "RDSが障害を検知し、スタンバイを新しいプライマリに昇格します。エンドポイントのDNSが新しいプライマリを向きます(通常は1〜2分)。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "app",
+          "target": "s",
+          "via": [],
+          "label": "同じエンドポイントで再接続",
+          "narration": "アプリは接続先を変えず、同じDNS名で再接続するだけです。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "AZの障害でも、手作業なしでDBが復旧します。データが同期されているので、直前までの書き込みを失いません。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "「AZ障害に耐える」→ Multi-AZ / 「読み取りが多い」→ リードレプリカ(別物)",
+      "provenance": "AWS Architecture Lab.html"
+    },
+    {
+      "id": "lab-rds-replica",
+      "title": "リードレプリカで読み取りを分散",
+      "objective": "非同期レプリケーションで読み取り専用のコピーを作り、読み取りの負荷を逃がす流れを見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "app",
+            "label": "アプリ",
+            "serviceKey": "EC2",
+            "x": 3.75,
+            "y": 50.0
+          },
+          {
+            "id": "p",
+            "label": "プライマリ",
+            "serviceKey": "RDS",
+            "x": 50.0,
+            "y": 22.5
+          },
+          {
+            "id": "r",
+            "label": "リードレプリカ",
+            "serviceKey": "RDS",
+            "x": 50.0,
+            "y": 80.0
+          }
+        ],
+        "edges": [
+          {
+            "from": "app",
+            "to": "p",
+            "kind": "request",
+            "label": "書き込み"
+          },
+          {
+            "from": "p",
+            "to": "r",
+            "kind": "request",
+            "label": "非同期"
+          },
+          {
+            "from": "app",
+            "to": "r",
+            "kind": "request",
+            "label": "読み取り"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "app",
+          "target": "p",
+          "via": [],
+          "label": "INSERT / UPDATE",
+          "narration": "書き込みは、プライマリだけが受けます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "p",
+          "target": "r",
+          "via": [],
+          "label": "非同期レプリケーション",
+          "narration": "変更がレプリカへ非同期にコピーされます。プライマリの書き込みを待たせません。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "app",
+          "target": "r",
+          "via": [],
+          "label": "SELECT(読み取り専用)",
+          "narration": "参照系のクエリは、レプリカのエンドポイントに向けます。プライマリの負荷が下がります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "r",
+          "target": null,
+          "via": [],
+          "label": "レプリカラグ",
+          "narration": "非同期のため、わずかな遅れが出ることがあります。直前の書き込みをすぐ読みたい処理は、プライマリを使います。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "読み取りの多いアプリで、プライマリの負荷を下げて、全体の処理能力を上げられます。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "「読み取り性能」→ リードレプリカ、「可用性」→ Multi-AZ",
+      "provenance": "AWS Architecture Lab.html"
+    },
+    {
+      "id": "lab-ddb-dax",
+      "title": "DAXで DynamoDB の読み取りを高速化",
+      "objective": "DynamoDB Accelerator(DAX)が読み取りをキャッシュし、同じキーへの読み取りをマイクロ秒で返す流れを見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "app",
+            "label": "アプリ",
+            "serviceKey": "EC2",
+            "x": 5.0,
+            "y": 50.0
+          },
+          {
+            "id": "dax",
+            "label": "DAX",
+            "serviceKey": "DAX",
+            "x": 43.75,
+            "y": 50.0
+          },
+          {
+            "id": "ddb",
+            "label": "テーブル",
+            "serviceKey": "DynamoDB",
+            "x": 86.25,
+            "y": 50.0
+          }
+        ],
+        "edges": [
+          {
+            "from": "app",
+            "to": "dax",
+            "kind": "request",
+            "label": "GetItem"
+          },
+          {
+            "from": "dax",
+            "to": "ddb",
+            "kind": "request",
+            "label": "ミス時"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "app",
+          "target": "dax",
+          "via": [],
+          "label": "GetItem(キー指定)",
+          "narration": "アプリは、DynamoDBの代わりにDAXクラスターへ読み取りを送ります(API互換)。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "dax",
+          "target": null,
+          "via": [],
+          "label": "キャッシュなし(ミス)",
+          "narration": "初回はDAXにデータがないため、DynamoDBへ取りに行きます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "dax",
+          "target": "ddb",
+          "via": [],
+          "label": "GetItem",
+          "narration": "DAXがDynamoDBから読み取ります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "ddb",
+          "target": "dax",
+          "via": [],
+          "label": "アイテム",
+          "narration": "結果をDAXがキャッシュします。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "dax",
+          "target": "app",
+          "via": [],
+          "label": "レスポンス",
+          "narration": "アプリに結果を返します。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "app",
+          "target": "dax",
+          "via": [],
+          "label": "同じキーを再度 GetItem",
+          "narration": "人気の商品など、同じキーが繰り返し読まれます。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "dax",
+          "target": "app",
+          "via": [],
+          "label": "キャッシュヒットで即応答",
+          "narration": "DAXが自分のメモリから返します(マイクロ秒)。DynamoDBの読み取り容量も消費しません。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "読み取りが集中するデータで、応答を速くし、読み取りの料金・スロットリングも減らせます。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "「DynamoDBの読み取りを高速化、アプリ変更を最小に」→ DAX",
+      "provenance": "AWS Architecture Lab.html"
+    },
+    {
+      "id": "lab-sqs-buffer",
+      "title": "SQSで急なアクセスを平準化する",
+      "objective": "急に増えたリクエストをキューに溜めて、ワーカーが自分のペースで処理する「バッファ」の働きを見ます。",
+      "graph": {
+        "nodes": [
+          {
+            "id": "web",
+            "label": "Webアプリ",
+            "serviceKey": "EC2",
+            "x": 5.0,
+            "y": 50.0
+          },
+          {
+            "id": "q",
+            "label": "キュー",
+            "serviceKey": "SQS",
+            "x": 45.0,
+            "y": 50.0
+          },
+          {
+            "id": "wk",
+            "label": "ワーカー",
+            "serviceKey": "EC2",
+            "x": 86.25,
+            "y": 50.0
+          }
+        ],
+        "edges": [
+          {
+            "from": "web",
+            "to": "q",
+            "kind": "request",
+            "label": "Send"
+          },
+          {
+            "from": "q",
+            "to": "wk",
+            "kind": "request",
+            "label": "Receive"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "web",
+          "target": "q",
+          "via": [],
+          "label": "メッセージが急増",
+          "narration": "アクセスが急に増え、注文メッセージがどんどんキューに入ります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "q",
+          "target": null,
+          "via": [],
+          "label": "キューが溜めて平準化",
+          "narration": "キューは、メッセージを保持します(標準では最大14日まで設定できます)。ワーカーが追いつかなくても、失われません。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "q",
+          "target": "wk",
+          "via": [],
+          "label": "ReceiveMessage(プル)",
+          "narration": "ワーカーが、自分のペースでメッセージを取りに行きます(プル型)。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "process",
+          "source": "wk",
+          "target": null,
+          "via": [],
+          "label": "処理中(可視性タイムアウト)",
+          "narration": "処理中のメッセージは、一定時間ほかのワーカーから見えなくなります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "wk",
+          "target": "q",
+          "via": [],
+          "label": "DeleteMessage",
+          "narration": "処理に成功したら、ワーカーがメッセージを削除します。削除しないと、時間後に再び見えて二重処理になります。",
+          "durationMs": 1800,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "送信側と処理側の速度が違っても、キューが間に入って受け止めるので、どちらも止まらずに動けます。",
+      "awsAccuracyNote": "添付Lab由来の教育用モデル。料金・可用性・切替時間を保証するものではありません。",
+      "assumptions": "バッファリング、平準化、疎結合 → SQS",
+      "provenance": "AWS Architecture Lab.html"
     }
   ]
 }
