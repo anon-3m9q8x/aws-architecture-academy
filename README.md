@@ -2,7 +2,7 @@
 
 日本語の AWS 資格学習ワークスペース。依存パッケージ不要の HTML / CSS / JavaScript 製です。
 
-公開サイト: https://banben18-creator.github.io/aws-architecture-academy/
+公開サイト: https://anon-3m9q8x.github.io/aws-architecture-academy/
 
 ## 学習機能
 
