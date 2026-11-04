@@ -1,0 +1,464 @@
+{
+  "notice": "教材ドラフト。図・数値は教育用モデル。AWS公式仕様の最新レビューは未実施。",
+  "scenes": [
+    {
+      "id": "PX-02",
+      "videoSource": "V01",
+      "category": "proxy",
+      "title": "Reverse Proxy：受信側の入口",
+      "difficulty": "standard",
+      "objective": "複数Webサーバーの前段に共通の受付を置く。",
+      "mode": "explain",
+      "graph": {
+        "nodes": [
+          {
+            "id": "client",
+            "label": "外部ユーザー",
+            "x": 5,
+            "y": 50,
+            "serviceKey": null,
+            "role": "actor",
+            "visualOnly": true
+          },
+          {
+            "id": "proxy",
+            "label": "Reverse Proxy / ALB",
+            "x": 43,
+            "y": 50,
+            "serviceKey": "ALB",
+            "role": "service",
+            "visualOnly": false
+          },
+          {
+            "id": "webA",
+            "label": "Web A",
+            "x": 83,
+            "y": 23,
+            "serviceKey": "EC2",
+            "role": "service",
+            "visualOnly": false
+          },
+          {
+            "id": "webB",
+            "label": "Web B",
+            "x": 83,
+            "y": 77,
+            "serviceKey": "EC2",
+            "role": "service",
+            "visualOnly": false
+          }
+        ],
+        "edges": [
+          {
+            "from": "client",
+            "to": "proxy",
+            "kind": "request",
+            "label": ""
+          },
+          {
+            "from": "proxy",
+            "to": "webA",
+            "kind": "request",
+            "label": ""
+          },
+          {
+            "from": "proxy",
+            "to": "webB",
+            "kind": "request",
+            "label": ""
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "client",
+          "target": "proxy",
+          "label": "HTTPS GET",
+          "narration": "入口がリクエストを受信。",
+          "durationMs": 900,
+          "metricChanges": {}
+        },
+        {
+          "type": "decision",
+          "source": "proxy",
+          "target": null,
+          "label": "振り分け先を選択",
+          "narration": "ルールやターゲットの状態を判定。",
+          "durationMs": 900,
+          "metricChanges": {
+            "selectedTarget": "webA"
+          }
+        },
+        {
+          "type": "request",
+          "source": "proxy",
+          "target": "webA",
+          "label": "転送",
+          "narration": "適切なWebサーバーへ転送。",
+          "durationMs": 900,
+          "metricChanges": {}
+        },
+        {
+          "type": "response",
+          "source": "webA",
+          "target": "proxy",
+          "label": "応答",
+          "narration": "Web Aが応答。",
+          "durationMs": 900,
+          "metricChanges": {}
+        },
+        {
+          "type": "response",
+          "source": "proxy",
+          "target": "client",
+          "label": "200 OK",
+          "narration": "ユーザーに結果を返す。",
+          "durationMs": 900,
+          "metricChanges": {}
+        }
+      ],
+      "selectionRule": "公開アプリケーションの単一入口・負荷分散が必要な場面。",
+      "assumptions": "",
+      "awsAccuracyNote": "ALBはL7ロードバランサーとしての具体例。一般のReverse Proxy全機能をALBに帰属させない。",
+      "integrationTargets": [
+        "services",
+        "comparison"
+      ],
+      "playback": {
+        "autoplay": false,
+        "loop": false,
+        "speedOptions": [
+          0.5,
+          1,
+          1.5,
+          2
+        ],
+        "supportStepBack": true,
+        "reducedMotion": "instant-step"
+      }
+    },
+    {
+      "id": "HC-01",
+      "videoSource": "V02",
+      "category": "health",
+      "title": "Probe → 異常検出 → 振り分け除外",
+      "difficulty": "standard",
+      "objective": "ヘルスチェックの連続失敗と除外条件をステップで理解する。",
+      "mode": "explain",
+      "graph": {
+        "nodes": [
+          {
+            "id": "lb",
+            "label": "ALB",
+            "x": 8,
+            "y": 50,
+            "serviceKey": "ALB",
+            "role": "service",
+            "visualOnly": false
+          },
+          {
+            "id": "a",
+            "label": "EC2 A",
+            "x": 88,
+            "y": 13,
+            "serviceKey": "EC2",
+            "role": "service",
+            "visualOnly": false
+          },
+          {
+            "id": "b",
+            "label": "EC2 B",
+            "x": 88,
+            "y": 50,
+            "serviceKey": "EC2",
+            "role": "service",
+            "visualOnly": false
+          },
+          {
+            "id": "c",
+            "label": "EC2 C",
+            "x": 88,
+            "y": 87,
+            "serviceKey": "EC2",
+            "role": "service",
+            "visualOnly": false
+          }
+        ],
+        "edges": [
+          {
+            "from": "lb",
+            "to": "a",
+            "kind": "health",
+            "label": "/health"
+          },
+          {
+            "from": "lb",
+            "to": "b",
+            "kind": "health",
+            "label": "/health"
+          },
+          {
+            "from": "lb",
+            "to": "c",
+            "kind": "health",
+            "label": "/health"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "probe",
+          "source": "lb",
+          "target": "a",
+          "label": "GET /health",
+          "narration": "Aは200応答。",
+          "durationMs": 900,
+          "metricChanges": {
+            "healthy": 1
+          }
+        },
+        {
+          "type": "probe",
+          "source": "lb",
+          "target": "b",
+          "label": "GET /health",
+          "narration": "Bは200応答。",
+          "durationMs": 900,
+          "metricChanges": {
+            "healthy": 1
+          }
+        },
+        {
+          "type": "probe",
+          "source": "lb",
+          "target": "c",
+          "label": "GET /health",
+          "narration": "Cはタイムアウト。",
+          "durationMs": 900,
+          "metricChanges": {
+            "failureCountC": 1
+          }
+        },
+        {
+          "type": "probe",
+          "source": "lb",
+          "target": "c",
+          "label": "連続失敗",
+          "narration": "設定した異常しきい値に到達。",
+          "durationMs": 900,
+          "metricChanges": {
+            "failureCountC": 1
+          }
+        },
+        {
+          "type": "healthChange",
+          "source": "c",
+          "target": null,
+          "label": "unhealthy",
+          "narration": "Cは候補から除外。",
+          "durationMs": 900,
+          "metricChanges": {
+            "healthy": -1,
+            "unhealthy": 1
+          }
+        },
+        {
+          "type": "request",
+          "source": "lb",
+          "target": "a",
+          "label": "ユーザーの要求",
+          "narration": "正常なAへ振り分け。",
+          "durationMs": 900,
+          "metricChanges": {
+            "routedA": 1
+          }
+        }
+      ],
+      "selectionRule": "障害端末を振り分け対象から除外したい場面。",
+      "assumptions": "Cの失敗しきい値を教材用2回とする。実際は設定で変わる。",
+      "awsAccuracyNote": "全ターゲットがunhealthyになるとALB fail-openがあり得る。",
+      "integrationTargets": [
+        "services",
+        "comparison"
+      ],
+      "playback": {
+        "autoplay": false,
+        "loop": false,
+        "speedOptions": [
+          0.5,
+          1,
+          1.5,
+          2
+        ],
+        "supportStepBack": true,
+        "reducedMotion": "instant-step"
+      }
+    },
+    {
+      "id": "LB-01",
+      "videoSource": "V03",
+      "category": "load-balancing",
+      "title": "Round Robinをカウンターで可視化",
+      "difficulty": "standard",
+      "objective": "順番に要求を分配して分配数が更新される。",
+      "mode": "explain",
+      "graph": {
+        "nodes": [
+          {
+            "id": "client",
+            "label": "Client",
+            "x": 7,
+            "y": 50,
+            "serviceKey": null,
+            "role": "actor",
+            "visualOnly": true
+          },
+          {
+            "id": "lb",
+            "label": "ALB",
+            "x": 44,
+            "y": 50,
+            "serviceKey": "ALB",
+            "role": "service",
+            "visualOnly": false
+          },
+          {
+            "id": "a",
+            "label": "EC2 A",
+            "x": 88,
+            "y": 15,
+            "serviceKey": "EC2",
+            "role": "service",
+            "visualOnly": false
+          },
+          {
+            "id": "b",
+            "label": "EC2 B",
+            "x": 88,
+            "y": 50,
+            "serviceKey": "EC2",
+            "role": "service",
+            "visualOnly": false
+          },
+          {
+            "id": "c",
+            "label": "EC2 C",
+            "x": 88,
+            "y": 85,
+            "serviceKey": "EC2",
+            "role": "service",
+            "visualOnly": false
+          }
+        ],
+        "edges": [
+          {
+            "from": "client",
+            "to": "lb",
+            "kind": "request",
+            "label": ""
+          },
+          {
+            "from": "lb",
+            "to": "a",
+            "kind": "request",
+            "label": ""
+          },
+          {
+            "from": "lb",
+            "to": "b",
+            "kind": "request",
+            "label": ""
+          },
+          {
+            "from": "lb",
+            "to": "c",
+            "kind": "request",
+            "label": ""
+          }
+        ]
+      },
+      "steps": [
+        {
+          "type": "request",
+          "source": "client",
+          "target": "lb",
+          "label": "#1",
+          "narration": "要求1を受信。",
+          "durationMs": 900,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "lb",
+          "target": "a",
+          "label": "#1 → A",
+          "narration": "Aが処理。",
+          "durationMs": 900,
+          "metricChanges": {
+            "A": 1
+          }
+        },
+        {
+          "type": "request",
+          "source": "client",
+          "target": "lb",
+          "label": "#2",
+          "narration": "要求2を受信。",
+          "durationMs": 900,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "lb",
+          "target": "b",
+          "label": "#2 → B",
+          "narration": "Bが処理。",
+          "durationMs": 900,
+          "metricChanges": {
+            "B": 1
+          }
+        },
+        {
+          "type": "request",
+          "source": "client",
+          "target": "lb",
+          "label": "#3",
+          "narration": "要求3を受信。",
+          "durationMs": 900,
+          "metricChanges": {}
+        },
+        {
+          "type": "request",
+          "source": "lb",
+          "target": "c",
+          "label": "#3 → C",
+          "narration": "Cが処理。",
+          "durationMs": 900,
+          "metricChanges": {
+            "C": 1
+          }
+        }
+      ],
+      "selectionRule": "均等分散の基本動作を理解する。",
+      "assumptions": "すべてhealthy、セッション固定なし、教材上の順番固定。",
+      "awsAccuracyNote": "現実のリクエスト配分は必ず完全均等とは限らない。",
+      "integrationTargets": [
+        "services",
+        "comparison"
+      ],
+      "playback": {
+        "autoplay": false,
+        "loop": false,
+        "speedOptions": [
+          0.5,
+          1,
+          1.5,
+          2
+        ],
+        "supportStepBack": true,
+        "reducedMotion": "instant-step"
+      }
+    }
+  ]
+}
