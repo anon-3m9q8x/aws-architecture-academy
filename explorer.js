@@ -874,13 +874,17 @@ function route(id) {
 }
 const NONE = Symbol("none");
 let lastId = NONE;
+const autoSidebar = (collapse) => window.dispatchEvent(new CustomEvent("sidebar-auto", { detail: { collapse } }));
 window.addEventListener("route-change", (e) => {
   const { page, id } = e.detail;
   if (page !== "services") {
     player?.pause();
     lastId = NONE;
+    autoSidebar(false);
     return;
   }
+  // 解説ページ(サービス・設計パターン・比較・シナリオ)ではサイドバーを閉じ、一覧では開く
+  autoSidebar(!!id);
   if (id === lastId) return;
   lastId = id;
   route(id);

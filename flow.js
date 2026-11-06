@@ -78,7 +78,8 @@ export class FlowPlayer {
     });
     bar.append(this.btnReset, this.btnPrev, this.btnPlay, this.btnNext, this.track, this.spd);
     this.list = opts.list === false ? null : h("ol", "fp-steps");
-    host.replaceChildren(this.stage, bar, this.capt, ...(this.list ? [this.list] : []));
+    // 「処理 / リクエスト」の説明とステップ一覧を図の上に置く
+    host.replaceChildren(this.capt, ...(this.list ? [this.list] : []), this.stage, bar);
     this.btnPlay.addEventListener("click", () => this.toggle());
     this.btnNext.addEventListener("click", () => this.go(this.i + 1));
     this.btnPrev.addEventListener("click", () => this.go(this.i - 1));
@@ -112,6 +113,9 @@ export class FlowPlayer {
 
   load(scene, { autoplay = false, start = 0 } = {}) {
     this.pause();
+    cancelAnimationFrame(this.raf);
+    this.single = false;
+    this.phase = "travel";
     this.scene = scene;
     this.build();
     this.go(start, true);
@@ -235,6 +239,9 @@ export class FlowPlayer {
     if (!this.scene) return;
     if (reduce()) { this.go(this.i + 1); return; }
     if (this.i >= this.scene.steps.length - 1 && this.phase === "done") this.go(0, true);
+    // go() が一時停止中の「1 回だけ動かす」プレビューを始めていても、再生に切り替えたら解除する
+    // (解除しないと最初のステップの後でループが止まり、再生中なのに動かなくなる)
+    this.single = false;
     this.playing = true;
     this.host.classList.add("is-playing");
     this.btnPlay.textContent = "❚❚ 一時停止";
@@ -365,8 +372,11 @@ export class FlowPlayer {
         r.setAttribute("aria-current", String(k === this.i));
       });
       const cur = this.list.querySelector('[aria-current="true"]');
-      if (cur && this.list.scrollHeight > this.list.clientHeight)
-        this.list.scrollTo({ top: cur.offsetTop - this.list.clientHeight / 2 + cur.offsetHeight / 2, behavior: reduce() ? "auto" : "smooth" });
+      // 横並びのステップ一覧: 現在のステップを中央へ(ページ自体はスクロールさせない)
+      if (cur && this.list.scrollWidth > this.list.clientWidth) {
+        const li = cur.parentElement;
+        this.list.scrollTo({ left: li.offsetLeft - this.list.clientWidth / 2 + li.offsetWidth / 2, behavior: reduce() ? "auto" : "smooth" });
+      }
     }
     this.travel = this.total ? Math.max(0.75, Math.min(1.9, (st.dur || 1300) / 1000 * 0.7 + this.total / 900)) : 1.0;
     this.hold = 0.9 + Math.min(1.4, (st.narration || "").length / 70);

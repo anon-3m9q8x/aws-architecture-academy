@@ -3894,3 +3894,101 @@ html[data-theme="dark"] .study-hero { --hero-left: color-mix(in srgb, #142a47 86
 /* 固定表示のセクションタブ: 上部バーの実際の高さの直下に置く(スマホで上部バーが 2 段になっても隠れない) */
 .ex-tabs, .ex-tabs { top: calc(var(--topbar-h, 82px) + 10px); }
 @media (max-width: 760px) { .ex-tabs { top: calc(var(--topbar-h, 136px) + 6px); } }
+
+/* ---------- 連携アニメーション: 説明とステップを図の上に ---------- */
+.fp { grid-template-columns: minmax(0, 1fr) !important; grid-template-areas: none !important; }
+.fp > .fp-cap, .fp > .fp-steps, .fp > .fp-stage, .fp > .fp-bar { grid-area: auto !important; }
+.fp-cap { min-height: 0; }
+.fp > .fp-steps { display: flex; gap: 6px; max-height: none !important; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 6px !important; background: none !important; border: 0 !important; scroll-snap-type: x proximity; scrollbar-width: thin; }
+.fp > .fp-steps li { flex: none; scroll-snap-align: center; }
+.fp > .fp-steps .fp-row { width: auto; max-width: 260px; border: 1px solid var(--glass-line); background: var(--glass); }
+.fp > .fp-steps .fp-row[aria-current="true"] { background: var(--selection); border-color: color-mix(in srgb, var(--study-blue) 55%, transparent); }
+
+/* ======================================================================
+   Edition 06.4 — 透過率アップとダークモードの再設計
+   ====================================================================== */
+/* --- 背景の透過率を上げる(パネル越しに背景のグラデーションと写真が見える) --- */
+:root {
+  --glass: color-mix(in srgb, var(--aaa-panel) 46%, transparent);
+  --glass-strong: color-mix(in srgb, var(--aaa-panel) 62%, transparent);
+  --glass-line: color-mix(in srgb, var(--aaa-border) 62%, transparent);
+}
+body::before { opacity: 0.12; filter: saturate(0.7) blur(1.5px); }
+.topbar, .sidebar { backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); }
+.panel { backdrop-filter: blur(18px) saturate(1.25); -webkit-backdrop-filter: blur(18px) saturate(1.25); }
+
+/* --- ダークモード: 深い夜空のような背景に、発光するアクセントとガラスのパネル --- */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --aaa-bg: #060a14;
+  --aaa-panel: #0e1628;
+  --aaa-panel-hover: #142039;
+  --aaa-text: #e9effc;
+  --aaa-muted: #97a7c3;
+  --aaa-border: #24334f;
+  --selection: #1a2d52;
+  --surface-tint: #0f1a30;
+  --study-blue: #5c9dff;
+  --hero-ink: #f1f6ff;
+  --hero-muted: #b9c8e2;
+  --glass: color-mix(in srgb, #0e1628 50%, transparent);
+  --glass-strong: color-mix(in srgb, #101a2f 64%, transparent);
+  --glass-line: rgb(150 175 225 / 0.14);
+  --glow: 0 0 0 1px rgb(92 157 255 / 0.35), 0 8px 30px -10px rgb(92 157 255 / 0.55);
+}
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(1100px 700px at 6% -12%, rgb(56 120 255 / 0.30), transparent 62%),
+    radial-gradient(900px 640px at 108% 10%, rgb(139 92 246 / 0.24), transparent 60%),
+    radial-gradient(1000px 760px at 55% 118%, rgb(20 184 166 / 0.16), transparent 62%),
+    linear-gradient(180deg, #060a14, #070c18 50%, #050811);
+  background-attachment: fixed;
+}
+html[data-theme="dark"] body::before { opacity: 0.09; filter: saturate(0.5) brightness(0.7) blur(1.5px); mix-blend-mode: screen; }
+/* パネル: 上辺に細いハイライト、外側に深い影 */
+html[data-theme="dark"] :is(.panel, .ex-box, .ex-rel, .ex-card, .pt-card, .ex-scene, .kind-item, .cmp-block, .bd-card, .fp-cap, .fp-stage, .ex-pn-a, .learning-track) {
+  border-color: var(--glass-line);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 18px 40px -28px rgb(0 0 0 / 0.9);
+}
+html[data-theme="dark"] :is(.ex-card, .pt-card, .ex-scene, .bd-card, .ex-pn-a):hover {
+  border-color: rgb(92 157 255 / 0.45);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 18px 44px -24px rgb(56 120 255 / 0.55);
+}
+html[data-theme="dark"] .topbar { border-bottom-color: rgb(150 175 225 / 0.10); box-shadow: 0 10px 30px -24px #000; }
+html[data-theme="dark"] .sidebar { border-right: 1px solid rgb(150 175 225 / 0.08); }
+/* 入力・ボタン */
+html[data-theme="dark"] :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]) {
+  background: rgb(255 255 255 / 0.04); border-color: var(--glass-line); color: var(--aaa-text);
+}
+html[data-theme="dark"] :is(input, select, textarea):focus-visible { outline: none; box-shadow: var(--glow); }
+html[data-theme="dark"] button:not(.primary):not(.fp-play):not(.seg-btn):not(.ex-anim):not(.qm):not(.fp-row) {
+  background: rgb(255 255 255 / 0.05); border-color: var(--glass-line); color: var(--aaa-text);
+}
+html[data-theme="dark"] :is(button.primary, .button.primary, .fp-play) {
+  background: linear-gradient(135deg, #4f8dff, #7a5cff); border-color: transparent; color: #fff;
+  box-shadow: 0 8px 24px -10px rgb(92 120 255 / 0.8);
+}
+/* 選択中のスライド表示を発光させる */
+html[data-theme="dark"] .sl-ind { box-shadow: var(--glow); }
+html[data-theme="dark"] nav [aria-current="page"] { box-shadow: var(--glow); }
+/* 連携アニメーション */
+html[data-theme="dark"] .fp-stage {
+  background:
+    radial-gradient(600px 300px at 20% 0%, rgb(56 120 255 / 0.10), transparent 70%),
+    linear-gradient(160deg, rgb(14 22 40 / 0.72), rgb(10 16 30 / 0.62));
+}
+html[data-theme="dark"] .fp-box { fill: #111b31; }
+html[data-theme="dark"] .fp-elab rect { fill: #0f1729; }
+html[data-theme="dark"] .fp-gridpt { fill: rgb(150 175 225 / 0.18); }
+html[data-theme="dark"] .fp-node.is-src .fp-box, html[data-theme="dark"] .fp-node.is-dst .fp-box { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--cc, #5c9dff) 55%, transparent)); }
+html[data-theme="dark"] .fp-pd { filter: drop-shadow(0 0 6px currentColor); }
+/* 表・比較・タグ */
+html[data-theme="dark"] .cmp-row, html[data-theme="dark"] .cmp-case, html[data-theme="dark"] .exam-ov-row { background: rgb(255 255 255 / 0.03); }
+html[data-theme="dark"] .cmp-row.hl, html[data-theme="dark"] .cmp-case.hl { background: rgb(92 157 255 / 0.12); outline-color: rgb(92 157 255 / 0.7); }
+html[data-theme="dark"] .bd-log, html[data-theme="dark"] code { background: rgb(0 0 0 / 0.35); border: 1px solid var(--glass-line); color: #cfe0ff; }
+html[data-theme="dark"] .bd-ticket { background: rgb(245 158 11 / 0.10); }
+html[data-theme="dark"] .sum-tag.band-high { color: #fb7185; }
+html[data-theme="dark"] .sum-tag.band-mid { color: #fbbf24; }
+html[data-theme="dark"] .ex-hero { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 30px 60px -40px rgb(56 120 255 / 0.6); }
+html[data-theme="dark"] ::selection { background: rgb(92 157 255 / 0.4); }
+html[data-theme="dark"] * { scrollbar-color: rgb(150 175 225 / 0.25) transparent; }
