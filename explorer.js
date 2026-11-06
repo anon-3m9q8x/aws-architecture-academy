@@ -532,15 +532,18 @@ function openDetail(s) {
       const g = el("div", `kind-group k-${k}`);
       g.append(el("h3", "", label[k]));
       const ul = el("div", "kind-list");
-      items.forEach(([n, , d]) => {
-        const it = el("article", "kind-item");
-        it.append(el("b", "", n), el("p", "", d));
+      items.forEach((v) => {
+        const it = el("button", "kind-item");
+        it.type = "button";
+        it.setAttribute("aria-haspopup", "dialog");
+        it.append(el("b", "", v[0]), el("p", "", v[2]), el("span", "kind-more", "詳しく ›"));
+        it.addEventListener("click", () => openKind(s, s.variants.indexOf(v)));
         ul.append(it);
       });
       g.append(ul);
       wrapK.append(g);
     });
-    secK.append(wrapK, el("p", "muted ex-anim-note", "上限値や提供状況は変わることがあります。公式ドキュメントで最新の内容を確認してください。"));
+    secK.append(wrapK, el("p", "muted ex-anim-note", "カードをクリック(タップ)すると詳しい解説を表示します。上限値や提供状況は変わることがあります。公式ドキュメントで最新の内容を確認してください。"));
   }
 
   // 2-3. 類似サービスとの違い(用途ごと)
@@ -910,3 +913,66 @@ renderList();
 detail.hidden = true;
 load();
 export { scenes };
+
+// 種類・発展形・関連機能の詳しい解説(画面の前面に表示するダイアログ)
+const KIND_LABEL = { 種類: "種類", 機能: "関連機能", 発展: "発展形" };
+let kindDlg = null;
+function kindDialog() {
+  if (kindDlg) return kindDlg;
+  const d = el("dialog", "kind-dialog");
+  d.setAttribute("aria-labelledby", "kind-dlg-title");
+  d.addEventListener("click", (e) => { if (e.target === d) d.close(); }); // 背景のクリックで閉じる
+  d.addEventListener("close", () => { document.documentElement.classList.remove("kind-open"); kindDlg.ret?.focus?.({ preventScroll: true }); });
+  document.body.append(d);
+  return (kindDlg = d);
+}
+function openKind(s, i) {
+  const v = s.variants[i];
+  if (!v) return;
+  const [name, kind, short, detail, use, point] = v;
+  const d = kindDialog();
+  if (!d.open) d.ret = document.activeElement;
+  const box = el("div", "kind-dlg-body");
+  const head = el("header", "kind-dlg-head");
+  const crumb = el("p", "kind-dlg-crumb");
+  crumb.append(glyph(s), el("span", "", s.name), el("span", `kind-badge k-${kind}`, KIND_LABEL[kind]));
+  const title = el("h2", "", name);
+  title.id = "kind-dlg-title";
+  const close = el("button", "kind-dlg-close", "×");
+  close.type = "button";
+  close.setAttribute("aria-label", "閉じる");
+  close.addEventListener("click", () => d.close());
+  head.append(crumb, title, el("p", "kind-dlg-lead", short), close);
+  const grid = el("div", "ex-about");
+  const ov = el("div", "ex-box wide");
+  ov.append(el("h3", "", "概要"), el("p", "", detail));
+  const us = el("div", "ex-box wide");
+  us.append(el("h3", "", "使いどころ"), el("p", "", use));
+  const pt = el("div", "ex-box tip wide");
+  pt.append(el("h3", "", "試験・設計のポイント"), el("p", "", point));
+  grid.append(ov, us, pt);
+  const foot = el("footer", "kind-dlg-foot");
+  const prev = el("button", "button secondary", "‹ 前へ");
+  const next = el("button", "button secondary", "次へ ›");
+  [prev, next].forEach((b) => (b.type = "button"));
+  prev.disabled = i === 0;
+  next.disabled = i === s.variants.length - 1;
+  prev.addEventListener("click", () => openKind(s, i - 1));
+  next.addEventListener("click", () => openKind(s, i + 1));
+  const pos = el("span", "kind-dlg-pos", `${i + 1} / ${s.variants.length}`);
+  foot.append(prev, pos, next);
+  if (s.doc) {
+    const a = el("a", "kind-dlg-doc", "公式ドキュメント ↗");
+    a.href = s.doc;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    foot.append(a);
+  }
+  box.append(head, grid, foot);
+  d.replaceChildren(box);
+  if (!d.open) d.showModal();
+  document.documentElement.classList.add("kind-open");
+  box.scrollTop = 0;
+  close.focus({ preventScroll: true });
+}
+window.addEventListener("hashchange", () => { if (kindDlg?.open) kindDlg.close(); });
