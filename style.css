@@ -4096,3 +4096,20 @@ html[data-theme="dark"] .kind-more, html[data-theme="dark"] .kind-dlg-doc { colo
 .kind-dlg-foot .button { width: auto; flex: none; min-width: 0; margin: 0; padding: 8px 14px; }
 @media (max-width: 760px) { .kind-dlg-foot { flex-wrap: wrap; } .kind-dlg-doc { flex-basis: 100%; text-align: right; } }
 .kind-dialog footer.kind-dlg-foot { flex-direction: row; justify-content: flex-start; text-align: left; background: none; margin-bottom: 0; padding-bottom: 0; border-radius: 0; box-shadow: none; }
+
+/* ===== ブランド: ロゴ(山・角帽・本)とワードマーク ===== */
+:root { --brand-navy: #0b1f3b; --brand-slate: #445a77; --brand-orange: #ff8a1f; --brand-orange-text: #e0700f; }
+.brand { display: inline-flex; align-items: center; gap: 9px; letter-spacing: 0; font-size: inherit; text-decoration: none; min-width: 0; }
+.brand-icon { display: none !important; }
+.brand-logo { width: 44px; height: 40px; flex: none; display: block; }
+.brand-text { display: flex; flex-direction: column; align-items: stretch; line-height: 1; min-width: 0; font-family: "Montserrat", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; }
+.brand-main { font-size: 17px; font-weight: 800; letter-spacing: -0.4px; color: var(--brand-navy); white-space: nowrap; }
+.brand-sub { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11.5px; font-weight: 600; letter-spacing: 3.2px; color: var(--brand-orange-text); white-space: nowrap; }
+.brand-sub::before, .brand-sub::after { content: ""; flex: 1; height: 1.5px; min-width: 10px; background: var(--brand-slate); border-radius: 1px; }
+.brand-sub::after { margin-left: -3.2px; } /* 字間の末尾分を相殺 */
+html[data-theme="dark"] .brand-main { color: #eef3fb; }
+html[data-theme="dark"] .brand-sub { color: var(--brand-orange); }
+html[data-theme="dark"] .brand-sub::before, html[data-theme="dark"] .brand-sub::after { background: #a7b4c3; }
+html[data-theme="dark"] .brand-logo { filter: drop-shadow(0 0 1px rgba(255,255,255,.55)) drop-shadow(0 2px 6px rgba(0,0,0,.35)); }
+@media (min-width: 761px) { .topbar { grid-template-columns: auto minmax(230px, auto) minmax(180px, 1fr) auto auto; } .topbar > .brand { justify-self: start; } }
+@media (max-width: 760px) { .brand-logo { width: 38px; height: 35px; } .brand-main { font-size: 16px; } .brand-sub { font-size: 11px; letter-spacing: 2.8px; } }

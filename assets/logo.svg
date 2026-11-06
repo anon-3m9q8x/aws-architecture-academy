@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 110" role="img" aria-label="AWS Architecture Academy">
+  <defs>
+    <linearGradient id="nv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a4166"/><stop offset="1" stop-color="#0b1f3b"/></linearGradient>
+    <linearGradient id="sl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a7b4c3"/><stop offset="1" stop-color="#445a77"/></linearGradient>
+    <linearGradient id="or" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffa64d"/><stop offset="1" stop-color="#ff8a1f"/></linearGradient>
+  </defs>
+  <!-- 外側の山(ネイビー) -->
+  <path d="M60 3 L115 84 H5 Z" fill="url(#nv)"/>
+  <!-- 内側の山(スレート・ストーン) -->
+  <path d="M68 28 L101 84 H35 Z" fill="url(#sl)"/>
+  <path d="M90 54 L110 84 H74 Z" fill="#a7b4c3" opacity=".85"/>
+  <!-- 中央の山(オレンジ) -->
+  <path d="M60 42 L90 84 H30 Z" fill="url(#or)" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
+  <!-- 角帽 -->
+  <path d="M60 56 L78 63.5 L60 71 L42 63.5 Z" fill="#0b1f3b"/>
+  <path d="M49 67 V74 Q60 80 71 74 V67 L60 71.6 Z" fill="#0b1f3b"/>
+  <path d="M75 64.8 V73" stroke="#0b1f3b" stroke-width="1.6"/>
+  <path d="M73.6 72.5 h2.8 l.6 4 h-4 z" fill="#0b1f3b"/>
+  <!-- ネットワーク -->
+  <g stroke="#fff" stroke-width="1.4" fill="none" opacity=".95">
+    <path d="M66 15 L54 31 L46 51"/>
+    <path d="M66 15 L80 30"/>
+    <path d="M54 31 L68 28"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="66" cy="15" r="3.6"/>
+    <circle cx="54" cy="31" r="3.2"/>
+    <circle cx="46" cy="51" r="2.9"/>
+  </g>
+  <!-- 開いた本 -->
+  <path d="M8 86 Q34 79 58 90 V96 Q34 86 12 92 Z" fill="#0b1f3b"/>
+  <path d="M112 86 Q86 79 62 90 V96 Q86 86 108 92 Z" fill="#0b1f3b"/>
+  <path d="M14 98 Q36 90 60 101 Q84 90 106 98 Q84 95 60 106 Q36 95 14 98 Z" fill="#ff8a1f"/>
+</svg>
