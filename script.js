@@ -36,29 +36,12 @@ function save(key, value) {
 const uiKey = "aaa.ui.preferences.v1";
 let preferences = read(uiKey, {});
 if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) preferences = {};
-let theme = ["light", "dark", "system"].includes(preferences.theme) ? preferences.theme : "system";
-const media = matchMedia("(prefers-color-scheme: dark)");
-function applyTheme() {
-  const resolved = theme === "system" ? (media.matches ? "dark" : "light") : theme;
-  document.documentElement.dataset.theme = resolved;
-  $("theme-toggle").textContent = resolved === "dark" ? "☼ ライト" : "☾ ダーク";
-  $("theme-toggle").setAttribute("aria-label", resolved === "dark" ? "ライトモードに切り替える" : "ダークモードに切り替える");
-  $("theme-system").setAttribute("aria-pressed", String(theme === "system"));
+// ダークモードは廃止。常にライト表示にし、以前保存したテーマ設定は消す。
+document.documentElement.dataset.theme = "light";
+if ("theme" in preferences) {
+  delete preferences.theme;
+  save(uiKey, preferences);
 }
-applyTheme();
-media.addEventListener("change", applyTheme);
-$("theme-toggle").addEventListener("click", () => {
-  theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  preferences = { ...preferences, theme };
-  save(uiKey, preferences);
-  applyTheme();
-});
-$("theme-system").addEventListener("click", () => {
-  theme = "system";
-  preferences = { ...preferences, theme };
-  save(uiKey, preferences);
-  applyTheme();
-});
 function element(tag, cls, text) {
   const el = document.createElement(tag);
   if (cls) el.className = cls;
