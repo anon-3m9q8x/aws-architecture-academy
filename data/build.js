@@ -1,4 +1,5 @@
 import { BUILD_SAP } from "./build-sap.js";
+import { BUILD_META } from "./build-refs.js";
 // サービス構築問題: 要件を読み、サービスを配置して正しく「連携」させる。
 // slots: 必要な部品 {k: スロット名, any: 受け付けるサービスID, why: なぜ必要か}
 // links: 必要な連携 [スロットA, スロットB, 連携の意味](向きは問わない)
@@ -211,7 +212,7 @@ export const BUILD = [
     opt: [["cloudtrail", "GuardDuty のデータソースの一つ。配置しても減点しません(接続は不要)"]],
     forbid: [["inspector", "脆弱性のスキャンで、脅威検出からの自動対応の経路には不要"], ["waf", "Web リクエストの防御で、アカウント内の脅威検出ではありません"]],
     hints: ["検出は GuardDuty、配線は EventBridge。", "設定違反は Config ルール、修復は SSM Automation。", "GuardDuty → EventBridge → Lambda/SNS、Config → SSM。"],
-    explain: "GuardDuty の検出結果は EventBridge にイベントとして届きます。重大度でフィルタするルールで、Lambda が該当 EC2 を隔離用セキュリティグループへ付け替え、SNS が担当者へ通知します。Config ルールの非準拠は SSM Automation ランブックで自動修復します。",
+    explain: "GuardDuty の検出結果は EventBridge にイベントとして届きます。重大度でフィルタするルールで、Lambda が該当 EC2 を隔離用セキュリティグループへ付け替え、SNS が担当者へ通知します。Config ルールの非準拠は SSM Automation ランブックで自動修復します。誤検知で本番を止める影響が大きい場合は、隔離の前に人の承認を挟みます(構築問題「重大な脅威は承認してから隔離する」)。",
     layout: { guardduty: [8, 30], eventbridge: [38, 30], lambda: [70, 12], sns: [70, 48], config: [20, 82], ssm: [56, 82] },
     flow: [["guardduty", "eventbridge", "検出結果", "不審な通信を検出しました。"], ["eventbridge", "lambda", "高重大度ルール", "隔離用 SG に付け替えます。"], ["eventbridge", "sns", "通知", "担当者のメールとチャットへ。"], ["config", "ssm", "非準拠", "ランブックで設定を元に戻します。"]],
   },
@@ -265,7 +266,7 @@ export const BUILD = [
       { k: "user", any: ["user"], why: "利用者(と攻撃者)" },
       { k: "edge", any: ["cloudfront"], why: "エッジで受けて分散吸収" },
       { k: "waf", any: ["waf"], why: "L7 の攻撃とレート制限" },
-      { k: "ddos", any: ["shield"], why: "L3/L4 の DDoS 緩和" },
+      { k: "ddos", any: ["shield"], why: "L3/L4 の DDoS 緩和(Shield Standard は全アカウントで自動・無料。Shield Advanced は保護対象に明示的に登録)" },
       { k: "lb", any: ["alb"], why: "オリジン" },
       { k: "app", any: ["ec2"], why: "アプリ" },
     ],
@@ -273,7 +274,7 @@ export const BUILD = [
     opt: [["guardduty", "脅威検出として併用できます。本問の必須部品ではありません"]],
     forbid: [["networkfirewall", "VPC 内の通信を検査する仕組み。エッジでの Web 攻撃・DDoS 対策は WAF + Shield"], ["inspector", "脆弱性スキャンで、通信の遮断はしません"]],
     hints: ["利用者に近い場所 = エッジ = CloudFront。", "SQL インジェクションとレート制限は WAF のルール。", "DDoS は Shield(Advanced でさらに手厚く)。"],
-    explain: "CloudFront をオリジン(ALB)の前に置き、エッジで WAF の Web ACL(マネージドルール・レートベースルール)を評価します。Shield Standard は自動で L3/L4 攻撃を緩和し、Shield Advanced は高度な検知と支援を追加します。ALB はカスタムヘッダーやプレフィックスリストで CloudFront 以外からのアクセスを拒否します。",
+    explain: "CloudFront をオリジン(ALB)の前に置き、エッジで WAF の Web ACL(マネージドルール・レートベースルール)を評価します。Shield Standard は追加料金なしで自動的に L3/L4 攻撃を緩和します。Shield Advanced は保護するリソースを明示的に登録する有料サービスで、DDoS 対応チーム(DRT)の支援、攻撃時のコスト保護、WAF と組み合わせた L7 の DDoS 対策を追加します(Decision Guide「WAF と Shield」)。ALB はカスタムヘッダーやプレフィックスリストで CloudFront 以外からのアクセスを拒否します。",
     layout: { user: [6, 50], cloudfront: [34, 50], waf: [26, 12], shield: [44, 88], alb: [64, 50], ec2: [92, 50] },
     flow: [["user", "cloudfront", "大量のリクエスト", "攻撃もまずエッジに届きます。"], ["waf", "cloudfront", "ルール評価", "SQLi とレート超過をブロックします。"], ["shield", "cloudfront", "DDoS 緩和", "L3/L4 の攻撃を吸収します。"], ["cloudfront", "alb", "正当な通信だけ", "オリジンへ転送します。"], ["alb", "ec2", "転送", "アプリは攻撃から隔てられます。"]],
   },
@@ -312,7 +313,7 @@ export const BUILD = [
     links: [["src", "dms", "ソース接続"], ["dms", "db", "全件 + 変更データ"], ["src", "sync", "エージェントが読み取り"], ["sync", "store", "暗号化して転送"]],
     forbid: [["snowball", "回線で間に合う量なので物理搬送は不要。差分同期もできません"], ["storagegw", "継続利用するファイル共有ではなく一度きりの移行。DataSync を使います"], ["rds", "ターゲットは Aurora です"], ["mgn", "サーバー丸ごとのリフト&シフトで、DB エンジンの変換はしません"]],
     hints: ["異種 DB はスキーマ変換 + DMS。", "停止時間を短くするには変更データキャプチャ(CDC)。", "ファイルは DataSync でオンライン転送。"],
-    explain: "DMS Schema Conversion でスキーマを変換し、DMS で全件ロード後に CDC で変更を反映し続けます。切り替え時だけアプリを止めれば済みます。ファイルは DataSync エージェントが読み取り、暗号化・検証しながら S3 へ転送します(回線が細ければ Snowball Edge)。",
+    explain: "DMS Schema Conversion でスキーマを変換し、DMS で全件ロード後に CDC で変更を反映し続けます。切り替え時だけアプリを止めれば済みます。ファイルは DataSync エージェントが読み取り、暗号化・検証しながら S3 へ転送します。Snowball Edge は新規顧客には提供されていないため、回線が足りなければ Direct Connect の増強や、物理搬送なら AWS Data Transfer Terminal を検討します。",
     layout: { onprem: [8, 50], dms: [40, 25], aurora: [86, 25], datasync: [40, 78], s3: [86, 78] },
     flow: [["onprem", "dms", "全件ロード", "既存データをまとめて移します。"], ["dms", "aurora", "CDC で継続反映", "移行中の更新も追いかけます。"], ["onprem", "datasync", "ファイル読み取り", "エージェントが差分を検出します。"], ["datasync", "s3", "転送と検証", "暗号化・整合性検証つきで転送します。"]],
   },
@@ -337,3 +338,5 @@ export const BUILD = [
 ];
 // SAP 学習マスター由来の構築問題・障害対応問題
 BUILD.push(...BUILD_SAP);
+// 公式資料・試験ガイドの分野・Well-Architected の柱を付与
+BUILD.forEach((pb) => Object.assign(pb, BUILD_META[pb.id] || {}));

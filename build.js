@@ -1,6 +1,7 @@
 // サービス構築問題: サービスを配置し、線でつないで構成を組み立てる。採点後に模範解答をアニメーションで確認。
 import { BUILD } from "./data/build.js";
 import { PATTERNS } from "./data/sap-patterns.js";
+import { SOURCE_LIST } from "./data/build-refs.js";
 import { byId, metaOf, linkDetail } from "./services.js";
 import { FlowPlayer, problemScene, fitFont } from "./flow.js";
 import { $, el, slider, store, toast } from "./ui.js";
@@ -74,10 +75,24 @@ function renderList() {
       if (sv) icons.append(el("span", `svc-glyph c-${sv.color}`, sv.abbr));
     });
     a.append(top, el("h3", "", pb.title), el("p", "", pb.scenario), icons);
+    if (pb.exam) a.append(el("span", "bd-exam", `${pb.exam}${pb.wa ? "  ·  " + pb.wa : ""}`));
     a.style.setProperty("--d", `${i * 30}ms`);
     grid.append(a);
   });
-  wrap.append(head, how, seg, grid);
+  const src = el("details", "panel bd-sources");
+  src.append(el("summary", "", `問題の作成・照合に使った公式資料(${SOURCE_LIST.length} 件)`));
+  const sl2 = el("ul");
+  SOURCE_LIST.forEach(([pri, name, url]) => {
+    const li = el("li");
+    const a = el("a", "", name);
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    li.append(el("span", `bd-pri p-${pri}`, pri), a);
+    sl2.append(li);
+  });
+  src.append(sl2, el("p", "muted", "指定された URL のうち重複するもの(言語違い・追跡パラメータ付き・同一ページ)は 1 つにまとめています。各問題の解説の下に、その問題で照合した資料を載せています。仕様は変わるため、最新の内容は資料で確認してください。"));
+  wrap.append(head, how, seg, grid, src);
   host.replaceChildren(wrap);
   const sl = slider(seg, ".seg-btn", (b) => b.dataset.v === level);
   sl(true);
@@ -119,6 +134,7 @@ function openProblem(pb) {
     brief.append(el("p", "muted bd-fixnote", "キャンバスには現在の(問題のある)構成が置かれています。足りないものを追加し、原因になっているものは外してください。"));
   } else brief.append(el("p", "bd-scn", pb.scenario));
   brief.append(el("h3", "", pb.mode === "fix" ? "修復後に満たすこと" : "満たすべき要件"), reqs);
+  if (pb.exam) brief.append(el("p", "bd-exam", `${pb.exam}${pb.wa ? "  ·  Well-Architected: " + pb.wa : ""}`));
   if (pb.pattern?.length || pb.src) {
     const src = el("p", "bd-src");
     if (pb.src) src.append(el("span", "", `参照: ${pb.src}`));
@@ -454,7 +470,20 @@ function openProblem(pb) {
       showAns.hidden = true;
       const ex = el("div", "ex-box tip");
       ex.append(el("h3", "", pb.mode === "fix" ? "根本原因と修復" : "解説"), el("p", "", pb.explain));
-      if (pb.verify) ex.append(el("h3", "", "復旧の確認と再発防止"), el("p", "", pb.verify));
+      if (pb.verify) ex.append(el("h3", "", pb.mode === "fix" ? "復旧の確認と再発防止" : "検証のポイント"), el("p", "", pb.verify));
+      if (pb.refs?.length) {
+        const rl = el("ul", "bd-refs");
+        pb.refs.forEach(([t, u]) => {
+          const li = el("li");
+          const a = el("a", "", t + " ↗");
+          a.href = u;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          li.append(a);
+          rl.append(li);
+        });
+        ex.append(el("h3", "", "公式資料で確認する"), rl);
+      }
       const stage = el("div", "ex-player");
       const apply = el("button", "", "模範解答をキャンバスに反映");
       apply.type = "button";

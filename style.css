@@ -3810,3 +3810,13 @@ html[data-theme="dark"] .study-hero { --hero-left: color-mix(in srgb, #142a47 86
 .bd-opt h3 { font-size: 13px; color: var(--aaa-muted); margin: 0 0 6px; }
 .bd-opt p { margin: 2px 0; font-size: 13px; }
 .bd-node.opt .fp-box { stroke: var(--study-blue); stroke-width: 2; stroke-dasharray: 2 4; }
+.bd-exam { display: inline-block; font-size: 11.5px; font-weight: 650; color: var(--aaa-muted); margin: 0; }
+.bd-card .bd-exam { margin-top: 2px; }
+.bd-sources { margin-top: 18px; padding: 14px 18px; border-radius: 16px; }
+.bd-sources summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.bd-sources ul { list-style: none; margin: 12px 0 8px; padding: 0; display: grid; gap: 6px; }
+.bd-sources li { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.bd-pri { flex: none; min-width: 4.5em; text-align: center; font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--glass); border: 1px solid var(--glass-line); }
+.bd-pri.p-最優先 { background: var(--study-blue); color: #fff; border-color: transparent; }
+.bd-pri.p-高 { background: color-mix(in srgb, var(--study-blue) 18%, transparent); }
+.bd-refs { margin: 0; padding-left: 18px; line-height: 1.9; font-size: 13px; }

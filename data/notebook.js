@@ -970,7 +970,7 @@ export const notebook = {
       "id": "snowball",
       "name": "Snowball Edge",
       "category": "移行",
-      "tip": "物理デバイスによる大容量データ移行。回線が細い・期間が短いときに有効。利用可能な提供形態・新規利用可否は公式情報で確認する",
+      "tip": "物理デバイスによる大容量データ移行。ただし Snowball Edge は新規顧客には提供されていない(公式の提供状況の変更)。新規ならオンラインは DataSync、物理搬送は AWS Data Transfer Terminal",
       "features": [
         "物理デバイスで大容量データを移行",
         "エッジでの処理も可能",
