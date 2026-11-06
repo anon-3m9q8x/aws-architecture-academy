@@ -84,6 +84,12 @@ requestAnimationFrame(() => movePill(true));
 
 /* ---------- サイドバーの開閉(PC) ---------- */
 const topbar = document.querySelector(".topbar");
+// 上部バーの高さを CSS 変数に(固定表示のサイドバー・タブの位置に使う)
+{
+  const setH = () => document.documentElement.style.setProperty("--topbar-h", topbar.offsetHeight + "px");
+  setH();
+  new ResizeObserver(setH).observe(topbar);
+}
 const toggle = el("button", "side-toggle", "☰");
 toggle.type = "button";
 toggle.id = "side-toggle";

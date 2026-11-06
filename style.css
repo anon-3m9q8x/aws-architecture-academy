@@ -4030,3 +4030,27 @@ html[data-theme="dark"] {
 .ex-tabs .ex-tab:hover { color: var(--ws-ink); }
 .ex-tabs .ex-tab.sl-on { color: var(--ws-accent) !important; }
 .ex-tabs .sl-ind { background: var(--ws-select) !important; border: 1px solid color-mix(in srgb, var(--ws-accent) 40%, transparent); box-shadow: 0 4px 14px -8px var(--ws-accent) !important; }
+
+/* ---------- ワークスペース(サイドバー)を固定: ページをスクロールしても常に表示し、内部もスクロールさせない ---------- */
+@media (min-width: 761px) {
+  .shell { align-items: start; }
+  .shell > .sidebar {
+    position: sticky; top: var(--topbar-h, 82px); align-self: start;
+    height: calc(100vh - var(--topbar-h, 82px)); height: calc(100dvh - var(--topbar-h, 82px));
+    overflow: hidden; display: flex; flex-direction: column; z-index: 20;
+  }
+  .shell > .sidebar .sidebar-note { margin-top: auto; }
+  /* 画面の高さが低いときは余白と説明を詰めて、スクロールなしで収める */
+  @media (max-height: 640px) {
+    .shell > .sidebar { padding-top: 14px; padding-bottom: 10px; }
+    .shell > .sidebar nav a { min-height: 0; padding-top: 9px; padding-bottom: 9px; }
+    .shell > .sidebar .sidebar-note p { display: none; }
+  }
+  @media (max-height: 500px) {
+    .shell > .sidebar .sidebar-note, .shell > .sidebar .version { display: none; }
+  }
+}
+/* スマホ: 横並びのメニューを上部バーの下に固定 */
+@media (max-width: 760px) {
+  .shell > .sidebar { position: sticky; top: var(--topbar-h, 136px); z-index: 35; }
+}
