@@ -7,6 +7,13 @@ import { PATTERNS, EXERCISES, patternScene } from "./data/sap-patterns.js";
 import { $, el, slider, store } from "./ui.js";
 
 let scenes = [];
+// 上部バーの高さ(スマホでは 2 段になる)を CSS 変数に反映し、固定表示のタブが上部バーの下に隠れないようにする
+{
+  const bar = document.querySelector(".topbar");
+  const setH = () => document.documentElement.style.setProperty("--topbar-h", (bar?.offsetHeight || 82) + "px");
+  setH();
+  if (bar) new ResizeObserver(setH).observe(bar);
+}
 let player = null;
 let mode = "list"; // list | patterns | compare | scenes
 let cat = "all";
@@ -409,13 +416,30 @@ function openDetail(s) {
   });
   let cur = "anim";
   const tabSlide = slider(tabs, ".ex-tab", (a) => a.dataset.k === cur);
+  // タブのクリック: 選択を即座に確定し、スクロールが終わるまでスクロール連動を止める(途中のセクションで選択が揺れない)
+  let lock = null; // { k, until }
+  let picked = null; // クリックで選んだセクション(ページ末尾で基準線まで上がれない短いセクション用)
+  // 基準線 = 固定表示されたタブの下端。タブがまだ固定位置に来ていない(ページ上部)ときも、固定後の位置で計算する
+  const tabLine = () => {
+    const top = parseFloat(getComputedStyle(tabs).top) || 0;
+    return Math.max(top, 0) + tabs.offsetHeight + 16;
+  };
   tabs.addEventListener("click", (e) => {
     const a = e.target.closest(".ex-tab");
     if (!a) return;
     e.preventDefault();
-    cur = a.dataset.k;
+    const k = a.dataset.k;
+    const target = document.getElementById(`sec-${k}`);
+    if (!target) return;
+    cur = k;
     tabSlide();
-    document.getElementById(`sec-${cur}`)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    // 見出しがタブの下にちょうど来る位置へ(固定ヘッダーとタブの高さは画面幅で変わるため毎回計算)
+    const y = window.scrollY + target.getBoundingClientRect().top - (tabLine() - 4);
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    lock = { k, until: performance.now() + (smooth ? 1500 : 100) };
+    picked = k;
+    window.scrollTo({ top: Math.max(0, Math.min(y, max)), behavior: smooth ? "smooth" : "auto" });
   });
 
   // 1. アニメーション
@@ -659,17 +683,63 @@ function openDetail(s) {
   detail.classList.add("enter");
   if (anims.length) loadAnim(anims[0].key, false);
   requestAnimationFrame(() => tabSlide(true));
-  // スクロールに合わせてタブの選択を移動
-  const spy = new IntersectionObserver((ents) => {
-    const vis = ents.filter((x) => x.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-    if (vis && vis.target.dataset.sec !== cur) {
-      cur = vis.target.dataset.sec;
+  // スクロールに合わせてタブの選択を移動。
+  // ・基準線(タブの下端)より上に見出しが来た最後のセクションを選ぶ(速くスクロールしても、その時点の位置から必ず決まる)
+  // ・ページの最下部に達したら最後のセクションを選ぶ(短い「メモ」でも選ばれる)
+  // ・タブのクリックで動いている間は、到着するまで選択を固定する(利用者がホイール等で操作したら解除)
+  const secEls = [secA, secB, secK, secS, secC, secD, secM].filter(Boolean);
+  const activeByScroll = () => {
+    const doc = document.documentElement;
+    if (window.scrollY + window.innerHeight >= doc.scrollHeight - 4) return secEls[secEls.length - 1].dataset.sec;
+    const line = tabLine();
+    let k = secEls[0].dataset.sec;
+    for (const x of secEls) {
+      if (x.getBoundingClientRect().top <= line) k = x.dataset.sec;
+      else break;
+    }
+    return k;
+  };
+  let raf = 0;
+  const sync = () => {
+    raf = 0;
+    if (host.hidden || detail.hidden || !tabs.isConnected) return;
+    if (lock) {
+      if (performance.now() < lock.until) return;
+      lock = null;
+    }
+    let k = activeByScroll();
+    // クリックで選んだセクションが画面内に見えている間は、その選択を保つ
+    if (picked) {
+      const r = document.getElementById(`sec-${picked}`)?.getBoundingClientRect();
+      if (r && r.top >= 0 && r.top < window.innerHeight - 40) k = picked;
+      else picked = null;
+    }
+    if (k !== cur) {
+      cur = k;
       tabSlide();
     }
-  }, { rootMargin: "-120px 0px -60% 0px" });
-  [secA, secB, secK, secS, secC, secD, secM].filter(Boolean).forEach((x) => spy.observe(x));
+  };
+  const onScroll = () => { if (!raf) raf = requestAnimationFrame(sync); };
+  const onEnd = () => { lock = null; onScroll(); };
+  const onUser = (e) => {
+    if (e.type === "keydown" && e.target.closest?.("input, textarea, select")) return;
+    picked = null;
+    if (lock) { lock = null; onScroll(); }
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("scrollend", onEnd);
+  window.addEventListener("resize", onScroll);
+  for (const ev of ["wheel", "touchstart", "keydown"]) window.addEventListener(ev, onUser, { passive: true });
   detail._spy?.disconnect();
-  detail._spy = spy;
+  detail._spy = {
+    disconnect() {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scrollend", onEnd);
+      window.removeEventListener("resize", onScroll);
+      for (const ev of ["wheel", "touchstart", "keydown"]) window.removeEventListener(ev, onUser);
+      cancelAnimationFrame(raf);
+    },
+  };
   window.scrollTo({ top: 0, behavior: "auto" });
   document.title = `${s.name} | サービス図鑑 | AWS Architecture Academy`;
   $("page-label").textContent = `サービス図鑑 / ${s.name}`;

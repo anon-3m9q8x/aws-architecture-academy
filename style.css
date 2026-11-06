@@ -3891,3 +3891,6 @@ html[data-theme="dark"] .study-hero { --hero-left: color-mix(in srgb, #142a47 86
 .memo-backup { margin-top: 18px; padding: 14px 18px; border-radius: 16px; }
 .memo-backup summary { cursor: pointer; font-weight: 700; font-size: 14px; }
 .memo-backup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; font-size: 13px; }
+/* 固定表示のセクションタブ: 上部バーの実際の高さの直下に置く(スマホで上部バーが 2 段になっても隠れない) */
+.ex-tabs, .ex-tabs { top: calc(var(--topbar-h, 82px) + 10px); }
+@media (max-width: 760px) { .ex-tabs { top: calc(var(--topbar-h, 136px) + 6px); } }
