@@ -1,5 +1,5 @@
 // AWS Architecture Academy: 画面全体の操作感(ナビのスライド表示・サイドバー開閉・検索候補・通知・続きから)
-import { notebook } from "./data/notebook.js";
+import { SERVICES, byId as svcById } from "./services.js";
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -119,9 +119,9 @@ function score(s, q) {
   const n = s.name.toLowerCase();
   if (n === q) return 0;
   if (n.startsWith(q)) return 1;
-  if (n.includes(q)) return 2;
-  if (s.category.toLowerCase().includes(q)) return 3;
-  if ((s.purpose + s.useCases + s.tip + s.features.join(" ")).toLowerCase().includes(q)) return 4;
+  if (n.includes(q) || s.full.toLowerCase().includes(q)) return 2;
+  if (s.cat.toLowerCase().includes(q)) return 3;
+  if ([s.purpose, s.useCases, s.tip, s.summary, ...(s.features || []), ...(s.cues?.words || [])].join(" ").toLowerCase().includes(q)) return 4;
   return 9;
 }
 function suggest() {
@@ -130,7 +130,7 @@ function suggest() {
     close();
     return;
   }
-  hits = notebook.services
+  hits = SERVICES
     .map((s) => [score(s, q), s])
     .filter(([v]) => v < 9)
     .sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name))
@@ -152,19 +152,19 @@ function mark(text, q) {
 function draw(q) {
   box.replaceChildren();
   if (!hits.length) {
-    box.append(el("p", "suggest-empty", "一致するノートがありません。Enterでノート一覧を検索します。"));
+    box.append(el("p", "suggest-empty", "一致するサービスがありません。Enter で図鑑を検索します。"));
   } else
     hits.forEach((s, i) => {
       const a = el("a", "suggest-item");
-      a.href = `#notebook/${s.id}`;
+      a.href = `#services/${s.id}`;
       a.id = `sg-${i}`;
       a.setAttribute("role", "option");
       a.setAttribute("aria-selected", String(i === active));
       const t = el("span", "sg-text");
       const name = mark(s.name, q);
       name.className = "sg-name";
-      t.append(name, el("small", "", s.purpose));
-      a.append(el("span", "sg-cat", s.category), t);
+      t.append(name, el("small", "", s.purpose || s.summary));
+      a.append(el("span", "sg-cat", s.cat), t);
       a.addEventListener("mousedown", (e) => e.preventDefault());
       a.addEventListener("click", () => {
         close();
@@ -197,13 +197,7 @@ input.addEventListener("keydown", (e) => {
   } else if (e.key === "Enter" && active >= 0 && hits[active]) {
     e.preventDefault();
     e.stopImmediatePropagation();
-    const ns = $("notebook-search");
-    if (ns) {
-      ns.value = input.value.trim();
-      $("notebook-category").value = "all";
-      ns.dispatchEvent(new Event("input"));
-    }
-    location.hash = `notebook/${hits[active].id}`;
+    location.hash = `services/${hits[active].id}`;
     input.value = "";
     close();
     input.blur();
@@ -215,53 +209,19 @@ document.addEventListener("keydown", (e) => {
     input.focus();
   }
 });
-input.placeholder = "サービス名・用途で検索…（例：Lambda、キュー、DNS）  / キーで移動";
-
-/* ---------- サービス図鑑: カテゴリをボタンで選ぶ ---------- */
-const cat = $("category");
-if (cat) {
-  const chips = el("div", "cat-chips");
-  chips.setAttribute("role", "group");
-  chips.setAttribute("aria-label", "カテゴリ");
-  [...cat.options].forEach((o) => {
-    const b = el("button", "cat-chip", o.value === "all" ? "すべて" : o.textContent);
-    b.type = "button";
-    b.dataset.v = o.value;
-    chips.append(b);
-  });
-  const sync = () => chips.querySelectorAll(".cat-chip").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === cat.value)));
-  chips.addEventListener("click", (e) => {
-    const b = e.target.closest(".cat-chip");
-    if (!b) return;
-    cat.value = b.dataset.v;
-    cat.dispatchEvent(new Event("change"));
-    sync();
-  });
-  cat.addEventListener("change", sync);
-  cat.closest(".filters").after(chips);
-  sync();
-}
+input.placeholder = "サービス名・用途で検索…(例: Lambda、キュー、DNS)  / キーで移動";
+input.setAttribute("aria-label", "サービスを検索");
 
 /* ---------- ホーム: 前回の続きから ---------- */
-const byId = new Map(notebook.services.map((s) => [s.id, s]));
 function resume() {
   const holder = document.querySelector(".hero-copy");
   if (!holder) return;
   let r = $("resume");
-  const note = store.get("aaa.resume.note", null),
-    scene = (() => {
-      try {
-        return localStorage.getItem("aaa.resume.scene");
-      } catch {
-        return null;
-      }
-    })();
+  const svc = store.get("aaa.resume.svc", null),
+    pb = store.get("aaa.resume.build", null);
   const items = [];
-  if (note && byId.has(note)) items.push([`ノート：${byId.get(note).name}`, `#notebook/${note}`]);
-  if (scene) {
-    const opt = document.querySelector(`#scene-select option[value="${CSS.escape(scene)}"]`);
-    if (opt) items.push([`動き：${opt.textContent}`, `#animation/${scene}`]);
-  }
+  if (svc && svcById.has(svc)) items.push([`図鑑：${svcById.get(svc).name}`, `#services/${svc}`]);
+  if (pb) items.push([`構築問題の続き`, `#build/${pb}`]);
   if (!items.length) {
     r?.remove();
     return;
@@ -280,7 +240,8 @@ function resume() {
 }
 window.addEventListener("route-change", (e) => {
   const { page, id } = e.detail;
-  if (page === "notebook" && id && byId.has(id)) store.set("aaa.resume.note", id);
+  if (page === "services" && id && svcById.has(id)) store.set("aaa.resume.svc", id);
+  if (page === "build" && id) store.set("aaa.resume.build", id);
   if (page === "home") resume();
   document.body.dataset.page = page;
   if (page !== "practice") document.body.classList.remove("in-quiz");

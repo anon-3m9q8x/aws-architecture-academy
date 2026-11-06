@@ -2,6 +2,7 @@ import { notebook } from "./data/notebook.js";
 import { questions } from "./data/questions.js";
 import { cues } from "./data/cues.js";
 import { relatedNotes } from "./practice.js";
+import { serviceCount } from "./services.js";
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -175,26 +176,9 @@ function renderDetail(id) {
   const heading = el("div", "note-heading");
   const titles = el("div");
   titles.append(el("p", "eyebrow", s.category), el("h2", "", s.name));
-  const favorite = el("button", "favorite-toggle");
-  const updateFavorite = () => {
-    favorite.textContent = state.favorites.includes(id)
-      ? "♥ 保存済み"
-      : "♡ 保存する";
-    favorite.setAttribute(
-      "aria-label",
-      `${s.name}をお気に入り${state.favorites.includes(id) ? "から削除" : "に保存"}`,
-    );
-    favorite.setAttribute("aria-pressed", String(state.favorites.includes(id)));
-  };
-  updateFavorite();
-  favorite.addEventListener("click", () => {
-    state.favorites = state.favorites.includes(id)
-      ? state.favorites.filter((x) => x !== id)
-      : [...state.favorites, id];
-    save();
-    updateFavorite();
-  });
-  heading.append(titles, favorite);
+  const toEx = el("a", "button ghost note-ex", "図鑑で連携アニメーションを見る →");
+  toEx.href = `#services/${id}`;
+  heading.append(titles, toEx);
   box.append(heading, el("p", "note-purpose", s.purpose));
   const cue = cues[id];
   if (cue) {
@@ -394,32 +378,7 @@ function relationDiagram(id, links) {
   wrap.append(svg);
   return wrap;
 }
-function renderFavorites() {
-  const box = $("favorites-list");
-  box.replaceChildren();
-  if (!state.favorites.length) {
-    box.append(
-      el(
-        "div",
-        "panel empty-favorites",
-        "まだ保存した項目はありません。学習ノートで「♡ 保存する」を選んでください。",
-      ),
-    );
-    return;
-  }
-  state.favorites.forEach((id) => {
-    const s = byId.get(id);
-    const card = el("article", "panel card");
-    card.append(
-      icon(s),
-      el("p", "eyebrow", s.category),
-      el("h2", "", s.name),
-      el("p", "muted", s.purpose),
-      noteLink(id, "ノートを開く →"),
-    );
-    box.append(card);
-  });
-}
+function renderFavorites() {}
 for (const cat of [...new Set(notebook.services.map((s) => s.category))]) {
   const o = el("option", "", cat);
   o.value = cat;
@@ -429,11 +388,9 @@ $("notebook-search").addEventListener("input", renderIndex);
 $("notebook-category").addEventListener("change", renderIndex);
 $("global-search-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  $("notebook-search").value = $("global-search").value;
-  $("notebook-category").value = "all";
-  renderIndex();
-  location.hash = "notebook";
-  $("notebook-search").focus();
+  const q = $("global-search").value.trim();
+  window.dispatchEvent(new CustomEvent("explorer-search", { detail: q }));
+  location.hash = "services";
 });
 for (const id of ["connection-from", "connection-to"])
   notebook.services.forEach((s) => {
@@ -523,47 +480,20 @@ function readJson(key, fallback) {
 }
 function updateDashboard() {
   const done = state.completed.length;
-  $("notes-percent").textContent =
-    `${Math.round((done / notebook.services.length) * 100)}%`;
-  $("notes-progress").max = notebook.services.length;
-  $("notes-progress").value = done;
-  $("notes-fraction").textContent =
-    `${done} / ${notebook.services.length} 項目を学習済み`;
-  $("favorite-count").textContent = state.favorites.length;
   const sceneHistory = readJson("aaa.step1.progress.v1", []),
-    raw = readJson("aaa.practice.attempts.v1", []);
+    raw = readJson("aaa.practice.attempts.v1", []),
+    build = readJson("aaa.build.v1", {});
   const attempts = Array.isArray(raw)
     ? raw.filter((a) => a && Number.isFinite(Date.parse(a.at)))
     : [];
   const answered = new Set(attempts.map((a) => a.id));
+  const solved = Object.values(build || {}).filter((r) => r && r.ok).length;
   const tracks = [
-    [
-      "基礎から読む、サービス学習ノート",
-      "107 項目・目的 / 機能 / 使い分け",
-      done,
-      107,
-      "#notebook",
-      "notes",
-    ],
-    [
-      "図と動きで学ぶ、クラウドの構成",
-      "13 シーン・通信と処理をたどる",
-      Array.isArray(sceneHistory)
-        ? new Set(sceneHistory.map((a) => a.id)).size
-        : 0,
-      13,
-      "#animation",
-      "animation",
-    ],
-    [
-      "問題で確かめる、設計の判断",
-      "60 問・選ぶ理由まで理解する",
-      answered.size,
-      questions.length,
-      "#practice",
-      "practice",
-    ],
+    ["連携を動きで見る、サービス図鑑", `${serviceCount} サービス・連携アニメーション`, Math.min(readJson("aaa.ex.viewed", []).length, serviceCount), serviceCount, "#services", "animation"],
+    ["要件から組み立てる、構築問題", "17 問・置いてつないで採点", solved, 17, "#build", "notes"],
+    ["問題で確かめる、設計の判断", "60 問・選ぶ理由まで理解する", answered.size, questions.length, "#practice", "practice"],
   ];
+  void sceneHistory;
   const box = $("learning-tracks");
   box.replaceChildren(
     ...tracks.map((t) => {
@@ -573,7 +503,7 @@ function updateDashboard() {
         el(
           "span",
           "",
-          t[5] === "notes" ? "▤" : t[5] === "animation" ? "◇" : "✓",
+          t[5] === "notes" ? "⬡" : t[5] === "animation" ? "▷" : "✓",
         ),
       );
       const title = el("div", "track-title");
@@ -648,7 +578,9 @@ function updateDashboard() {
   const row = el("article", "recommendation");
   row.append(icon(s));
   const text = el("div");
-  text.append(noteLink(id), el("p", "", s.purpose));
+  const a = el("a", "", s.name);
+  a.href = `#services/${id}`;
+  text.append(a, el("p", "", s.purpose));
   row.append(text);
   $("recommended-notes").append(row);
 });

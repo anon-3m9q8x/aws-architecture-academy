@@ -75,7 +75,7 @@ function stats() {
     ? `${Math.round((correct / attempts.length) * 100)}%`
     : "—";
   $("mistake-count").textContent = wrong;
-  const history = $("practice-history");
+  const history = $("practice-history") || document.createElement("div");
   history.replaceChildren(
     el("span", "eyebrow", "PRACTICE INSIGHTS"),
     el("h2", "", "演習の学習状況"),
