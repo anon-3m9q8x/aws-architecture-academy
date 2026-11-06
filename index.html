@@ -69,9 +69,6 @@
           <a href="#connections" data-page="connections"
             ><span aria-hidden="true">◇</span> 連携を調べる</a
           >
-          <a href="#notebook" data-page="notebook"
-            ><span aria-hidden="true">▤</span> 学習ノート</a
-          >
         </nav>
         <div class="sidebar-note">
           <span class="dot"></span> つながりで覚える AWS 設計。
@@ -182,7 +179,7 @@
               </section>
               <section class="panel rail-panel">
                 <div class="section-heading">
-                  <h2>おすすめの連携</h2>
+                  <h2>おすすめのサービス</h2>
                   <a href="#services">すべて →</a>
                 </div>
                 <div id="recommended-notes"></div>
@@ -190,50 +187,7 @@
             </aside>
           </div>
         </section>
-        <section id="notebook" class="page" hidden>
-          <div class="page-heading">
-            <div>
-              <p class="eyebrow">YOUR KNOWLEDGE LIBRARY</p>
-              <h1>ひとつずつ知って、つなげよう。</h1>
-              <p class="muted">
-                107項目の学習ノート。目的・使いどころ・似たサービスとの違いを整理。
-              </p>
-            </div>
-            <button id="notebook-export">メモをバックアップ ↓</button>
-          </div>
-          <div class="notebook-layout">
-            <aside class="panel notebook-index">
-              <label class="sr-only" for="notebook-search">ノートを検索</label
-              ><input
-                id="notebook-search"
-                type="search"
-                placeholder="サービス・キーワードを検索"
-              /><label class="sr-only" for="notebook-category"
-                >ノートのカテゴリ</label
-              ><select id="notebook-category">
-                <option value="all">すべてのカテゴリ</option>
-              </select>
-              <p id="notebook-count" role="status"></p>
-              <div id="notebook-list"></div>
-            </aside>
-            <article
-              id="notebook-detail"
-              class="panel notebook-detail"
-            ></article>
-          </div>
-          <div class="backup-panel">
-            <label
-              >バックアップを取り込む
-              <input
-                id="notebook-import"
-                type="file"
-                accept="application/json,.json" /></label
-            ><span id="notebook-import-status" role="status"></span>
-          </div>
-          <p class="study-notice">
-            添付「AWS学習ノート」由来の教材ドラフトです。一般概念・リソース・AWSサービスを含み、最新仕様の専門家レビューは未実施です。サービスの提供状況や制約は公式資料で確認してください。個人メモはこのブラウザにだけ保存され、GitHubへ送信されません。
-          </p>
-        </section>
+        
         <section id="connections" class="page" hidden>
           <p class="eyebrow">CONNECT THE DOTS</p>
           <h1>サービスのつながりを知る。</h1>

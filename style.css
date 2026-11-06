@@ -3848,3 +3848,46 @@ html[data-theme="dark"] .study-hero { --hero-left: color-mix(in srgb, #142a47 86
 .sum-tag { flex: none; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--glass); color: var(--aaa-muted); white-space: nowrap; }
 .sum-tag.band-high { color: #dc2626; }
 .sum-tag.band-mid { color: #b45309; }
+
+/* ---------- 図鑑: 種類・発展形 / 類似サービス比較 / メモ ---------- */
+.kind-groups { display: grid; gap: 16px; }
+.kind-group h3 { margin: 0 0 8px; font-size: 13px; color: var(--aaa-muted); letter-spacing: 0.3px; }
+.kind-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+.kind-item { padding: 12px 14px; border-radius: 14px; background: var(--glass-strong); border: 1px solid var(--glass-line); border-left: 4px solid var(--study-blue); }
+.k-機能 .kind-item { border-left-color: #14b8a6; }
+.k-発展 .kind-item { border-left-color: #8b5cf6; }
+.kind-item b { display: block; font-size: 14px; margin-bottom: 4px; }
+.kind-item p { margin: 0; font-size: 13px; line-height: 1.75; color: var(--aaa-text); }
+.cmp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; }
+.cmp-card .ex-scene-svcs { display: flex; flex-wrap: wrap; gap: 4px; }
+.cmp-block { display: grid; gap: 12px; padding: 18px; border-radius: 18px; margin-bottom: 14px; }
+.cmp-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cmp-title { font-weight: 800; font-size: 16px; color: var(--aaa-text); text-decoration: none; }
+.cmp-title:hover { text-decoration: underline; }
+.cmp-ref { font-size: 12.5px; }
+.cmp-intro { margin: 0; line-height: 1.8; font-size: 13.5px; }
+.cmp-table { display: grid; gap: 4px; }
+.cmp-row { display: grid; grid-template-columns: minmax(150px, 0.9fr) minmax(0, 1.4fr) minmax(0, 1.2fr); gap: 12px; align-items: center; padding: 8px 12px; border-radius: 12px; background: var(--glass); font-size: 13px; line-height: 1.65; }
+.cmp-th { background: transparent; font-size: 11.5px; font-weight: 750; color: var(--aaa-muted); padding-block: 2px; }
+.cmp-row.hl, .cmp-case.hl { outline: 2px solid var(--study-blue); background: color-mix(in srgb, var(--study-blue) 10%, var(--glass)); }
+.cmp-good::before { content: "○ "; color: var(--ac-ok); font-weight: 800; }
+.cmp-bad { color: var(--aaa-muted); }
+.cmp-bad::before { content: "△ "; color: var(--ac-warn); font-weight: 800; }
+.cmp-cases { display: grid; gap: 6px; }
+.cmp-cases h3 { margin: 4px 0 2px; font-size: 13px; color: var(--aaa-muted); }
+.cmp-case { display: grid; grid-template-columns: minmax(0, 1.4fr) auto minmax(140px, 0.8fr) minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 12px; border-radius: 12px; background: var(--glass); font-size: 13px; }
+.cmp-use { font-weight: 650; }
+@media (max-width: 760px) {
+  .cmp-row { grid-template-columns: 1fr; gap: 4px; }
+  .cmp-th { display: none; }
+  .cmp-case { grid-template-columns: 1fr; gap: 2px; }
+  .cmp-case .pt-arrow { display: none; }
+}
+.ex-done { margin-left: auto; font-size: 11px; font-weight: 750; color: var(--ac-ok); }
+.ex-done.memo { color: var(--study-blue); }
+.ex-done-btn[aria-pressed="true"] { border-color: var(--ac-ok); color: var(--ac-ok); }
+.memo-text { width: 100%; min-height: 180px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--glass-line); background: var(--glass-strong); color: var(--aaa-text); font: inherit; line-height: 1.8; resize: vertical; }
+.memo-status { margin: 6px 0 0; font-size: 12px; }
+.memo-backup { margin-top: 18px; padding: 14px 18px; border-radius: 16px; }
+.memo-backup summary { cursor: pointer; font-weight: 700; font-size: 14px; }
+.memo-backup-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 12px; font-size: 13px; }

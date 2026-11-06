@@ -1,5 +1,6 @@
 // サービス図鑑: 一覧 → タップでサービスの解説ページへ。連携アニメーション・解説・連携・SAP 設計パターンを 1 ページに統合。
-import { SERVICES, CATS, byId, relsOf, metaOf, isNote, serviceCount, patternsOf } from "./services.js";
+import { SERVICES, CATS, byId, relsOf, compsOf, metaOf, serviceCount, patternsOf, groupsOf, COMPARE } from "./services.js";
+import { memo } from "./memo.js";
 import { FlowPlayer, normalizeScene, serviceScene, problemScene } from "./flow.js";
 import { BUILD } from "./data/build.js";
 import { PATTERNS, EXERCISES, patternScene } from "./data/sap-patterns.js";
@@ -7,7 +8,7 @@ import { $, el, slider, store } from "./ui.js";
 
 let scenes = [];
 let player = null;
-let mode = "list"; // list | patterns | scenes
+let mode = "list"; // list | patterns | compare | scenes
 let cat = "all";
 let query = "";
 const host = $("services");
@@ -27,7 +28,7 @@ const ht = el("div");
 ht.append(el("p", "eyebrow", "SERVICE EXPLORER"), el("h1", "", "サービス図鑑"), el("p", "muted", `AWS の主要カテゴリを網羅した ${serviceCount} サービス。タップすると、連携アニメーションと詳しい解説へ移動します。`));
 const modeSeg = el("div", "seg ex-mode");
 modeSeg.setAttribute("role", "tablist");
-for (const [v, t] of [["list", "サービス一覧"], ["patterns", `設計パターン ${PATTERNS.length}`], ["scenes", "連携シナリオ"]]) {
+for (const [v, t] of [["list", "サービス一覧"], ["compare", `類似サービス比較 ${COMPARE.length}`], ["patterns", `設計パターン ${PATTERNS.length}`], ["scenes", "連携シナリオ"]]) {
   const b = el("button", "seg-btn", t);
   b.type = "button";
   b.dataset.v = v;
@@ -58,7 +59,39 @@ countLine.setAttribute("role", "status");
 const grid = el("div", "ex-grid");
 const sceneGrid = el("div", "ex-scenes");
 const patGrid = el("div", "ex-patterns");
-view.append(head, tools, countLine, grid, patGrid, sceneGrid);
+const cmpGrid = el("div", "cmp-grid");
+// メモのバックアップ(旧・学習ノートの機能)
+const backup = el("details", "panel memo-backup");
+{
+  backup.append(el("summary", "", "メモと学習済みのバックアップ"));
+  const row = el("div", "memo-backup-row");
+  const exp = el("button", "", "バックアップを保存 ↓");
+  exp.type = "button";
+  exp.addEventListener("click", () => memo.exportFile());
+  const lab = el("label", "memo-import");
+  const inp = el("input");
+  inp.type = "file";
+  inp.accept = "application/json,.json";
+  lab.append(document.createTextNode("バックアップを取り込む "), inp);
+  const st = el("span", "muted");
+  st.setAttribute("role", "status");
+  inp.addEventListener("change", async () => {
+    const f = inp.files[0];
+    if (!f) return;
+    try {
+      const n = await memo.importFile(f);
+      st.textContent = `取り込みました(メモ ${n} 件)。既存のメモは残しています。`;
+      renderList();
+    } catch (e) {
+      st.textContent = `取り込めませんでした:${e.message}`;
+    } finally {
+      inp.value = "";
+    }
+  });
+  row.append(exp, lab, st);
+  backup.append(row, el("p", "muted", "メモはこのブラウザにだけ保存されます。旧・学習ノートのメモもそのまま引き継いでいます。"));
+}
+view.append(head, tools, countLine, grid, cmpGrid, patGrid, sceneGrid, backup);
 const detail = el("div", "ex-detail");
 host.replaceChildren(view, detail);
 
@@ -70,6 +103,8 @@ function card(s) {
   a.href = `#services/${s.id}`;
   const top = el("div", "ex-card-top");
   top.append(glyph(s), el("span", "ex-card-cat", s.cat));
+  if (memo.isDone(s.id)) top.append(el("span", "ex-done", "✓ 学習済み"));
+  else if (memo.get(s.id)) top.append(el("span", "ex-done memo", "✎ メモ"));
   a.append(top, el("h3", "", s.name), el("p", "", s.purpose || s.summary));
   const n = relsOf(s.id).length;
   const np = patternsOf(s.id).length;
@@ -83,6 +118,11 @@ function renderList() {
   grid.hidden = mode !== "list";
   sceneGrid.hidden = mode !== "scenes";
   patGrid.hidden = mode !== "patterns";
+  cmpGrid.hidden = mode !== "compare";
+  if (mode === "compare") {
+    countLine.textContent = `似ているサービスを ${COMPARE.length} のグループで比較。用途ごとにどれを選ぶか、得意なこと・選ばないときを整理しています(AWS Decision Guides を基に作成)。`;
+    return;
+  }
   if (mode === "scenes") {
     countLine.textContent = `${scenes.length} の連携シナリオ。複数サービスがつながる流れを、ステップごとに再生します。`;
     return;
@@ -94,7 +134,7 @@ function renderList() {
   chips.querySelectorAll(".ex-cat").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === cat)));
   catSlide();
   const q = query.trim().toLowerCase();
-  const list = SERVICES.filter((s) => (cat === "all" || s.cat === cat) && (!q || [s.name, s.full, s.cat, s.purpose, s.summary, s.useCases, ...(s.features || []), ...(s.cues?.words || [])].join(" ").toLowerCase().includes(q)));
+  const list = SERVICES.filter((s) => (cat === "all" || s.cat === cat) && (!q || [s.name, s.full, s.cat, s.purpose, s.summary, s.useCases, ...(s.features || []), ...(s.cues?.words || []), ...s.variants.map((v) => v[0])].join(" ").toLowerCase().includes(q)));
   countLine.textContent = `${list.length} 件${list.length ? "" : " — キーワードやカテゴリを変えてみてください。"}`;
   grid.replaceChildren(...list.map(card));
 }
@@ -115,7 +155,7 @@ search.addEventListener("input", () => {
   query = search.value;
   renderList();
 });
-mode = ["scenes", "patterns"].includes(store.get("aaa.ex.mode", "list")) ? store.get("aaa.ex.mode", "list") : "list";
+mode = ["scenes", "patterns", "compare"].includes(store.get("aaa.ex.mode", "list")) ? store.get("aaa.ex.mode", "list") : "list";
 window.addEventListener("explorer-search", (e) => {
   mode = "list";
   cat = "all";
@@ -202,6 +242,96 @@ function buildsFor(ids) {
   return BUILD.filter((pb) => pb.pattern && ids.some((x) => pb.pattern.includes(x)));
 }
 
+/* ---------- 類似サービス比較 ---------- */
+function compareBlock(g, hl, compact) {
+  const box = el("section", "panel cmp-block");
+  const h = el("div", "cmp-head");
+  const t = el("a", "cmp-title", g.title);
+  t.href = `#services/compare:${g.id}`;
+  h.append(t);
+  if (g.ref) {
+    const r = el("a", "cmp-ref", "Decision Guide ↗");
+    r.href = g.ref;
+    r.target = "_blank";
+    r.rel = "noopener noreferrer";
+    h.append(r);
+  }
+  box.append(h, el("p", "muted cmp-intro", g.intro));
+  // 各サービスの得意なこと / 選ばないとき
+  const tbl = el("div", "cmp-table");
+  const hd = el("div", "cmp-row cmp-th");
+  hd.append(el("span", "", "サービス"), el("span", "", "得意なこと・向いている用途"), el("span", "", "選ばないとき・注意"));
+  tbl.append(hd);
+  Object.entries(g.pts).forEach(([id, [good, bad]]) => {
+    const sv = byId.get(id);
+    const row = el("div", `cmp-row${id === hl ? " hl" : ""}`);
+    const n = el("a", "ex-rel-name");
+    n.href = `#services/${id}`;
+    n.append(glyph(sv), el("b", "", sv.name));
+    row.append(n, el("span", "cmp-good", good), el("span", "cmp-bad", bad));
+    tbl.append(row);
+  });
+  box.append(tbl);
+  // 用途 → 選ぶサービス
+  const cs = el("div", "cmp-cases");
+  cs.append(el("h3", "", "用途ごとに選ぶなら"));
+  g.cases.forEach(([use, id, why]) => {
+    const sv = byId.get(id);
+    const row = el("div", `cmp-case${id === hl ? " hl" : ""}`);
+    const n = el("a", "ex-rel-name");
+    n.href = `#services/${id}`;
+    n.append(glyph(sv), el("b", "", sv.name));
+    row.append(el("span", "cmp-use", use), el("i", "pt-arrow", "→"), n, el("small", "muted", why));
+    cs.append(row);
+  });
+  box.append(cs);
+  if (compact && hl) box.classList.add("compact");
+  return box;
+}
+function renderCompareGrid() {
+  cmpGrid.replaceChildren(
+    ...COMPARE.map((g) => {
+      const a = el("a", "pt-card cmp-card");
+      a.href = `#services/compare:${g.id}`;
+      const row = el("div", "ex-scene-svcs");
+      Object.keys(g.pts).slice(0, 8).forEach((id) => row.append(glyph(byId.get(id))));
+      a.append(el("h3", "", g.title), el("p", "", g.intro), row, el("span", "muted", `${Object.keys(g.pts).length} サービス · 用途 ${g.cases.length} 件`));
+      return a;
+    }),
+  );
+}
+renderCompareGrid();
+function openCompare(g) {
+  player?.destroy();
+  player = null;
+  view.hidden = true;
+  detail.hidden = false;
+  detail._spy?.disconnect();
+  const back = el("a", "ex-back", "← 類似サービス比較の一覧へ");
+  back.href = "#services";
+  back.addEventListener("click", () => { mode = "compare"; store.set("aaa.ex.mode", mode); });
+  const i = COMPARE.indexOf(g);
+  const pn = el("nav", "ex-pn");
+  for (const [o, lab] of [[COMPARE[i - 1], "前の比較"], [COMPARE[i + 1], "次の比較"]]) {
+    if (!o) { pn.append(el("span")); continue; }
+    const a = el("a", "ex-pn-a");
+    a.href = `#services/compare:${o.id}`;
+    a.append(el("small", "", lab), el("b", "", o.title));
+    pn.append(a);
+  }
+  const hero = el("header", "ex-hero c-teal");
+  const t = el("div");
+  t.append(el("p", "eyebrow", "類似サービス比較"), el("h1", "", g.title));
+  hero.append(t);
+  detail.replaceChildren(back, hero, compareBlock(g, null, false), el("p", "study-notice", "AWS Decision Guides と各サービスのドキュメントを基にした学習用の整理です。要件によっては別の選択が正しい場合もあります。"), pn);
+  detail.classList.remove("enter");
+  void detail.offsetWidth;
+  detail.classList.add("enter");
+  window.scrollTo({ top: 0, behavior: "auto" });
+  document.title = `${g.title} | 類似サービス比較 | AWS Architecture Academy`;
+  $("page-label").textContent = `サービス図鑑 / ${g.title}`;
+}
+
 /* ---------- 詳細(サービスの解説ページ) ---------- */
 function section(id, title, eyebrow) {
   const sec = el("section", "ex-sec");
@@ -250,17 +380,27 @@ function openDetail(s) {
     d.rel = "noopener noreferrer";
     links.append(d);
   }
-  if (isNote(s.id)) {
-    const n = el("a", "button ghost", "学習ノートにメモ →");
-    n.href = `#notebook/${s.id}`;
-    links.append(n);
-  }
+  const done = el("button", "button ghost ex-done-btn");
+  done.type = "button";
+  const paintDone = () => {
+    const on = memo.isDone(s.id);
+    done.textContent = on ? "✓ 学習済み" : "学習済みにする";
+    done.setAttribute("aria-pressed", String(on));
+  };
+  paintDone();
+  done.addEventListener("click", () => {
+    memo.toggleDone(s.id);
+    paintDone();
+  });
+  links.append(done);
   hero.append(hl, sum, links);
   // セクションの切り替えタブ(スクロール位置と連動してスライド)
   const tabs = el("nav", "ex-tabs");
   tabs.setAttribute("aria-label", "このページの内容");
   const pats = patternsOf(s.id);
-  const secs = [["anim", "アニメーション"], ["about", "解説"], ["links", "連携"], ["design", "設計パターン"]];
+  const groups = groupsOf(s.id);
+  const comps = compsOf(s.id);
+  const secs = [["anim", "アニメーション"], ["about", "解説"], ...(s.variants.length ? [["kinds", "種類・発展形"]] : []), ...(groups.length || comps.length ? [["similar", "類似サービス"]] : []), ["links", "連携"], ["design", "設計パターン"], ["memo", "メモ"]];
   secs.forEach(([k, t]) => {
     const a = el("a", "ex-tab", t);
     a.href = `#sec-${k}`;
@@ -336,7 +476,70 @@ function openDetail(s) {
     b.append(el("h3", "", "主な機能"), ul);
     grid2.append(b);
   }
+  if (s.tip) {
+    const b = el("div", "ex-box tip wide");
+    b.append(el("h3", "", "試験・設計のポイント"), el("p", "", s.tip));
+    grid2.append(b);
+  }
+  if (s.cues) {
+    const b = el("div", "ex-box");
+    const w = el("div", "ex-words");
+    s.cues.words.forEach((x) => w.append(el("span", "ex-word", x)));
+    b.append(el("h3", "", "問題文にこの言葉が出たら"), w);
+    grid2.append(b);
+    if (s.cues.not) {
+      const n = el("div", "ex-box warn");
+      n.append(el("h3", "", "選ばないとき"), el("p", "", s.cues.not));
+      grid2.append(n);
+    }
+  }
   secB.append(grid2);
+
+  // 2-2. 種類・発展形(例: EBS のボリュームタイプ)
+  let secK = null;
+  if (s.variants.length) {
+    secK = section("kinds", `種類・発展形・関連機能(${s.variants.length})`, "VARIANTS");
+    const order = ["種類", "機能", "発展"];
+    const label = { 種類: "種類 · 同じサービス内の選択肢", 機能: "機能 · 押さえておく関連機能", 発展: "発展形 · 上位版・派生サービス" };
+    const wrapK = el("div", "kind-groups");
+    order.forEach((k) => {
+      const items = s.variants.filter((v) => v[1] === k);
+      if (!items.length) return;
+      const g = el("div", `kind-group k-${k}`);
+      g.append(el("h3", "", label[k]));
+      const ul = el("div", "kind-list");
+      items.forEach(([n, , d]) => {
+        const it = el("article", "kind-item");
+        it.append(el("b", "", n), el("p", "", d));
+        ul.append(it);
+      });
+      g.append(ul);
+      wrapK.append(g);
+    });
+    secK.append(wrapK, el("p", "muted ex-anim-note", "上限値や提供状況は変わることがあります。公式ドキュメントで最新の内容を確認してください。"));
+  }
+
+  // 2-3. 類似サービスとの違い(用途ごと)
+  let secS = null;
+  if (groups.length || comps.length) {
+    secS = section("similar", "類似サービスとの違い・用途ごとの選び方", "COMPARE");
+    groups.forEach((g) => secS.append(compareBlock(g, s.id, true)));
+    if (comps.length) {
+      const b = el("div", "ex-box wide");
+      b.append(el("h3", "", "1 対 1 で比べると"));
+      comps.forEach((c) => {
+        const other = byId.get(c.a === s.id ? c.b : c.a);
+        if (!other) return;
+        const row = el("div", "ex-cmp");
+        const a = el("a", "ex-rel-name");
+        a.href = `#services/${other.id}`;
+        a.append(glyph(other), el("b", "", `${s.name} vs ${other.name}`));
+        row.append(a, el("p", "", c.text));
+        b.append(row);
+      });
+      secS.append(b);
+    }
+  }
 
   // 3. 連携
   const rels = relsOf(s.id);
@@ -420,6 +623,27 @@ function openDetail(s) {
   }
   secD.append(dz);
 
+  // 6. メモ(旧・学習ノート)
+  const secM = section("memo", "自分のメモ", "MY NOTES");
+  {
+    const ta = el("textarea", "memo-text");
+    ta.value = memo.get(s.id);
+    ta.placeholder = "覚えたいこと、間違えた理由、試験での見分け方など。このブラウザに自動保存されます。";
+    ta.setAttribute("aria-label", `${s.name} のメモ`);
+    const st = el("p", "muted memo-status");
+    st.setAttribute("role", "status");
+    let t = 0;
+    ta.addEventListener("input", () => {
+      clearTimeout(t);
+      st.textContent = "入力中…";
+      t = setTimeout(() => {
+        memo.set(s.id, ta.value);
+        st.textContent = memo.stored() ? "保存しました" : "このタブ内にだけ保持しています(ブラウザに保存できません)";
+      }, 400);
+    });
+    secM.append(ta, st);
+  }
+
   // 前後のサービス
   const pn = el("nav", "ex-pn");
   for (const [o, t] of [[SERVICES[idx - 1], "←"], [SERVICES[idx + 1], "→"]]) {
@@ -429,7 +653,7 @@ function openDetail(s) {
     a.append(el("small", "", t === "←" ? "前のサービス" : "次のサービス"), el("b", "", `${t === "←" ? "← " : ""}${o.name}${t === "→" ? " →" : ""}`));
     pn.append(a);
   }
-  detail.replaceChildren(back, hero, tabs, secA, secB, secC, secD, pn);
+  detail.replaceChildren(...[back, hero, tabs, secA, secB, secK, secS, secC, secD, secM, pn].filter(Boolean));
   detail.classList.remove("enter");
   void detail.offsetWidth;
   detail.classList.add("enter");
@@ -443,7 +667,7 @@ function openDetail(s) {
       tabSlide();
     }
   }, { rootMargin: "-120px 0px -60% 0px" });
-  [secA, secB, secC, secD].forEach((x) => spy.observe(x));
+  [secA, secB, secK, secS, secC, secD, secM].filter(Boolean).forEach((x) => spy.observe(x));
   detail._spy?.disconnect();
   detail._spy = spy;
   window.scrollTo({ top: 0, behavior: "auto" });
@@ -561,6 +785,10 @@ function route(id) {
     renderList();
     requestAnimationFrame(() => { modeSlide(true); catSlide(true); });
     return;
+  }
+  if (id.startsWith("compare:")) {
+    const g = COMPARE.find((x) => x.id === id.slice(8));
+    if (g) return openCompare(g);
   }
   if (id.startsWith("pattern:")) {
     const p = PATTERNS.find((x) => x.id === id.slice(8));

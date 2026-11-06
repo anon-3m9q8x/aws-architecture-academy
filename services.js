@@ -7,6 +7,8 @@ import { cues } from "./data/cues.js";
 import { EXTRA_SAP } from "./data/services-sap.js";
 import { LINKS_SAP } from "./data/links-sap.js";
 import { PATTERNS } from "./data/sap-patterns.js";
+import { VARIANTS } from "./data/variants.js";
+import { COMPARE } from "./data/compare-groups.js";
 const EXTRA_ALL = { ...EXTRA, ...EXTRA_SAP };
 
 // 図鑑のカテゴリ(表示順)と色
@@ -56,6 +58,7 @@ SERVICES.forEach((s) => {
   s.color = CAT_COLOR[s.cat] || "gray";
   s.abbr = ABBR[s.id] || (s.name.replace(/^(Amazon |AWS )/, "").match(/[A-Z0-9]/g) || [s.name.slice(0, 2)]).join("").slice(0, 3) || s.name.slice(0, 2);
   s.cues = cues[s.id] || null;
+  s.variants = VARIANTS[s.id] || [];
 });
 
 // 連携(双方向に引けるようにする)
@@ -99,3 +102,7 @@ export const serviceCount = SERVICES.filter((s) => s.cat !== "一般概念").len
 
 // サービスが登場する SAP 設計パターン
 export const patternsOf = (id) => PATTERNS.filter((p) => p.n.some(([svc]) => svc === id));
+
+// 類似サービスの比較グループ(このサービスを含むもの)
+export const groupsOf = (id) => COMPARE.filter((g) => g.pts[id]);
+export { COMPARE };

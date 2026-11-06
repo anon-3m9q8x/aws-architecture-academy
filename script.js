@@ -2,7 +2,7 @@
 import { SERVICES, byId, relsOf, serviceCount } from "./services.js";
 import { BUILD } from "./data/build.js";
 import "./practice.js";
-import "./notebook.js";
+import "./home.js";
 import "./explorer.js";
 import { buildStats, refreshRec } from "./build.js";
 import "./academy.js";
@@ -13,10 +13,10 @@ const labels = {
   build: "構築問題",
   practice: "資格問題演習",
   connections: "連携を調べる",
-  notebook: "学習ノート",
 };
 // 旧ページの URL は統合先へ転送
-const MOVED = { animation: "services", favorites: "notebook", roadmap: "home", progress: "practice" };
+// 学習ノートは図鑑に統合: #notebook/<id> は #services/<id> へ
+const MOVED = { animation: "services", favorites: "services", notebook: "services", roadmap: "home", progress: "practice" };
 
 function read(key, fallback) {
   try {
@@ -102,7 +102,7 @@ if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 function route() {
   let [requested, id] = location.hash.slice(1).split("/");
   if (MOVED[requested]) {
-    location.replace(`#${MOVED[requested]}${requested === "animation" && id ? `/scene:${id}` : ""}`);
+    location.replace(`#${MOVED[requested]}${requested === "animation" && id ? `/scene:${id}` : requested === "notebook" && id ? `/${id}` : ""}`);
     return;
   }
   const page = Object.hasOwn(labels, requested) ? requested : "home";

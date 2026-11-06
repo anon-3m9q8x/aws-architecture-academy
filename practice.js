@@ -370,10 +370,10 @@ function feedback(q) {
   const rel = relatedNotes(q);
   const foot = el("div", "feedback-links");
   if (rel.length) {
-    foot.append(el("span", "muted", "ノートで確認："));
+    foot.append(el("span", "muted", "図鑑で確認:"));
     rel.forEach((id) => {
       const a = el("a", "note-chip", noteName.get(id));
-      a.href = `#notebook/${id}`;
+      a.href = `#services/${id}`;
       foot.append(a);
     });
   }
