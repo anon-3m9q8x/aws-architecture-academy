@@ -3992,3 +3992,41 @@ html[data-theme="dark"] .sum-tag.band-mid { color: #fbbf24; }
 html[data-theme="dark"] .ex-hero { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 30px 60px -40px rgb(56 120 255 / 0.6); }
 html[data-theme="dark"] ::selection { background: rgb(92 157 255 / 0.4); }
 html[data-theme="dark"] * { scrollbar-color: rgb(150 175 225 / 0.25) transparent; }
+
+/* ======================================================================
+   Edition 06.5 — ワークスペース(サイドバー)とセクションタブの配色
+   ライト #E9F2FF / ダーク #182A45 / 選択背景 #D2E5FF / アクセント #3985FF
+   ====================================================================== */
+:root {
+  --ws-bg: #e9f2ff;
+  --ws-select: #d2e5ff;
+  --ws-accent: #3985ff;
+  --ws-ink: #17223b;
+  --ws-muted: #4f6283;
+  --ws-line: color-mix(in srgb, #3985ff 16%, transparent);
+}
+html[data-theme="dark"] {
+  --ws-bg: #182a45;
+  --ws-select: color-mix(in srgb, #3985ff 30%, #182a45); /* 暗い背景で文字を読みやすくするため、選択背景はアクセントを混ぜた濃い青 */
+  --ws-ink: #eaf1ff;
+  --ws-muted: #a9bcdc;
+  --ws-line: color-mix(in srgb, #3985ff 22%, transparent);
+}
+.sl-group { scroll-behavior: auto; }
+/* 左のワークスペース */
+.shell > .sidebar, .sidebar { background: var(--ws-bg) !important; border-right: 1px solid var(--ws-line); color: var(--ws-ink); }
+.sidebar .eyebrow, .sidebar .version { color: var(--ws-muted); }
+.sidebar nav a { color: var(--ws-ink); }
+.sidebar nav a span[aria-hidden] { color: var(--ws-accent); }
+.sidebar nav a:hover { background: color-mix(in srgb, var(--ws-select) 60%, transparent); }
+.sidebar nav a[aria-current="page"] { color: var(--ws-accent); font-weight: 750; background: transparent; box-shadow: none !important; }
+.sidebar .nav-pill { background: var(--ws-select) !important; border: 1px solid color-mix(in srgb, var(--ws-accent) 35%, transparent); box-shadow: inset 3px 0 0 var(--ws-accent) !important; }
+.sidebar .nav-badge { background: color-mix(in srgb, var(--ws-accent) 14%, transparent); color: var(--ws-accent); border-color: transparent; }
+.sidebar .sidebar-note { background: color-mix(in srgb, var(--ws-select) 70%, transparent); border-color: var(--ws-line); color: var(--ws-ink); }
+.sidebar .sidebar-note p { color: var(--ws-muted); }
+/* 図鑑の解説ページのセクションタブ(アニメーション / 解説 / 種類・発展形 / 類似サービス / 連携 / 設計パターン / メモ) */
+.ex-tabs { background: var(--ws-bg) !important; border-color: var(--ws-line) !important; }
+.ex-tabs .ex-tab { color: var(--ws-muted); }
+.ex-tabs .ex-tab:hover { color: var(--ws-ink); }
+.ex-tabs .ex-tab.sl-on { color: var(--ws-accent) !important; }
+.ex-tabs .sl-ind { background: var(--ws-select) !important; border: 1px solid color-mix(in srgb, var(--ws-accent) 40%, transparent); box-shadow: 0 4px 14px -8px var(--ws-accent) !important; }
