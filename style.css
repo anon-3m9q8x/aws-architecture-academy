@@ -3820,3 +3820,31 @@ html[data-theme="dark"] .study-hero { --hero-left: color-mix(in srgb, #142a47 86
 .bd-pri.p-最優先 { background: var(--study-blue); color: #fff; border-color: transparent; }
 .bd-pri.p-高 { background: color-mix(in srgb, var(--study-blue) 18%, transparent); }
 .bd-refs { margin: 0; padding-left: 18px; line-height: 1.9; font-size: 13px; }
+
+/* ---------- 資格問題演習: 全資格・出題確率 ---------- */
+.exam-overview { margin: 14px 0 4px; display: grid; gap: 10px; }
+.exam-ov-h { margin: 0; font-size: 12.5px; color: var(--aaa-muted); font-weight: 650; }
+.exam-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.exam-chip { display: inline-flex; align-items: baseline; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--glass-line); background: var(--glass); cursor: pointer; font-size: 12px; color: var(--aaa-text); }
+.exam-chip b { font: 750 11.5px ui-monospace, monospace; }
+.exam-chip span { color: var(--aaa-muted); }
+.exam-chip:hover { border-color: var(--study-blue); }
+.exam-ov-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; font-size: 13px; }
+.exam-ov-top a { margin-left: auto; font-size: 12.5px; }
+.exam-ov-rows { display: grid; gap: 4px; }
+.exam-ov-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(60px, 1fr) 3.2em minmax(0, 1fr); align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; border: 1px solid transparent; background: var(--glass); color: var(--aaa-text); text-align: left; cursor: pointer; font-size: 12.5px; }
+.exam-ov-row:hover { border-color: var(--study-blue); }
+.exam-ov-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+.exam-ov-bar { height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--aaa-muted) 18%, transparent); overflow: hidden; }
+.exam-ov-bar i { display: block; height: 100%; background: var(--study-blue); border-radius: inherit; }
+.exam-ov-w { font: 700 12px ui-monospace, monospace; text-align: right; }
+.exam-ov-n { color: var(--aaa-muted); font-size: 11.5px; }
+@media (max-width: 760px) { .exam-ov-row { grid-template-columns: 1fr 3em; } .exam-ov-bar, .exam-ov-n { grid-column: 1 / -1; } }
+.quiz-meta2 { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.prob-pill.band-high { background: color-mix(in srgb, #ef4444 16%, transparent); border-color: color-mix(in srgb, #ef4444 40%, transparent); }
+.prob-pill.band-mid { background: color-mix(in srgb, #f59e0b 16%, transparent); border-color: color-mix(in srgb, #f59e0b 40%, transparent); }
+.prob-pill.band-low { background: color-mix(in srgb, #64748b 14%, transparent); }
+.diff-pill { letter-spacing: 1px; }
+.sum-tag { flex: none; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--glass); color: var(--aaa-muted); white-space: nowrap; }
+.sum-tag.band-high { color: #dc2626; }
+.sum-tag.band-mid { color: #b45309; }

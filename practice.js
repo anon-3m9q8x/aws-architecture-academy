@@ -1,6 +1,7 @@
 import { questions } from "./data/questions.js";
 import { solve } from "./data/solve.js";
 import { notebook } from "./data/notebook.js";
+import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
 const LETTERS = "ABCDEFGH";
@@ -106,11 +107,14 @@ function stats() {
 /* ---------- 出題条件 ---------- */
 function pool() {
   const last = latest();
+  const code = $("quiz-cert").value;
+  const dom = $("quiz-domain").value;
+  const band = $("quiz-prob").value;
   return questions.filter(
     (q) =>
-      ($("quiz-cert").value === "all" ||
-        (q.certifications || [q.certification]).includes($("quiz-cert").value)) &&
-      ($("quiz-domain").value === "all" || q.domain === $("quiz-domain").value) &&
+      (code === "all" || !!q.exams[code]) &&
+      (dom === "all" || (dom.startsWith("d:") ? q.exams[code]?.[0] === Number(dom.slice(2)) : q.domain === dom)) &&
+      (band === "all" || probBand(probability(q, examFor(q))) === band) &&
       ($("quiz-difficulty").value === "all" || q.difficulty === Number($("quiz-difficulty").value)) &&
       ($("quiz-mode").value === "all" ||
         ($("quiz-mode").value === "wrong"
@@ -128,12 +132,108 @@ function updatePool() {
   const chip = $("preset-chip");
   if (chip) chip.hidden = !presetIds;
 }
-[...new Set(questions.map((q) => q.domain))].forEach((domain) => {
-  const o = el("option", "", domain);
-  o.value = domain;
-  $("quiz-domain").append(o);
+/* 資格(試験)の選択肢: レベルごとにまとめ、試験コードを値にする */
+LEVELS.forEach((lv) => {
+  const g = el("optgroup");
+  g.label = { Foundational: "基礎", Business: "ビジネス", Associate: "アソシエイト", Professional: "プロフェッショナル", Specialty: "専門知識" }[lv];
+  EXAMS.filter((e) => e.level === lv).forEach((e) => {
+    const n = questions.filter((q) => q.exams[e.code]).length;
+    const o = el("option", "", `${e.code} ${e.name}${e.retire ? `(${e.retire.slice(5).replace("-", "/")} まで)` : ""} · ${n}問`);
+    o.value = e.code;
+    g.append(o);
+  });
+  $("quiz-cert").append(g);
 });
-["quiz-cert", "quiz-domain", "quiz-difficulty", "quiz-mode", "quiz-limit"].forEach((id) =>
+/** 表示・確率の計算に使う試験: 選択中の試験があればそれ、なければ問題の主な試験 */
+function examFor(q) {
+  const code = $("quiz-cert").value;
+  return code !== "all" && q.exams[code] ? code : primaryExam(q);
+}
+/* 分野の選択肢: 資格を選ぶと試験ガイドの分野、すべてのときは問題の領域 */
+function fillDomains() {
+  const code = $("quiz-cert").value;
+  const sel = $("quiz-domain");
+  sel.replaceChildren(el("option", "", "すべての分野"));
+  sel.firstChild.value = "all";
+  if (code === "all") {
+    [...new Set(questions.map((q) => q.domain))].forEach((domain) => {
+      const o = el("option", "", domain);
+      o.value = domain;
+      sel.append(o);
+    });
+  } else {
+    examByCode.get(code).domains.forEach(([name, w], i) => {
+      const n = questions.filter((q) => q.exams[code]?.[0] === i + 1).length;
+      const o = el("option", "", `分野${i + 1} ${name}(配点 ${w}%)· ${n}問`);
+      o.value = "d:" + (i + 1);
+      sel.append(o);
+    });
+  }
+}
+/* 選択中の試験の概要: 分野ごとの配点と問題数、出題確率の内訳 */
+function renderOverview() {
+  const box = $("exam-overview");
+  if (!box) return;
+  const code = $("quiz-cert").value;
+  box.replaceChildren();
+  if (code === "all") {
+    const grid = el("div", "exam-chips");
+    EXAMS.forEach((e) => {
+      const n = questions.filter((q) => q.exams[e.code]).length;
+      const b = el("button", "exam-chip");
+      b.type = "button";
+      b.append(el("b", "", e.code), el("span", "", `${n}問`));
+      b.title = e.name;
+      b.addEventListener("click", () => {
+        $("quiz-cert").value = e.code;
+        $("quiz-cert").dispatchEvent(new Event("change"));
+      });
+      grid.append(b);
+    });
+    box.append(el("p", "exam-ov-h", "資格を選ぶと、試験ガイドの分野ごとに演習できます"), grid);
+    return;
+  }
+  const ex = examByCode.get(code);
+  const qs = questions.filter((q) => q.exams[code]);
+  const head = el("div", "exam-ov-top");
+  const link = el("a", "", "公式試験ガイド ↗");
+  link.href = ex.guide;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  head.append(el("b", "", `${ex.code} ${ex.name}`), el("span", "muted", `採点対象 ${ex.scored} 問${ex.scoredEstimated ? "(推定)" : ""}${ex.retire ? ` · ${ex.retire} で受験終了` : ""}`), link);
+  const table = el("div", "exam-ov-rows");
+  ex.domains.forEach(([name, w], i) => {
+    const sub = qs.filter((q) => q.exams[code][0] === i + 1);
+    const bands = { high: 0, mid: 0, low: 0 };
+    sub.forEach((q) => bands[probBand(probability(q, code))]++);
+    const row = el("button", "exam-ov-row");
+    row.type = "button";
+    const bar = el("span", "exam-ov-bar");
+    const fill = el("i");
+    fill.style.width = w * 2.5 + "%";
+    bar.append(fill);
+    row.append(el("span", "exam-ov-name", `分野${i + 1} ${name}`), bar, el("span", "exam-ov-w", `${w}%`), el("span", "exam-ov-n", `${sub.length}問 · 高${bands.high} 中${bands.mid} 低${bands.low}`));
+    row.addEventListener("click", () => {
+      $("quiz-domain").value = "d:" + (i + 1);
+      updatePool();
+    });
+    table.append(row);
+  });
+  box.append(head, table);
+}
+$("quiz-cert").addEventListener("change", () => {
+  fillDomains();
+  renderOverview();
+  const code = $("quiz-cert").value;
+  $("practice-exam-pill").textContent = code === "all" ? "全資格対応" : code;
+});
+fillDomains();
+renderOverview();
+{
+  const single = questions.filter((q) => q.selectCount === 1).length;
+  $("practice-type-pill").textContent = `単一${single}問 / 複数${questions.length - single}問`;
+}
+["quiz-cert", "quiz-domain", "quiz-prob", "quiz-difficulty", "quiz-mode", "quiz-limit"].forEach((id) =>
   $(id).addEventListener("change", updatePool),
 );
 // ノートなどから「このサービスの問題」を出題する
@@ -141,7 +241,9 @@ window.addEventListener("practice-preset", (e) => {
   const ids = e.detail?.ids || [];
   presetIds = ids.length ? new Set(ids) : null;
   $("preset-label").textContent = e.detail?.label || "";
-  ["quiz-cert", "quiz-domain", "quiz-difficulty", "quiz-mode"].forEach((id) => ($(id).value = "all"));
+  ["quiz-cert", "quiz-prob", "quiz-difficulty", "quiz-mode"].forEach((id) => ($(id).value = "all"));
+  fillDomains();
+  renderOverview();
   $("quiz-limit").value = "1000";
   settings();
 });
@@ -310,7 +412,24 @@ function render() {
   $("quiz-position").textContent = `QUESTION ${String(position + 1).padStart(2, "0")} / ${session.length}`;
   $("quiz-progress").max = session.length;
   $("quiz-progress").value = states.filter((x) => x.submitted).length;
-  $("quiz-domain-label").textContent = `${(q.certifications || [q.certification]).join(" / ")} · ${q.domain} · 難易度${q.difficulty}`;
+  const code = examFor(q);
+  const ex = examByCode.get(code);
+  const [d, tier] = q.exams[code] || [];
+  const p = probability(q, code);
+  const others = Object.keys(q.exams).filter((c) => c !== code);
+  $("quiz-domain-label").textContent = `${code} · 分野${d} ${ex?.domains[d - 1]?.[0] || q.domain}${others.length ? ` · ほか ${others.join(" / ")}` : ""}`;
+  let meta = $("quiz-meta2");
+  if (!meta) {
+    meta = el("span", "quiz-meta2");
+    meta.id = "quiz-meta2";
+    $("quiz-type").after(meta);
+  }
+  const band = probBand(p);
+  const pr = el("span", `pill prob-pill band-${band}`, `出題確率 ${BAND_LABEL[band]} · 約${p}%(推定)`);
+  pr.title = `${TIER[tier]?.[0] || ""} · 分野の配点 ${ex?.domains[d - 1]?.[1]}% × 採点 ${ex?.scored} 問から推定。AWS は問題ごとの出題率を公開していません。`;
+  const lv = el("span", `pill diff-pill lv${q.difficulty}`, `難易度 ${"★".repeat(q.difficulty)}${"☆".repeat(4 - q.difficulty)}`);
+  lv.title = ["", "基礎", "標準", "発展", "設計応用"][q.difficulty];
+  meta.replaceChildren(pr, lv);
   $("quiz-type").textContent = q.selectCount === 1 ? "単一選択" : `複数選択・${q.selectCount}つ`;
   $("quiz-prompt").textContent = q.prompt;
   $("quiz-choices").replaceChildren();
@@ -482,6 +601,7 @@ function showResult() {
     btn.append(
       el("span", "mark", s.submitted ? (s.correct ? "✓" : "×") : "—"),
       el("span", "q", `${String(i + 1).padStart(2, "0")}. ${q.prompt}`),
+      el("span", `sum-tag band-${probBand(probability(q, examFor(q)))}`, `${examFor(q)} · ★${q.difficulty} · 約${probability(q, examFor(q))}%`),
       el("span", "go", "見直す →"),
     );
     btn.addEventListener("click", () => {

@@ -263,10 +263,10 @@
               <p class="eyebrow">PRACTICE WITH PURPOSE</p>
               <h1>知識を、確かな理解へ。</h1>
               <p class="muted">
-                全60問の学習問題。選ぶ理由も、選ばない理由も学ぼう。
+                AWS 認定の全 13 資格・15 試験に対応。問題ごとに難易度と出題確率(推定)を表示し、条件で絞って演習できます。
               </p>
             </div>
-            <span class="pill">CLF 基礎 / SAA 設計</span>
+            <span class="pill" id="practice-exam-pill">全資格対応</span>
           </div>
           <div class="practice-stats">
             <div class="panel stat">
@@ -285,20 +285,23 @@
                 <p class="eyebrow orange">YOUR NEXT SESSION</p>
                 <h2>今日の学習をセットアップ</h2>
               </div>
-              <span class="pill">単一47問 / 複数13問</span>
+              <span class="pill" id="practice-type-pill"></span>
             </div>
             <div class="practice-filters">
               <label
-                >資格レベル<select id="quiz-cert">
-                  <option value="all">すべてのレベル</option>
-                  <option value="CLF">CLF 基礎レベル</option>
-                  <option value="SAA">SAA 設計レベル</option>
-                  <option value="DVA">DVA 関連問題</option>
-                  <option value="SAP">SAP 関連問題</option>
+                >資格(試験)<select id="quiz-cert">
+                  <option value="all">すべての資格</option>
                 </select></label
               ><label
                 >分野<select id="quiz-domain">
                   <option value="all">すべての分野</option>
+                </select></label
+              ><label
+                >出題確率(推定)<select id="quiz-prob">
+                  <option value="all">すべて</option>
+                  <option value="high">高 · 85% 以上</option>
+                  <option value="mid">中 · 60〜84%</option>
+                  <option value="low">低 · 60% 未満</option>
                 </select></label
               ><label
                 >難易度<select id="quiz-difficulty">
@@ -322,6 +325,7 @@
                 </select></label
               >
             </div>
+            <div id="exam-overview" class="exam-overview"></div>
             <p id="preset-chip" class="preset-chip" hidden>出題中：<b id="preset-label"></b> <button id="preset-clear" type="button">条件を解除</button></p>
             <div class="setup-actions">
               <span id="pool-count" role="status"></span
@@ -370,8 +374,8 @@
           <div class="study-notice">
             <strong>学習用オリジナル教材</strong>
             <p>
-              実際の試験問題・公式模擬試験ではありません。CLF / SAA
-              は学習レベルの目安で、試験全範囲の網羅や合格を保証しません。公式出典付き・専門家レビュー未実施。静的サイトのため解答データは配信ファイルに含まれます。
+              実際の試験問題・公式模擬試験ではありません。試験全範囲の網羅や合格を保証しません。公式出典付き・専門家レビュー未実施。静的サイトのため解答データは配信ファイルに含まれます。
+              <b>出題確率は推定値です。</b>AWS は問題ごとの出題率を公開していません。公式試験ガイドの分野の配点比率と採点対象の問題数に、その論点が分野内で占める重みを掛けて「1 回の受験で同じ論点が少なくとも 1 問出る確率」を計算しています。
             </p>
           </div>
         </section>

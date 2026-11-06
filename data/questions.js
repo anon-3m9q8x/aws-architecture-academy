@@ -1322,4 +1322,27 @@ const baseQuestions = [
   }
 ];
 
-export const questions = [...baseQuestions, ...labQuestions];
+import { Q_FOUNDATIONAL } from "./q-foundational.js";
+import { Q_ASSOCIATE } from "./q-associate.js";
+import { Q_PROFESSIONAL } from "./q-professional.js";
+
+// 既存 60 問に、試験ガイドの分野と論点の重要度を付ける(分野は問題の領域から対応付け)
+const AREA_TO_DOMAIN = {
+  "CLF-C02": (a) => (a === "セキュリティ" ? 2 : a === "コスト最適化" ? 4 : 3),
+  "SAA-C03": (a) => (a === "セキュリティ" ? 1 : a === "高可用性" ? 2 : a === "コスト最適化" ? 4 : 3),
+  "DVA-C03": (a) => (a === "セキュリティ" ? 2 : a === "高可用性" || a === "パフォーマンス" ? 4 : 1),
+  "DVA-C02": (a) => (a === "セキュリティ" ? 2 : a === "高可用性" || a === "パフォーマンス" ? 4 : 1),
+  "SAP-C03": (a) => (a === "セキュリティ" ? 2 : a === "高可用性" ? 4 : a === "コスト最適化" ? 3 : 1),
+  "SAP-C02": (a) => (a === "セキュリティ" ? 1 : a === "高可用性" || a === "コスト最適化" ? 3 : 2),
+  "SOA-C03": (a) => (a === "セキュリティ" ? 4 : a === "高可用性" ? 2 : 1),
+};
+const FAMILY_TO_CODES = { CLF: ["CLF-C02"], SAA: ["SAA-C03"], DVA: ["DVA-C03", "DVA-C02"], SAP: ["SAP-C03", "SAP-C02"], SOA: ["SOA-C03"] };
+function withExams(q) {
+  if (q.exams) return q;
+  const tier = q.difficulty <= 2 ? "core" : "common";
+  const exams = {};
+  for (const f of q.certifications || [q.certification])
+    for (const code of FAMILY_TO_CODES[f] || []) exams[code] = [AREA_TO_DOMAIN[code](q.domain), tier];
+  return { ...q, exams, certifications: q.certifications || [q.certification] };
+}
+export const questions = [...baseQuestions, ...labQuestions, ...Q_FOUNDATIONAL, ...Q_ASSOCIATE, ...Q_PROFESSIONAL].map(withExams);
