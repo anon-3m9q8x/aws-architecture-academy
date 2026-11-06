@@ -4,6 +4,10 @@ import { META } from "./data/services-meta.js";
 import { EXTRA } from "./data/services-extra.js";
 import { LINKS } from "./data/links.js";
 import { cues } from "./data/cues.js";
+import { EXTRA_SAP } from "./data/services-sap.js";
+import { LINKS_SAP } from "./data/links-sap.js";
+import { PATTERNS } from "./data/sap-patterns.js";
+const EXTRA_ALL = { ...EXTRA, ...EXTRA_SAP };
 
 // 図鑑のカテゴリ(表示順)と色
 export const CATS = [
@@ -29,8 +33,8 @@ const ABBR = {
   snowball: "SNW", mgn: "MGN", fargate: "FG", batch: "BAT", apprunner: "AR", glacier: "GLC", neptune: "NEP", timestream: "TS", emr: "EMR",
   msk: "MSK", quicksight: "QS", lakeformation: "LF", networkfirewall: "NFW", inspector: "INS", macie: "MAC", securityhub: "SH", cloudhsm: "HSM",
   directory: "AD", appsync: "GQL", ses: "SES", servicecatalog: "SC", ce: "CE", budgets: "$", transfer: "SFTP", migrationhub: "MH", bedrock: "BR",
-  sagemaker: "SM", rekognition: "REK", textract: "TXT", transcribe: "TRN", iotcore: "IoT", connect: "CC", fwm: "FMS", grafana: "GF", mgrafana: "AMG",
-  lambdaedge: "λ@E", rdsproxy: "PXY", dax: "DAX", cwlogs: "LOG", sts: "STS", gwlb: "GWLB", privateca: "PCA", cdk: "CDK", sam: "SAM",
+  sagemaker: "SGM", rekognition: "REK", textract: "TXT", transcribe: "TRN", iotcore: "IoT", connect: "CC", fwm: "FMS", grafana: "GF", mgrafana: "AMG",
+  sct: "SCT", dlm: "DLM", migeval: "ME", lambdaedge: "λ@E", rdsproxy: "PXY", dax: "DAX", cwlogs: "LOG", sts: "STS", gwlb: "GWLB", privateca: "PCA", cdk: "CDK", sam: "SAM",
 };
 
 const notes = new Map(notebook.services.map((s) => [s.id, s]));
@@ -42,7 +46,7 @@ for (const nb of notebook.services) {
     purpose: nb.purpose, features: nb.features || [], useCases: nb.useCases, tip: nb.tip, note: true,
   });
 }
-for (const [id, x] of Object.entries(EXTRA)) {
+for (const [id, x] of Object.entries(EXTRA_ALL)) {
   SERVICES.push({ id, name: x.n, full: x.f, doc: x.d, summary: x.s, cat: x.c === "IoT・エンドユーザー" ? "IoT" : x.c, purpose: x.p, features: x.ft || [], useCases: x.u, tip: x.t, note: false });
 }
 const order = new Map(CATS.map(([c], i) => [c, i]));
@@ -63,16 +67,24 @@ function addRel(a, b, label, dir) {
   list.push({ id: b, label, dir, detail: linkDetail(a, b) });
 }
 export function linkDetail(a, b) {
-  return LINKS[`${a}|${b}`] || LINKS[`${b}|${a}`] || null;
+  return LINKS[`${a}|${b}`] || LINKS[`${b}|${a}`] || LINKS_SAP[`${a}|${b}`] || LINKS_SAP[`${b}|${a}`] || null;
 }
 for (const e of notebook.edges) {
   addRel(e.from, e.to, e.label, "out");
   addRel(e.to, e.from, e.label, "in");
 }
-for (const [id, x] of Object.entries(EXTRA))
+for (const [id, x] of Object.entries(EXTRA_ALL))
   for (const [to, label] of x.l || []) {
     addRel(id, to, label, "out");
     addRel(to, id, label, "in");
+  }
+// SAP 設計パターンの流れも連携として登録(パターン内の矢印 = 実際に設計される接続)
+for (const p of PATTERNS)
+  for (const [a, b, label] of p.s) {
+    const x = p.n[a][0], y = p.n[b][0];
+    if (["user", "internet", "onprem"].includes(x) && ["user", "internet", "onprem"].includes(y)) continue;
+    addRel(x, y, `${label}(${p.id})`, "out");
+    addRel(y, x, `${label}(${p.id})`, "in");
   }
 // 詳細解説のある連携を先頭に
 rel.forEach((list) => list.sort((p, q) => (q.detail ? 1 : 0) - (p.detail ? 1 : 0)));
@@ -84,3 +96,6 @@ export const metaOf = (id) => {
 };
 export const isNote = (id) => notes.has(id);
 export const serviceCount = SERVICES.filter((s) => s.cat !== "一般概念").length;
+
+// サービスが登場する SAP 設計パターン
+export const patternsOf = (id) => PATTERNS.filter((p) => p.n.some(([svc]) => svc === id));

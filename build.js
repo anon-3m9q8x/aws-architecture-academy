@@ -1,5 +1,6 @@
 // サービス構築問題: サービスを配置し、線でつないで構成を組み立てる。採点後に模範解答をアニメーションで確認。
 import { BUILD } from "./data/build.js";
+import { PATTERNS } from "./data/sap-patterns.js";
 import { byId, metaOf, linkDetail } from "./services.js";
 import { FlowPlayer, problemScene, fitFont } from "./flow.js";
 import { $, el, slider, store, toast } from "./ui.js";
@@ -21,6 +22,17 @@ function s(tag, attrs, parent) {
   return n;
 }
 const ekey = (a, b) => [a, b].sort().join("|");
+/** 障害対応問題は「問題のある現在の構成」から始める。layout があればそれを使う */
+function startState(pb) {
+  if (!pb.start) return { nodes: [], edges: [] };
+  const pos = pb.start.at || {};
+  const ids = pb.start.nodes;
+  const nodes = ids.map((id, i) => {
+    const q = pos[id] || [10 + (i % 4) * 27, 20 + Math.floor(i / 4) * 55];
+    return [id, { x: 80 + (q[0] / 100) * (W - 160), y: 50 + (q[1] / 100) * (H - 100) }];
+  });
+  return { nodes, edges: pb.start.edges.map(([a, b]) => ekey(a, b)) };
+}
 function save() { store.set(KEY, rec); window.dispatchEvent(new Event("learning-update")); }
 
 /* ---------- 一覧 ---------- */
@@ -36,7 +48,7 @@ function renderList() {
   prog.append(el("b", "", `${solved} / ${BUILD.length}`), el("small", "", "問 正解"));
   head.append(t, prog);
   const seg = el("div", "seg bd-levels");
-  [["all", "すべて"], ["SAA", "SAA 設計"], ["SAP", "SAP 応用"]].forEach(([v, tx]) => {
+  [["all", "すべて"], ["SAA", "SAA 設計"], ["SAP", "SAP 応用"], ["fix", "障害対応"]].forEach(([v, tx]) => {
     const b = el("button", "seg-btn", tx);
     b.type = "button";
     b.dataset.v = v;
@@ -44,18 +56,18 @@ function renderList() {
     seg.append(b);
   });
   const how = el("ol", "bd-how");
-  [["読む", "要件と制約から、必要な役割を考える"], ["置く", "パレットのサービスをタップして配置"], ["つなぐ", "2 つのサービスを順にタップして連携"], ["確かめる", "採点し、模範解答の動きを再生"]].forEach(([a, b], i) => {
+  [["読む", "要件・制約(障害対応ではチケットと証跡)から役割を考える"], ["置く / 外す", "パレットのサービスを追加し、不要なものは外す"], ["つなぐ", "2 つのサービスを順にタップして連携"], ["確かめる", "部品・連携・不要物で採点し、必要な設定と模範解答の動きを確認"]].forEach(([a, b], i) => {
     const li = el("li");
     li.append(el("i", "", String(i + 1)), el("b", "", a), el("span", "", b));
     how.append(li);
   });
   const grid = el("div", "bd-grid");
-  BUILD.filter((pb) => level === "all" || pb.level === level).forEach((pb, i) => {
+  BUILD.filter((pb) => level === "all" || (level === "fix" ? pb.mode === "fix" : pb.level === level)).forEach((pb, i) => {
     const r = rec[pb.id];
     const a = el("a", `bd-card${r?.ok ? " ok" : r ? " tried" : ""}`);
     a.href = `#build/${pb.id}`;
     const top = el("div", "bd-card-top");
-    top.append(el("span", `bd-lv lv-${pb.level}`, pb.level), el("span", "bd-dom", pb.domain), el("span", "bd-st", r?.ok ? "✓ 正解" : r ? `挑戦 ${r.tries} 回` : "未挑戦"));
+    top.append(el("span", `bd-lv lv-${pb.level}`, pb.level), ...(pb.mode === "fix" ? [el("span", "bd-lv lv-fix", "障害対応")] : []), el("span", "bd-dom", pb.domain), el("span", "bd-st", r?.ok ? "✓ 正解" : r ? `挑戦 ${r.tries} 回` : "未挑戦"));
     const icons = el("div", "bd-icons");
     pb.slots.forEach((sl) => {
       const sv = byId.get(sl.any[0]);
@@ -82,7 +94,8 @@ function openProblem(pb) {
   player?.destroy();
   player = null;
   const saved = store.get(`aaa.build.ws.${pb.id}`, null);
-  ws = { pb, nodes: new Map(saved?.nodes || []), edges: new Set(saved?.edges || []), sel: null, hint: 0, checked: false };
+  const init = startState(pb);
+  ws = { pb, nodes: new Map(saved?.nodes || init.nodes), edges: new Set(saved?.edges || init.edges), sel: null, hint: 0, checked: false };
   const wrap = el("div", "bd-prob");
   const back = el("a", "ex-back", "← 構築問題の一覧へ");
   back.href = "#build";
@@ -90,13 +103,36 @@ function openProblem(pb) {
   // 要件
   const brief = el("section", "panel bd-brief");
   const bt = el("div", "bd-card-top");
-  bt.append(el("span", `bd-lv lv-${pb.level}`, pb.level), el("span", "bd-dom", pb.domain), el("span", "bd-st", `問題 ${idx + 1} / ${BUILD.length}`));
+  bt.append(el("span", `bd-lv lv-${pb.level}`, pb.level), ...(pb.mode === "fix" ? [el("span", "bd-lv lv-fix", "障害対応")] : []), el("span", "bd-dom", pb.domain), el("span", "bd-st", `問題 ${idx + 1} / ${BUILD.length}`));
   const reqs = el("ul", "bd-reqs");
   pb.reqs.forEach((r) => reqs.append(el("li", "", r)));
-  brief.append(bt, el("h1", "", pb.title), el("p", "bd-scn", pb.scenario), el("h3", "", "満たすべき要件"), reqs);
+  brief.append(bt, el("h1", "", pb.title));
+  if (pb.mode === "fix") {
+    const tk = el("div", "bd-ticket");
+    tk.append(el("b", "", "障害チケット"), el("p", "", pb.scenario));
+    brief.append(tk);
+    if (pb.log?.length) {
+      const lg = el("pre", "bd-log");
+      lg.textContent = pb.log.join("\n");
+      brief.append(el("h3", "", "観測・証跡(模擬)"), lg);
+    }
+    brief.append(el("p", "muted bd-fixnote", "キャンバスには現在の(問題のある)構成が置かれています。足りないものを追加し、原因になっているものは外してください。"));
+  } else brief.append(el("p", "bd-scn", pb.scenario));
+  brief.append(el("h3", "", pb.mode === "fix" ? "修復後に満たすこと" : "満たすべき要件"), reqs);
+  if (pb.pattern?.length || pb.src) {
+    const src = el("p", "bd-src");
+    if (pb.src) src.append(el("span", "", `参照: ${pb.src}`));
+    (pb.pattern || []).forEach((pid) => {
+      const a = el("a", "pt-tag", pid);
+      a.href = `#services/pattern:${pid}`;
+      a.title = PATTERNS.find((x) => x.id === pid)?.t || pid;
+      src.append(a);
+    });
+    brief.append(src);
+  }
   // パレット
   const pal = el("section", "panel bd-pal");
-  pal.append(el("h3", "", "サービスを配置"), el("p", "muted", "タップで追加・もう一度で削除。ひっかけも混ざっています。"));
+  pal.append(el("h3", "", "サービスを配置"), el("p", "muted", "タップで追加・もう一度で外す。不要なサービスや、つなぐと誤りになる連携も混ざっています。"));
   const pl = el("div", "bd-pal-list");
   pb.palette.forEach((id) => {
     const sv = byId.get(id);
@@ -277,8 +313,9 @@ function openProblem(pb) {
     }
   });
   btnClear.addEventListener("click", () => {
-    ws.nodes.clear();
-    ws.edges.clear();
+    const init = startState(pb);
+    ws.nodes = new Map(init.nodes);
+    ws.edges = new Set(init.edges);
     ws.sel = null;
     ws.mark = null;
     ws.hint = 0;
@@ -302,25 +339,39 @@ function openProblem(pb) {
     const placed = new Set(ws.nodes.keys());
     const slotHit = new Map();
     const nodes = new Map();
+    const optional = new Map(pb.opt || []);
     pb.slots.forEach((sl) => {
       const id = sl.any.find((x) => placed.has(x));
       slotHit.set(sl.k, id || null);
       if (id) nodes.set(id, "ok");
     });
     const edges = new Map();
-    const linkRes = pb.links.map(([a, b, label]) => {
+    const linkRes = pb.links.map(([a, b, label, cfg]) => {
       const A = pb.slots.find((x) => x.k === a).any.filter((x) => placed.has(x));
       const B = pb.slots.find((x) => x.k === b).any.filter((x) => placed.has(x));
-      let ok = false;
-      for (const x of A) for (const y of B) if (ws.edges.has(ekey(x, y))) { ok = true; edges.set(ekey(x, y), "ok"); }
-      return { a, b, label, ok, names: [nameOfSlot(a), nameOfSlot(b)] };
+      let ok = false, pair = null;
+      for (const x of A) for (const y of B) if (ws.edges.has(ekey(x, y))) { ok = true; pair = [x, y]; edges.set(ekey(x, y), "ok"); }
+      const ex = pair || [pb.slots.find((x) => x.k === a).any[0], pb.slots.find((x) => x.k === b).any[0]];
+      return { a, b, label, ok, cfg: cfg || linkDetail(ex[0], ex[1])?.need || "", names: [nameOfSlot(a), nameOfSlot(b)] };
     });
-    const forb = pb.forbid.filter(([id]) => placed.has(id));
+    // 要件の部品でも任意(opt)でもない配置は、すべて「不要なサービス」
+    const forbidWhy = new Map(pb.forbid);
+    const forb = [...placed].filter((id) => !nodes.has(id) && !optional.has(id)).map((id) => [id, forbidWhy.get(id) || "この要件の構成には含めません。役割が重複するか、要件と関係のないサービスです。"]);
     forb.forEach(([id]) => nodes.set(id, "ng"));
-    ws.edges.forEach((k) => { if (!edges.has(k) && k.split("|").some((x) => nodes.get(x) === "ng")) edges.set(k, "ng"); });
+    [...placed].filter((id) => optional.has(id)).forEach((id) => nodes.set(id, "opt"));
+    // 必要な連携にない線。任意のサービスにつながる線は減点しない
+    const extra = [];
+    ws.edges.forEach((k) => {
+      if (edges.has(k)) return;
+      const [x, y] = k.split("|");
+      if (nodes.get(x) === "ng" || nodes.get(y) === "ng") { edges.set(k, "ng"); return; }
+      if (nodes.get(x) === "opt" || nodes.get(y) === "opt") return;
+      edges.set(k, "ng");
+      extra.push([x, y]);
+    });
     const slotsOk = pb.slots.every((x) => slotHit.get(x.k));
     const linksOk = linkRes.every((x) => x.ok);
-    const ok = slotsOk && linksOk && !forb.length;
+    const ok = slotsOk && linksOk && !forb.length && !extra.length;
     ws.mark = { nodes, edges };
     draw();
     const r = rec[pb.id] || { tries: 0, ok: false };
@@ -329,20 +380,20 @@ function openProblem(pb) {
     r.at = new Date().toISOString();
     rec[pb.id] = r;
     save();
-    showResult(ok, slotHit, linkRes, forb);
+    showResult(ok, slotHit, linkRes, forb, extra, optional);
   }
   function nameOfSlot(k) {
     const sl = pb.slots.find((x) => x.k === k);
     return sl.any.map((id) => byId.get(id)?.name).join(" / ");
   }
-  function showResult(ok, slotHit, linkRes, forb) {
+  function showResult(ok, slotHit, linkRes, forb, extra, optional) {
     result.hidden = false;
     const box = el("div", `panel bd-res ${ok ? "ok" : "ng"}`);
     const score = pb.slots.filter((x) => slotHit.get(x.k)).length + linkRes.filter((x) => x.ok).length;
     const max = pb.slots.length + pb.links.length;
     const hd = el("div", "bd-res-h");
     hd.append(el("span", "bd-res-mark", ok ? "✓" : "!"), el("div", ""));
-    hd.lastChild.append(el("h2", "", ok ? "正解! 要件を満たす構成です" : "もう少し。足りない部品と連携を確認しましょう"), el("p", "muted", `部品と連携 ${score} / ${max}${forb.length ? `  ·  不要なサービス ${forb.length} 件` : ""}`));
+    hd.lastChild.append(el("h2", "", ok ? (pb.mode === "fix" ? "復旧! 原因を取り除き、要件を満たす構成です" : "正解! 要件を満たす構成です") : "もう少し。✕ の項目を確認しましょう"), el("p", "muted", `部品と連携 ${score} / ${max}${forb.length ? `  ·  不要なサービス ${forb.length} 件` : ""}${extra.length ? `  ·  不要な連携 ${extra.length} 本` : ""}`));
     const meter = el("div", "bd-meter");
     const fill = el("i");
     meter.append(fill);
@@ -364,16 +415,30 @@ function openProblem(pb) {
     linkRes.forEach((x) => {
       const li = el("li", x.ok ? "ok" : "ng");
       li.append(el("b", "", `${x.ok ? "✓" : "✕"} ${x.names[0]} — ${x.names[1]}`), el("span", "", x.label));
+      if (x.cfg && (x.ok || ws.checkedOnce)) li.append(el("small", "bd-cfg", `必要な設定: ${x.cfg}`));
       ul2.append(li);
     });
     c2.append(ul2);
     cols.append(c1, c2);
     box.append(hd, meter, cols);
-    if (forb.length) {
+    if (forb.length || extra.length) {
       const f = el("div", "bd-forb");
-      f.append(el("h3", "", "この要件では不要なサービス"));
-      forb.forEach(([id, why]) => f.append(el("p", "", `${byId.get(id).name}: ${why}`)));
+      if (forb.length) {
+        f.append(el("h3", "", pb.mode === "fix" ? "外すべきサービス(原因・不要)" : "この要件では不要なサービス"));
+        forb.forEach(([id, why]) => f.append(el("p", "", `${byId.get(id)?.name || id}: ${why}`)));
+      }
+      if (extra.length) {
+        f.append(el("h3", "", "必要な連携にない線"));
+        extra.forEach(([x, y]) => f.append(el("p", "", `${byId.get(x)?.name} — ${byId.get(y)?.name}: この構成ではこの 2 つを直接つなぎません。データや制御がどこを経由するかを見直しましょう。`)));
+      }
       box.append(f);
+    }
+    const opts = [...optional].filter(([id]) => ws.nodes.has(id));
+    if (opts.length) {
+      const o = el("div", "bd-opt");
+      o.append(el("h3", "", "置いても減点しないサービス"));
+      opts.forEach(([id, why]) => o.append(el("p", "", `${byId.get(id)?.name}: ${why}`)));
+      box.append(o);
     }
     ws.checkedOnce = true;
     const act = el("div", "bd-actions");
@@ -388,7 +453,8 @@ function openProblem(pb) {
       ans.hidden = false;
       showAns.hidden = true;
       const ex = el("div", "ex-box tip");
-      ex.append(el("h3", "", "解説"), el("p", "", pb.explain));
+      ex.append(el("h3", "", pb.mode === "fix" ? "根本原因と修復" : "解説"), el("p", "", pb.explain));
+      if (pb.verify) ex.append(el("h3", "", "復旧の確認と再発防止"), el("p", "", pb.verify));
       const stage = el("div", "ex-player");
       const apply = el("button", "", "模範解答をキャンバスに反映");
       apply.type = "button";
@@ -423,15 +489,17 @@ function openProblem(pb) {
   document.title = `${pb.title} | 構築問題 | AWS Architecture Academy`;
 }
 
-let last;
+// 前回表示した問題 ID。一覧(#build)は id が undefined になるため、未表示を表す専用の値と区別する
+const NONE = Symbol("none");
+let last = NONE;
 window.addEventListener("route-change", (e) => {
   const { page, id } = e.detail;
   if (page !== "build") {
     player?.pause();
-    last = undefined;
+    last = NONE;
     return;
   }
-  if (id === last) return;
+  if (id === last && host.children.length) return;
   last = id;
   const pb = BUILD.find((x) => x.id === id);
   if (pb) openProblem(pb);
