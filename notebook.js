@@ -1,5 +1,7 @@
 import { notebook } from "./data/notebook.js";
 import { questions } from "./data/questions.js";
+import { cues } from "./data/cues.js";
+import { relatedNotes } from "./practice.js";
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -70,6 +72,15 @@ function bullet(items) {
   items.forEach((t) => ul.append(el("li", "", t)));
   return ul;
 }
+function visibleList() {
+  const q = $("notebook-search").value.trim().toLowerCase();
+  const category = $("notebook-category").value;
+  return notebook.services.filter(
+    (s) =>
+      (category === "all" || s.category === category) &&
+      [s.name, s.category, s.tip, s.purpose, s.useCases, ...s.features].join(" ").toLowerCase().includes(q),
+  );
+}
 function renderIndex() {
   const q = $("notebook-search").value.trim().toLowerCase();
   const category = $("notebook-category").value;
@@ -101,7 +112,53 @@ function renderIndex() {
     $("notebook-list").append(
       el("p", "muted", "見つかりません。検索条件を変えてください。"),
     );
+  placeIndexPill();
 }
+// 選択中の項目へスライドする表示 + 一覧の自動スクロール
+const idxPill = el("span", "idx-pill");
+let idxPrev = null;
+function placeIndexPill() {
+  const list = $("notebook-list");
+  if (!idxPill.isConnected || idxPill.parentNode !== list) list.prepend(idxPill);
+  const a = list.querySelector('[aria-current="true"]');
+  if (!a || !a.offsetHeight) {
+    idxPill.style.opacity = "0";
+    return;
+  }
+  const y = a.offsetTop, h = a.offsetHeight, w = a.offsetWidth;
+  const animate = idxPrev && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  idxPill.style.transition = "none";
+  if (animate) idxPill.style.transform = `translateY(${idxPrev.y}px)`;
+  idxPill.getBoundingClientRect();
+  idxPill.style.transition = animate ? "" : "none";
+  idxPill.style.transform = `translateY(${y}px)`;
+  idxPill.style.height = h + "px";
+  idxPill.style.width = w + "px";
+  idxPill.style.opacity = "1";
+  idxPrev = { y };
+  const sc = list.closest(".notebook-index");
+  const scroller = [list, sc].find((n) => n && n.scrollHeight > n.clientHeight + 2 && getComputedStyle(n).overflowY !== "visible");
+  if (scroller) {
+    const r = a.getBoundingClientRect(), sr = scroller.getBoundingClientRect();
+    if (r.top < sr.top + 8 || r.bottom > sr.bottom - 8)
+      scroller.scrollBy({ top: r.top - sr.top - sr.height / 2 + r.height / 2, behavior: animate ? "smooth" : "auto" });
+  }
+}
+window.addEventListener("resize", () => {
+  idxPrev = null;
+  placeIndexPill();
+});
+$("notebook-list").addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  const items = [...$("notebook-list").querySelectorAll(".notebook-index-item")];
+  const i = items.indexOf(document.activeElement);
+  const n = items[Math.max(0, Math.min(items.length - 1, (i < 0 ? items.findIndex((x) => x.getAttribute("aria-current") === "true") : i) + (e.key === "ArrowDown" ? 1 : -1)))];
+  if (n) {
+    e.preventDefault();
+    location.hash = n.getAttribute("href").slice(1);
+    setTimeout(() => $("notebook-list").querySelector(`[href="${n.getAttribute("href")}"]`)?.focus({ preventScroll: true }), 0);
+  }
+});
 function renderDetail(id) {
   const s = byId.get(id);
   const box = $("notebook-detail");
@@ -139,6 +196,20 @@ function renderDetail(id) {
   });
   heading.append(titles, favorite);
   box.append(heading, el("p", "note-purpose", s.purpose));
+  const cue = cues[id];
+  if (cue) {
+    const c = el("section", "cue-card");
+    c.append(el("p", "eyebrow", "EXAM CUES · この言葉が出たら"));
+    const ws = el("div", "cue-words");
+    cue.words.forEach((w) => ws.append(el("span", "cue-word", w)));
+    c.append(ws);
+    if (cue.not) {
+      const n = el("p", "cue-not");
+      n.append(el("b", "", "選ばないとき "), document.createTextNode(cue.not));
+      c.append(n);
+    }
+    box.append(c);
+  }
   if (s.features.length) {
     const c = section("何ができる？");
     c.append(bullet(s.features));
@@ -175,6 +246,8 @@ function renderDetail(id) {
         "役割の関連を示しています。データ通信だけでなく、設定・認証・管理の関係も含みます。",
       ),
     );
+    box.append(c);
+    c.append(relationDiagram(id, links));
     const list = el("div", "relationship-list");
     links.slice(0, 15).forEach((edge) => {
       const other = edge.from === id ? edge.to : edge.from;
@@ -186,6 +259,25 @@ function renderDetail(id) {
     const a = el("a", "text-link", "2つのサービスの関連を調べる →");
     a.href = `#connections/${id}`;
     c.append(a);
+  }
+  const qs = questionsFor(id);
+  if (qs.length) {
+    const c = section("このサービスが出てくる問題");
+    const last = practiceLatest();
+    const ul = el("ul", "note-questions");
+    qs.slice(0, 6).forEach((q) => {
+      const st = last.get(q.id);
+      const li = el("li", st ? (st.correct ? "ok" : "ng") : "");
+      li.append(el("span", "mark", st ? (st.correct ? "✓" : "×") : "・"), el("span", "", q.prompt));
+      ul.append(li);
+    });
+    c.append(ul);
+    const b = el("button", "primary", `この${qs.length}問を解く →`);
+    b.addEventListener("click", () => {
+      location.hash = "practice";
+      window.dispatchEvent(new CustomEvent("practice-preset", { detail: { ids: qs.map((q) => q.id), label: `${s.name} の問題` } }));
+    });
+    c.append(b);
     box.append(c);
   }
   const memo = section("自分の言葉で、メモする");
@@ -231,7 +323,76 @@ function renderDetail(id) {
     save();
     renderDetail(id);
   });
-  box.append(done, el("p", "note-provenance", s.provenance));
+  const pager = el("nav", "note-pager");
+  const order = visibleList();
+  const at = order.findIndex((x) => x.id === id);
+  const prev = order[at - 1], next = order[at + 1];
+  if (prev) pager.append(noteLink(prev.id, `← ${prev.name}`));
+  else pager.append(el("span"));
+  if (next) pager.append(noteLink(next.id, `${next.name} →`));
+  box.append(done, pager, el("p", "note-provenance", s.provenance));
+}
+function practiceLatest() {
+  const map = new Map();
+  try {
+    const raw = JSON.parse(localStorage.getItem("aaa.practice.attempts.v1") || "[]");
+    if (Array.isArray(raw)) raw.forEach((a) => a && a.id && map.set(a.id, a));
+  } catch {}
+  return map;
+}
+const qIndex = new Map();
+questions.forEach((q) => relatedNotes(q).forEach((nid) => {
+  if (!qIndex.has(nid)) qIndex.set(nid, []);
+  qIndex.get(nid).push(q);
+}));
+function questionsFor(id) {
+  return qIndex.get(id) || [];
+}
+// 関連サービスを放射状に描くミニ図
+function relationDiagram(id, links) {
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (t, a) => {
+    const n = document.createElementNS(NS, t);
+    Object.entries(a).forEach(([k, v]) => n.setAttribute(k, v));
+    return n;
+  };
+  const seen = new Map();
+  links.forEach((e) => {
+    const o = e.from === id ? e.to : e.from;
+    if (o === id || !byId.has(o)) return;
+    if (seen.has(o)) seen.get(o).label += " / " + e.label;
+    else seen.set(o, { from: id, to: o, label: e.label });
+  });
+  const items = [...seen.values()].slice(0, 10);
+  const W = 560, H = 260, cx = W / 2, cy = H / 2;
+  const svg = mk("svg", { viewBox: `0 0 ${W} ${H}`, class: "rel-svg", role: "img", "aria-label": `${byId.get(id).name}と関連する${items.length}項目の図` });
+  items.forEach((e, i) => {
+    const other = e.from === id ? e.to : e.from;
+    const ang = (i / items.length) * Math.PI * 2 - Math.PI / 2;
+    const x = cx + Math.cos(ang) * 205, y = cy + Math.sin(ang) * 100;
+    const line = mk("line", { x1: cx, y1: cy, x2: x, y2: y, class: "rel-line", style: `--d:${i * 60}ms` });
+    svg.append(line);
+    const a = mk("a", { href: `#notebook/${other}`, class: "rel-node", style: `--d:${i * 60 + 120}ms` });
+    const name = byId.get(other).name;
+    const w = Math.min(130, Math.max(54, [...name].reduce((s, ch) => s + (/[ -~]/.test(ch) ? 7 : 12), 0) + 18));
+    a.append(mk("rect", { x: x - w / 2, y: y - 14, width: w, height: 28, rx: 14 }));
+    const t = mk("text", { x, y: y + 4.5, "text-anchor": "middle" });
+    t.textContent = name;
+    a.append(t);
+    const tt = mk("title", {});
+    tt.textContent = `${name}：${e.label}`;
+    a.append(tt);
+    svg.append(a);
+  });
+  const c = mk("g", { class: "rel-center" });
+  c.append(mk("circle", { cx, cy, r: 34 }));
+  const t = mk("text", { x: cx, y: cy + 5, "text-anchor": "middle" });
+  t.textContent = byId.get(id).name.length > 9 ? byId.get(id).name.slice(0, 8) + "…" : byId.get(id).name;
+  c.append(t);
+  svg.append(c);
+  const wrap = el("div", "rel-wrap");
+  wrap.append(svg);
+  return wrap;
 }
 function renderFavorites() {
   const box = $("favorites-list");

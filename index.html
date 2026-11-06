@@ -16,7 +16,7 @@
     <header class="topbar">
       <a class="brand" href="#home"
         ><span class="brand-icon">A<span>↗</span></span
-        ><span>AWS <strong>StudyHub</strong></span></a
+        ><span class="brand-text">AWS <strong>Architecture Academy</strong></span></a
       >
       <form id="global-search-form" class="global-search" role="search">
         <span aria-hidden="true">⌕</span
@@ -84,7 +84,7 @@
           <span class="dot"></span> 学んで、動かして、理解する。
           <p>実際の AWS 環境は操作しません。アカウント・認証情報は不要です。</p>
         </div>
-        <span class="version">STUDYHUB EDITION / 03</span>
+        <span class="version">ACADEMY EDITION / 04</span>
       </aside>
       <main id="main" tabindex="-1">
         <div class="breadcrumb">
@@ -375,6 +375,7 @@
                 </select></label
               >
             </div>
+            <p id="preset-chip" class="preset-chip" hidden>出題中：<b id="preset-label"></b> <button id="preset-clear" type="button">条件を解除</button></p>
             <div class="setup-actions">
               <span id="pool-count" role="status"></span
               ><button id="quiz-start" class="primary">
@@ -383,32 +384,39 @@
             </div>
           </div>
           <div id="quiz-workspace" hidden>
-            <div class="quiz-toolbar">
-              <span id="quiz-position"></span
-              ><button id="quiz-exit">中断して設定に戻る</button>
+            <div class="quiz-dock" id="quiz-dock">
+              <div class="quiz-toolbar">
+                <span id="quiz-position"></span>
+                <span id="quiz-tally" class="quiz-tally" aria-live="polite"></span>
+                <button id="quiz-miss" class="warn-button" type="button" hidden>⚠ 未回答 <b>0</b>問へ</button>
+                <button id="quiz-exit" type="button">中断して設定に戻る</button>
+              </div>
+              <div id="quiz-map" class="quiz-map" aria-label="問題マップ（押すとその問題へ移動）"></div>
+              <progress id="quiz-progress" value="0" max="10" aria-label="演習の進捗"></progress>
             </div>
-            <progress
-              id="quiz-progress"
-              value="0"
-              max="10"
-              aria-label="演習の進捗"
-            ></progress>
             <article class="panel question-panel">
               <div class="question-meta">
                 <span class="pill" id="quiz-domain-label"></span
                 ><span class="pill" id="quiz-type"></span>
+                <span class="kbd-hint" aria-hidden="true">A〜F で選択 · Enter で確認 · ← → で移動</span>
               </div>
               <h2 id="quiz-prompt"></h2>
               <form id="answer-form">
                 <fieldset id="quiz-choices">
                   <legend id="quiz-instruction">回答を選択</legend>
                 </fieldset>
-                <button id="quiz-submit" class="primary" type="submit" disabled>
-                  回答を確認する
-                </button>
+                <div class="answer-bar">
+                  <span id="quiz-selected" class="muted"></span>
+                  <button id="quiz-submit" class="primary" type="submit" disabled>回答を確認する</button>
+                </div>
               </form>
               <div id="quiz-feedback" hidden aria-live="polite"></div>
-              <button id="quiz-next" hidden>次の問題へ →</button>
+              <div class="quiz-nav">
+                <button id="quiz-prev" type="button">← 前の問題</button>
+                <button id="quiz-skip" type="button">あとで解く →</button>
+                <button id="quiz-next" type="button" class="primary" hidden>次の問題へ →</button>
+                <button id="quiz-finish" type="button" class="ghost">結果を見る</button>
+              </div>
             </article>
           </div>
           <div id="quiz-result" class="panel quiz-result" hidden></div>
@@ -421,55 +429,58 @@
           </div>
         </section>
         <section id="animation" class="page" hidden>
-          <p class="eyebrow">ARCHITECTURE IN MOTION</p>
-          <h1>動きを見て理解する</h1>
-          <p class="muted">
-            AWS 実環境と接続しない、ステップ形式の教育用モデルです。
-          </p>
-          <label class="scene-picker"
-            >教材
-            <select id="scene-select"></select
-          ></label>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">ARCHITECTURE IN MOTION</p>
+              <h1>動きを見て理解する</h1>
+              <p class="muted">リクエストがどこを通り、何が判断されるのかを1ステップずつ追いかけます。AWS 実環境とは接続しない教育用モデルです。</p>
+            </div>
+            <label class="scene-picker">教材<select id="scene-select"></select></label>
+          </div>
+          <nav id="scene-chips" class="scene-chips" aria-label="教材の一覧"></nav>
           <p id="loading" role="status">教材を読み込み中…</p>
           <div id="player" hidden>
-            <div class="panel">
-              <div class="player-heading">
-                <h2 id="scene-title"></h2>
-                <span class="pill">レビュー前のドラフト</span>
+            <div class="player-grid">
+              <div class="panel stage-panel">
+                <div class="player-heading">
+                  <h2 id="scene-title"></h2>
+                  <span class="pill">レビュー前のドラフト</span>
+                </div>
+                <p id="objective" class="muted"></p>
+                <div id="graph" class="graph"></div>
+                <div id="metrics" class="metrics" hidden aria-live="polite"></div>
+                <div class="legend" aria-hidden="true"><span class="lg req">リクエスト</span><span class="lg res">応答</span><span class="lg probe">ヘルスチェック</span><span class="lg proc">処理・判定</span><span class="lg bad">異常</span></div>
+                <div id="timeline" class="timeline" aria-label="ステップ"></div>
+                <div class="controls">
+                  <button id="reset" aria-label="先頭へ" title="先頭へ（Home）">↺</button
+                  ><button id="previous" title="前へ（←）">← 前へ</button
+                  ><button id="play" class="primary" aria-pressed="false" title="再生・一時停止（Space）">▶ 再生</button
+                  ><button id="next" title="次へ（→）">次へ →</button
+                  ><label>速度
+                    <select id="speed">
+                      <option value="0.5">0.5倍</option>
+                      <option value="1" selected>1倍</option>
+                      <option value="1.5">1.5倍</option>
+                      <option value="2">2倍</option>
+                    </select></label>
+                </div>
+                <label class="seek-label">再生位置<input id="seek" type="range" min="0" value="0" step="1" /></label>
               </div>
-              <p id="objective" class="muted"></p>
-              <div id="graph" class="graph"></div>
-              <div class="controls">
-                <button id="reset" aria-label="先頭へ">↺</button
-                ><button id="previous">← 前へ</button
-                ><button id="play" class="primary">再生</button
-                ><button id="next">次へ →</button
-                ><label
-                  >速度
-                  <select id="speed">
-                    <option value="0.5">0.5倍</option>
-                    <option value="1" selected>1倍</option>
-                    <option value="1.5">1.5倍</option>
-                    <option value="2">2倍</option>
-                  </select></label
-                >
+              <div class="player-side">
+                <div class="panel narration" aria-live="polite">
+                  <div class="narr-head"><span class="eyebrow" id="step-number"></span><span id="step-type" class="step-type"></span></div>
+                  <h3 id="step-title"></h3>
+                  <p id="narration"></p>
+                </div>
+                <div class="panel step-panel">
+                  <h3>ステップ一覧</h3>
+                  <ol id="step-list" class="step-list"></ol>
+                </div>
               </div>
-              <label class="seek-label"
-                >再生位置<input
-                  id="seek"
-                  type="range"
-                  min="0"
-                  value="0"
-                  step="1"
-              /></label>
-            </div>
-            <div class="panel narration" aria-live="polite">
-              <span class="eyebrow" id="step-number"></span>
-              <h3 id="step-title"></h3>
-              <p id="narration"></p>
             </div>
             <div class="panel note">
               <h3>理解のポイント</h3>
+              <div class="rule-box"><b>この構成を選ぶ場面</b><p id="selection-rule"></p></div>
               <p id="accuracy"></p>
               <p id="assumptions" class="muted"></p>
               <button id="complete">この教材を学習済みにする</button
@@ -500,7 +511,7 @@
           ブラウザに保存できないため、このタブを閉じると設定と学習記録が失われます。
         </p>
         <footer>
-          AWS StudyHub <span>非公式の学習プロジェクト · StudyHub Edition</span>
+          AWS Architecture Academy <span>非公式の学習プロジェクト · Academy Edition</span>
         </footer>
       </main>
     </div>

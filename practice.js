@@ -1,6 +1,9 @@
 import { questions } from "./data/questions.js";
+import { solve } from "./data/solve.js";
+import { notebook } from "./data/notebook.js";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
+const LETTERS = "ABCDEFGH";
 $("question-count").textContent = questions.length;
 document
   .querySelectorAll("[data-question-count]")
@@ -26,11 +29,38 @@ try {
 } catch {
   $("storage-warning").hidden = false;
 }
-let session = [],
-  position = 0,
-  selections = new Set(),
-  submitted = false,
-  results = [];
+
+/* ---------- 問題文・選択肢からノートを見つける ---------- */
+const ALIASES = [
+  ["Application Load Balancer", "alb"], ["Network Load Balancer", "nlb"], ["Read Replica", "rds"], ["リードレプリカ", "rds"],
+  ["Multi-AZ", "rds"], ["Gateway Endpoint", "vpce"], ["ゲートウェイエンドポイント", "vpce"], ["インターフェースVPCエンドポイント", "vpce"],
+  ["NAT Gateway", "natgw"], ["NATゲートウェイ", "natgw"], ["インターネットゲートウェイ", "igw"], ["SCP", "orgs"],
+  ["Glacier", "glacier"], ["FSx", "fsx"], ["ElastiCache", "elasticache"], ["Kubernetes", "eks"], ["セキュリティグループ", "vpc"],
+  ["ネットワークACL", "vpc"], ["DLQ", "sqs"], ["デッドレターキュー", "sqs"], ["Evaluate Target Health", "route53"],
+];
+const NAMES = notebook.services
+  .filter((s) => !["internet", "user", "onprem"].includes(s.id))
+  .map((s) => [s.name.replace(/^(Amazon |AWS )/, "").replace(/\(.*\)$/, ""), s.id])
+  .concat(ALIASES)
+  .sort((a, b) => b[0].length - a[0].length);
+function relatedNotes(q) {
+  const text = [q.prompt, ...q.choices.filter((c) => c.correct).map((c) => c.text + " " + c.explanation)].join(" ");
+  const found = [];
+  let rest = text;
+  for (const [name, id] of NAMES) {
+    if (name.length < 2) continue;
+    const re = new RegExp(name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&"), "i");
+    if (re.test(rest)) {
+      if (!found.includes(id)) found.push(id);
+      rest = rest.replace(new RegExp(re.source, "gi"), " ");
+    }
+  }
+  return found.slice(0, 5);
+}
+export { relatedNotes };
+const noteName = new Map(notebook.services.map((s) => [s.id, s.name]));
+
+/* ---------- 成績 ---------- */
 function latest() {
   const map = new Map();
   attempts.forEach((a) => map.set(a.id, a));
@@ -57,20 +87,14 @@ function stats() {
   );
   const list = el("div", "domain-results");
   [...new Set(questions.map((q) => q.domain))].forEach((domain) => {
-    const subset = attempts.filter(
-      (a) => questionMap.get(a.id).domain === domain,
-    );
+    const subset = attempts.filter((a) => questionMap.get(a.id).domain === domain);
+    const rate = subset.length ? Math.round((subset.filter((a) => a.correct).length / subset.length) * 100) : null;
     const row = el("div", "domain-row");
-    row.append(
-      el("span", "", domain),
-      el(
-        "span",
-        "",
-        subset.length
-          ? `${Math.round((subset.filter((a) => a.correct).length / subset.length) * 100)}% · ${subset.length}回答`
-          : "未回答",
-      ),
-    );
+    const bar = el("span", "domain-bar");
+    const fill = el("i");
+    fill.style.width = (rate ?? 0) + "%";
+    bar.append(fill);
+    row.append(el("span", "", domain), bar, el("span", "", rate === null ? "未回答" : `${rate}% · ${subset.length}回答`));
     list.append(row);
   });
   history.append(list);
@@ -78,91 +102,259 @@ function stats() {
   a.href = "#practice";
   history.append(a);
 }
+
+/* ---------- 出題条件 ---------- */
 function pool() {
   const last = latest();
   return questions.filter(
     (q) =>
       ($("quiz-cert").value === "all" ||
-        (q.certifications || [q.certification]).includes(
-          $("quiz-cert").value,
-        )) &&
-      ($("quiz-domain").value === "all" ||
-        q.domain === $("quiz-domain").value) &&
-      ($("quiz-difficulty").value === "all" ||
-        q.difficulty === Number($("quiz-difficulty").value)) &&
+        (q.certifications || [q.certification]).includes($("quiz-cert").value)) &&
+      ($("quiz-domain").value === "all" || q.domain === $("quiz-domain").value) &&
+      ($("quiz-difficulty").value === "all" || q.difficulty === Number($("quiz-difficulty").value)) &&
       ($("quiz-mode").value === "all" ||
         ($("quiz-mode").value === "wrong"
           ? last.has(q.id) && !last.get(q.id).correct
-          : !last.has(q.id))),
+          : !last.has(q.id))) &&
+      (!presetIds || presetIds.has(q.id)),
   );
 }
+let presetIds = null;
 function updatePool() {
   const count = pool().length;
   $("pool-count").textContent =
     `${count} 問が対象${count ? "" : " — 条件を変更してください"}`;
   $("quiz-start").disabled = !count;
+  const chip = $("preset-chip");
+  if (chip) chip.hidden = !presetIds;
 }
 [...new Set(questions.map((q) => q.domain))].forEach((domain) => {
   const o = el("option", "", domain);
   o.value = domain;
   $("quiz-domain").append(o);
 });
-[
-  "quiz-cert",
-  "quiz-domain",
-  "quiz-difficulty",
-  "quiz-mode",
-  "quiz-limit",
-].forEach((id) => $(id).addEventListener("change", updatePool));
+["quiz-cert", "quiz-domain", "quiz-difficulty", "quiz-mode", "quiz-limit"].forEach((id) =>
+  $(id).addEventListener("change", updatePool),
+);
+// ノートなどから「このサービスの問題」を出題する
+window.addEventListener("practice-preset", (e) => {
+  const ids = e.detail?.ids || [];
+  presetIds = ids.length ? new Set(ids) : null;
+  $("preset-label").textContent = e.detail?.label || "";
+  ["quiz-cert", "quiz-domain", "quiz-difficulty", "quiz-mode"].forEach((id) => ($(id).value = "all"));
+  $("quiz-limit").value = "1000";
+  settings();
+});
+$("preset-clear")?.addEventListener("click", () => {
+  presetIds = null;
+  updatePool();
+});
+
+/* ---------- セッション ---------- */
+let session = [], // 問題
+  states = [], // { sel:Set, submitted, correct, visited }
+  position = 0,
+  selections = new Set(),
+  submitted = false,
+  results = [],
+  finished = false;
+function cur() {
+  return states[position];
+}
+function statusOf(i) {
+  const s = states[i];
+  if (s.submitted) return s.correct ? "ok" : "ng";
+  if (i === position) return "todo";
+  const maxVisited = states.reduce((m, x, j) => (x.visited ? j : m), -1);
+  return s.visited || i < maxVisited ? "miss" : "todo";
+}
+function counts() {
+  let ok = 0, ng = 0, skip = 0, todo = 0;
+  states.forEach((_, i) => {
+    const st = statusOf(i);
+    if (st === "ok") ok++;
+    else if (st === "ng") ng++;
+    else if (st === "miss") skip++;
+    else todo++;
+  });
+  return { ok, ng, skip, todo, unanswered: states.filter((s) => !s.submitted).length };
+}
+function renderMap() {
+  const map = $("quiz-map");
+  if (!map) return;
+  const n = session.length;
+  const two = n > (matchMedia("(max-width:760px)").matches ? 10 : 20);
+  map.classList.toggle("two", two);
+  map.style.setProperty("--cols", two ? Math.ceil(n / 2) : n);
+  map.replaceChildren(
+    ...session.map((q, i) => {
+      const st = statusOf(i);
+      const b = el("button", `qm ${st}${i === position ? " current" : ""}`);
+      b.type = "button";
+      b.dataset.jump = i;
+      const label = { ok: "正解", ng: "不正解", miss: "未回答", todo: "これから" }[st];
+      b.setAttribute("aria-label", `問${i + 1} ${label}${i === position ? "（表示中）" : ""}`);
+      b.title = `問${i + 1}：${label}`;
+      b.append(el("span", "", String(i + 1)));
+      return b;
+    }),
+  );
+  const c = counts();
+  $("quiz-tally").replaceChildren(
+    el("span", "t ok", `正解 ${c.ok}`),
+    el("span", "t ng", `不正解 ${c.ng}`),
+    el("span", "t miss", `未回答 ${c.skip}`),
+    el("span", "t todo", `残り ${c.todo}`),
+  );
+  const miss = $("quiz-miss");
+  miss.hidden = !c.skip;
+  miss.querySelector("b").textContent = c.skip;
+}
+function renderChoiceMarks(q) {
+  const s = cur();
+  $("quiz-choices").querySelectorAll(".choice").forEach((label, i) => {
+    label.classList.remove("is-right", "is-wrong", "is-missed");
+    if (!s.submitted) return;
+    const chosen = s.sel.has(i);
+    if (q.choices[i].correct) label.classList.add(chosen ? "is-right" : "is-missed");
+    else if (chosen) label.classList.add("is-wrong");
+  });
+}
+function feedback(q) {
+  const s = cur();
+  const box = $("quiz-feedback");
+  box.replaceChildren();
+  box.hidden = !s.submitted;
+  if (!s.submitted) return;
+  const head = el("div", `feedback-head ${s.correct ? "good" : "bad"}`);
+  head.append(
+    el("h3", s.correct ? "feedback-correct" : "feedback-wrong", s.correct ? "✓ 正解です" : "もう一度、考え方を整理しましょう"),
+    el(
+      "p",
+      "",
+      `正解：${q.choices.map((c, i) => (c.correct ? LETTERS[i] : null)).filter(Boolean).join("・")}` +
+        (s.correct ? "" : `　／　あなたの回答：${[...s.sel].sort().map((i) => LETTERS[i]).join("・")}`),
+    ),
+  );
+  box.append(head);
+  const sv = solve[q.id];
+  if (sv) {
+    const card = el("section", "solve-card");
+    card.append(el("p", "eyebrow", "HOW TO SOLVE · 解き方"));
+    const k = el("p", "solve-key");
+    k.append(el("b", "", "決め手 "), document.createTextNode(sv.key));
+    card.append(k);
+    const ol = el("ol", "solve-steps");
+    sv.steps.forEach((t) => ol.append(el("li", "", t)));
+    card.append(ol);
+    if (sv.trap) {
+      const tp = el("p", "solve-trap");
+      tp.append(el("b", "", "ひっかけ "), document.createTextNode(sv.trap));
+      card.append(tp);
+    }
+    box.append(card);
+  }
+  const exp = el("div", "explanations");
+  exp.append(el("p", "eyebrow", "ALL CHOICES · 選択肢ごとの理由"));
+  q.choices.forEach((choice, i) => {
+    const row = el("div", choice.correct ? "explanation is-correct" : s.sel.has(i) ? "explanation is-chosen" : "explanation");
+    row.append(
+      el("strong", "", `${LETTERS[i]} · ${choice.correct ? "正解" : "不正解"}${s.sel.has(i) ? " / あなたの回答" : ""}`),
+      el("p", "", choice.explanation),
+    );
+    exp.append(row);
+  });
+  box.append(exp);
+  const rel = relatedNotes(q);
+  const foot = el("div", "feedback-links");
+  if (rel.length) {
+    foot.append(el("span", "muted", "ノートで確認："));
+    rel.forEach((id) => {
+      const a = el("a", "note-chip", noteName.get(id));
+      a.href = `#notebook/${id}`;
+      foot.append(a);
+    });
+  }
+  const source = el("a", "source-link", "公式ドキュメントで確認 ↗");
+  source.href = q.source;
+  source.target = "_blank";
+  source.rel = "noopener noreferrer";
+  foot.append(source);
+  box.append(foot);
+}
+function syncButtons() {
+  const q = session[position],
+    s = cur();
+  $("quiz-submit").hidden = s.submitted || finished;
+  $("quiz-submit").disabled = selections.size !== q.selectCount;
+  $("quiz-next").hidden = !s.submitted && !finished;
+  const last = position === session.length - 1;
+  $("quiz-next").textContent = last ? "結果を見る →" : "次の問題へ →";
+  $("quiz-prev").disabled = position === 0;
+  $("quiz-skip").hidden = s.submitted || last || finished;
+  $("quiz-finish").hidden = finished;
+  $("quiz-selected").textContent = s.submitted
+    ? ""
+    : q.selectCount === 1
+      ? selections.size
+        ? `${LETTERS[[...selections][0]]} を選択中 · Enterで確認`
+        : "選択肢を選んでください（キー A〜" + LETTERS[q.choices.length - 1] + "）"
+      : `${selections.size} / ${q.selectCount} 選択${selections.size === q.selectCount ? " · Enterで確認" : ""}`;
+}
 function render() {
   const q = session[position];
-  selections = new Set();
-  submitted = false;
-  $("quiz-position").textContent =
-    `QUESTION ${String(position + 1).padStart(2, "0")} / ${session.length}`;
+  const s = cur();
+  s.visited = true;
+  selections = new Set(s.sel);
+  submitted = s.submitted;
+  $("quiz-position").textContent = `QUESTION ${String(position + 1).padStart(2, "0")} / ${session.length}`;
   $("quiz-progress").max = session.length;
-  $("quiz-progress").value = position;
-  $("quiz-domain-label").textContent =
-    `${(q.certifications || [q.certification]).join(" / ")} · ${q.domain} · 難易度${q.difficulty}`;
-  $("quiz-type").textContent =
-    q.selectCount === 1 ? "単一選択" : `複数選択・${q.selectCount}つ`;
+  $("quiz-progress").value = states.filter((x) => x.submitted).length;
+  $("quiz-domain-label").textContent = `${(q.certifications || [q.certification]).join(" / ")} · ${q.domain} · 難易度${q.difficulty}`;
+  $("quiz-type").textContent = q.selectCount === 1 ? "単一選択" : `複数選択・${q.selectCount}つ`;
   $("quiz-prompt").textContent = q.prompt;
   $("quiz-choices").replaceChildren();
-  const legend = el(
-    "legend",
-    "",
-    q.selectCount === 1
-      ? "1つ選んでください"
-      : `${q.selectCount}つ選んでください`,
-  );
-  $("quiz-choices").append(legend);
+  $("quiz-choices").append(el("legend", "", q.selectCount === 1 ? "1つ選んでください" : `${q.selectCount}つ選んでください`));
   q.choices.forEach((choice, i) => {
     const label = el("label", "choice");
     const input = el("input");
     input.type = q.selectCount === 1 ? "radio" : "checkbox";
     input.name = "answer";
     input.value = i;
+    input.checked = selections.has(i);
+    input.disabled = s.submitted || finished;
     input.addEventListener("change", () => {
-      if (submitted) return;
+      if (cur().submitted) return;
       if (q.selectCount === 1) selections.clear();
       if (input.checked) selections.add(i);
       else selections.delete(i);
-      $("quiz-submit").disabled = selections.size !== q.selectCount;
+      cur().sel = new Set(selections);
+      syncButtons();
     });
-    label.append(
-      input,
-      el("span", "choice-letter", String.fromCharCode(65 + i)),
-      el("span", "", choice.text),
-    );
+    label.append(input, el("span", "choice-letter", LETTERS[i]), el("span", "choice-text", choice.text));
     $("quiz-choices").append(label);
   });
-  $("quiz-feedback").hidden = true;
-  $("quiz-feedback").replaceChildren();
-  $("quiz-next").hidden = true;
-  $("quiz-submit").hidden = false;
-  $("quiz-submit").disabled = true;
-  $("quiz-next").textContent =
-    position === session.length - 1 ? "結果を見る →" : "次の問題へ →";
+  renderChoiceMarks(q);
+  feedback(q);
+  syncButtons();
+  renderMap();
+  $("quiz-workspace").classList.toggle("reviewing", finished);
+}
+function goTo(i, focus = true) {
+  if (i < 0 || i >= session.length) return;
+  position = i;
+  render();
+  const top = $("quiz-workspace").getBoundingClientRect().top + scrollY - 8;
+  if (scrollY > top) scrollTo({ top, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  if (focus) $("quiz-prompt").focus({ preventScroll: true });
+}
+let lastJump = -1;
+function jumpMissing() {
+  const list = states.map((s, i) => (statusOf(i) === "miss" ? i : -1)).filter((i) => i >= 0);
+  if (!list.length) return;
+  const t = list.find((i) => i > lastJump) ?? list[0];
+  lastJump = t;
+  goTo(t);
 }
 $("quiz-start").addEventListener("click", () => {
   const candidates = pool();
@@ -172,71 +364,43 @@ $("quiz-start").addEventListener("click", () => {
   }
   session = candidates.slice(0, Number($("quiz-limit").value));
   if (!session.length) return;
+  states = session.map(() => ({ sel: new Set(), submitted: false, correct: false, visited: false }));
   position = 0;
   results = [];
+  finished = false;
+  lastJump = -1;
   $("practice-setup").hidden = true;
   $("quiz-result").hidden = true;
   $("quiz-workspace").hidden = false;
+  document.body.classList.add("in-quiz");
   render();
   $("quiz-prompt").setAttribute("tabindex", "-1");
   $("quiz-prompt").focus();
 });
 $("answer-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  if (submitted || !session.length) return;
+  if (!session.length || finished) return;
+  const s = cur();
+  if (s.submitted) return;
   const q = session[position];
   if (selections.size !== q.selectCount) return;
+  s.submitted = true;
   submitted = true;
+  s.sel = new Set(selections);
   const correct = q.choices.every((c, i) => c.correct === selections.has(i));
-  const attempt = {
-    id: q.id,
-    correct,
-    chosen: [...selections],
-    at: new Date().toISOString(),
-  };
+  s.correct = correct;
+  const attempt = { id: q.id, correct, chosen: [...selections], at: new Date().toISOString() };
   attempts.push(attempt);
   results.push(attempt);
   try {
     localStorage.setItem(key, JSON.stringify(attempts));
-    window.dispatchEvent(new Event("learning-update"));
   } catch {
     $("storage-warning").hidden = false;
   }
-  $("quiz-choices")
-    .querySelectorAll("input")
-    .forEach((input) => (input.disabled = true));
-  $("quiz-submit").hidden = true;
-  const box = $("quiz-feedback");
-  box.hidden = false;
-  box.append(
-    el(
-      "h3",
-      correct ? "feedback-correct" : "feedback-wrong",
-      correct ? "✓ 正解です" : "もう一度、考え方を整理しましょう",
-    ),
-  );
-  q.choices.forEach((choice, i) => {
-    const row = el(
-      "div",
-      choice.correct ? "explanation is-correct" : "explanation",
-    );
-    row.append(
-      el(
-        "strong",
-        "",
-        `${String.fromCharCode(65 + i)} · ${choice.correct ? "正解" : "不正解"}${selections.has(i) ? " / あなたの回答" : ""}`,
-      ),
-      el("p", "", choice.explanation),
-    );
-    box.append(row);
-  });
-  const source = el("a", "source-link", "公式ドキュメントで確認 ↗");
-  source.href = q.source;
-  source.target = "_blank";
-  source.rel = "noopener noreferrer";
-  box.append(source);
-  $("quiz-next").hidden = false;
-  $("quiz-progress").value = position + 1;
+  window.dispatchEvent(new Event("learning-update"));
+  render();
+  $("quiz-feedback").scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  $("quiz-next").focus({ preventScroll: true });
   stats();
   updatePool();
 });
@@ -244,58 +408,196 @@ function settings() {
   $("quiz-workspace").hidden = true;
   $("quiz-result").hidden = true;
   $("practice-setup").hidden = false;
+  document.body.classList.remove("in-quiz");
   session = [];
+  states = [];
   results = [];
+  finished = false;
   updatePool();
 }
-$("quiz-exit").addEventListener("click", settings);
+$("quiz-exit").addEventListener("click", () => {
+  const answered = states.filter((s) => s.submitted).length;
+  settings();
+  if (answered) window.dispatchEvent(new CustomEvent("toast", { detail: `回答した${answered}問は記録済みです` }));
+});
+$("quiz-prev").addEventListener("click", () => goTo(position - 1));
+$("quiz-skip").addEventListener("click", () => goTo(position + 1));
+$("quiz-miss").addEventListener("click", jumpMissing);
+$("quiz-map").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-jump]");
+  if (b) goTo(Number(b.dataset.jump));
+});
+$("quiz-finish").addEventListener("click", () => tryFinish());
+function tryFinish() {
+  const left = states.map((s, i) => (!s.submitted ? i : -1)).filter((i) => i >= 0);
+  if (!left.length) return showResult();
+  confirmBox(`未回答が${left.length}問あります（オレンジ／灰色の番号）。未回答は記録されません。`, "このまま結果を見る", "未回答へ移動").then((ok) => {
+    if (ok) showResult();
+    else goTo(left[0]);
+  });
+}
 $("quiz-next").addEventListener("click", () => {
-  if (!submitted) return;
-  if (position < session.length - 1) {
-    position++;
-    render();
-    $("quiz-prompt").focus();
+  if (finished) {
+    if (position < session.length - 1) goTo(position + 1);
+    else showResult();
     return;
   }
+  if (!cur().submitted) return;
+  const nextOpen = states.findIndex((s, i) => i > position && !s.submitted);
+  if (position < session.length - 1) {
+    goTo(nextOpen >= 0 ? nextOpen : position + 1);
+    return;
+  }
+  tryFinish();
+});
+function showResult() {
+  finished = true;
   $("quiz-workspace").hidden = true;
+  document.body.classList.remove("in-quiz");
   const box = $("quiz-result");
   box.hidden = false;
   box.replaceChildren();
-  const correct = results.filter((r) => r.correct).length;
+  const done = states.filter((s) => s.submitted);
+  const correct = done.filter((s) => s.correct).length;
+  const rate = done.length ? Math.round((correct / done.length) * 100) : 0;
+  const ring = el("div", "result-ring");
+  ring.style.setProperty("--p", rate);
+  ring.append(el("div", "result-score", `${correct} / ${session.length}`), el("small", "", `正答率 ${rate}%`));
   box.append(
     el("p", "eyebrow", "SESSION COMPLETE"),
-    el("h2", "", "今日の一歩、おつかれさまでした。"),
-    el("div", "result-score", `${correct} / ${session.length}`),
+    el("h2", "", correct === session.length ? "全問正解。設計の判断がしっかり身についています。" : "今日の一歩、おつかれさまでした。"),
+    ring,
     el(
       "p",
       "muted",
-      `このセッションの正答率 ${Math.round((correct / session.length) * 100)}% — AWS 公式試験のスコアではありません。`,
+      `回答 ${done.length}問 · 未回答 ${session.length - done.length}問 — このセッションの正答率です。AWS 公式試験のスコアではありません。`,
     ),
   );
   const list = el("ul", "session-summary");
-  results.forEach((r) => {
-    const item = el(
-      "li",
-      "",
-      `${r.correct ? "✓" : "×"} ${questionMap.get(r.id).prompt}`,
+  session.forEach((q, i) => {
+    const s = states[i];
+    const item = el("li", s.submitted ? (s.correct ? "ok" : "ng") : "miss");
+    const btn = el("button", "summary-row");
+    btn.type = "button";
+    btn.append(
+      el("span", "mark", s.submitted ? (s.correct ? "✓" : "×") : "—"),
+      el("span", "q", `${String(i + 1).padStart(2, "0")}. ${q.prompt}`),
+      el("span", "go", "見直す →"),
     );
+    btn.addEventListener("click", () => {
+      box.hidden = true;
+      $("quiz-workspace").hidden = false;
+      document.body.classList.add("in-quiz");
+      goTo(i);
+    });
+    item.append(btn);
     list.append(item);
   });
   box.append(list);
+  const actions = el("div", "result-actions");
   const back = el("button", "primary", "設定に戻って学習を続ける");
   back.addEventListener("click", settings);
-  box.append(back);
-  if (correct < session.length) {
-    const review = el("button", "", "誤答を復習する");
+  actions.append(back);
+  const wrongIds = session.filter((q, i) => states[i].submitted && !states[i].correct).map((q) => q.id);
+  if (wrongIds.length) {
+    const review = el("button", "", `間違えた${wrongIds.length}問をもう一度`);
     review.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("practice-preset", { detail: { ids: wrongIds, label: "前回間違えた問題" } }));
+      $("quiz-start").click();
+    });
+    actions.append(review);
+  }
+  if (correct < session.length) {
+    const review2 = el("button", "", "誤答を復習する");
+    review2.addEventListener("click", () => {
       settings();
       $("quiz-mode").value = "wrong";
       updatePool();
     });
-    box.append(review);
+    actions.append(review2);
   }
+  box.append(actions);
   box.setAttribute("tabindex", "-1");
   box.focus();
+  window.dispatchEvent(new CustomEvent("toast", { detail: `結果：${correct} / ${session.length}（正答率 ${rate}%）` }));
+}
+
+/* ---------- 確認ダイアログ ---------- */
+function confirmBox(msg, okLabel, noLabel) {
+  return new Promise((res) => {
+    const ov = el("div", "uic");
+    const box = el("div", "uic-box");
+    box.setAttribute("role", "alertdialog");
+    box.setAttribute("aria-modal", "true");
+    const p = el("p", "", msg);
+    const row = el("div", "uic-row");
+    const no = el("button", "", noLabel || "キャンセル");
+    const ok = el("button", "primary", okLabel || "続ける");
+    row.append(no, ok);
+    box.append(p, row);
+    ov.append(box);
+    const done = (v) => {
+      ov.remove();
+      document.removeEventListener("keydown", kd, true);
+      res(v);
+    };
+    const kd = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        done(false);
+      }
+    };
+    no.addEventListener("click", () => done(false));
+    ok.addEventListener("click", () => done(true));
+    ov.addEventListener("click", (e) => e.target === ov && done(false));
+    document.addEventListener("keydown", kd, true);
+    document.body.append(ov);
+    ok.focus();
+  });
+}
+export { confirmBox };
+
+/* ---------- キーボード操作 ---------- */
+document.addEventListener("keydown", (e) => {
+  if ($("quiz-workspace").hidden || location.hash.split("/")[0] !== "#practice") return;
+  if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector(".uic")) return;
+  const tag = document.activeElement?.tagName;
+  if (tag === "TEXTAREA" || (tag === "INPUT" && !["radio", "checkbox"].includes(document.activeElement.type)) || tag === "SELECT") return;
+  const q = session[position];
+  if (!q) return;
+  const k = e.key.toUpperCase();
+  let idx = LETTERS.indexOf(k);
+  if (idx < 0 && /^[1-8]$/.test(e.key)) idx = Number(e.key) - 1;
+  if (idx >= 0 && idx < q.choices.length && !cur().submitted && !finished) {
+    e.preventDefault();
+    const input = $("quiz-choices").querySelectorAll("input")[idx];
+    if (q.selectCount === 1) input.checked = true;
+    else input.checked = !input.checked;
+    input.dispatchEvent(new Event("change"));
+    input.focus({ preventScroll: true });
+    return;
+  }
+  if (e.key === "Enter") {
+    if (!cur().submitted && !finished) {
+      if (selections.size === q.selectCount) {
+        e.preventDefault();
+        $("answer-form").requestSubmit();
+      }
+    } else if (document.activeElement?.tagName !== "BUTTON" && document.activeElement?.tagName !== "A") {
+      e.preventDefault();
+      $("quiz-next").click();
+    }
+    return;
+  }
+  if (e.key === "ArrowRight" && tag !== "INPUT") {
+    e.preventDefault();
+    goTo(position + 1);
+  } else if (e.key === "ArrowLeft" && tag !== "INPUT") {
+    e.preventDefault();
+    goTo(position - 1);
+  }
 });
+window.addEventListener("resize", () => session.length && renderMap());
 stats();
 updatePool();
