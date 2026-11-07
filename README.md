@@ -15,6 +15,10 @@
 - 従来の3教材に、添付Labの10教材を追加した13シーン。再生・停止・前後・先頭・速度・シーク。
 - 参考画像に寄せた3列のホーム、白・淡いブルー・丸いカード・写真のヒーロー。実回答に基づく直近7日間の回答数。ライト表示のみ(ダークモードは廃止)、モバイル対応。
 
+## Edition 06.6 — 資格問題演習を選んだ直後に採点
+
+- 単一選択は選んだ瞬間、複数選択は指定数を選び終えた時点で、正解・不正解と解説を表示。「回答を確認する」ボタンは廃止(キーボードの A〜H でも同様)。
+
 ## Edition 06.5 — 図鑑を 259 サービスに拡充(2026-11 時点の AWS に合わせる)
 
 - AWS ドキュメントの全サービス一覧と照合し、新規利用できるのに図鑑に無かった **53 サービス**を追加(`data/services-2026.js`)。例: Bedrock AgentCore、Nova、Claude Platform on AWS、Continuum(旧 Security Agent)、DevOps Agent、Network Security Manager、Interconnect - multicloud、Application Recovery Controller、Elastic VMware Service、Oracle Database@AWS、Flat-Rate Plans、Marketplace、Connect Decisions / Talent / Health など。

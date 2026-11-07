@@ -387,7 +387,7 @@ function feedback(q) {
 function syncButtons() {
   const q = session[position],
     s = cur();
-  $("quiz-submit").hidden = s.submitted || finished;
+  $("quiz-submit").hidden = true; // 規定数を選ぶと自動で採点するため、確認ボタンは使わない
   $("quiz-submit").disabled = selections.size !== q.selectCount;
   $("quiz-next").hidden = !s.submitted && !finished;
   const last = position === session.length - 1;
@@ -399,9 +399,9 @@ function syncButtons() {
     ? ""
     : q.selectCount === 1
       ? selections.size
-        ? `${LETTERS[[...selections][0]]} を選択中 · Enterで確認`
+        ? `${LETTERS[[...selections][0]]} を選択`
         : "選択肢を選んでください（キー A〜" + LETTERS[q.choices.length - 1] + "）"
-      : `${selections.size} / ${q.selectCount} 選択${selections.size === q.selectCount ? " · Enterで確認" : ""}`;
+      : `${selections.size} / ${q.selectCount} 選択 · あと ${q.selectCount - selections.size} つ選ぶと採点します`;
 }
 function render() {
   const q = session[position];
@@ -449,6 +449,8 @@ function render() {
       else selections.delete(i);
       cur().sel = new Set(selections);
       syncButtons();
+      // 規定数を選んだ時点で採点する(単一選択は選んだ直後、複数選択は指定数がそろった時点)
+      if (selections.size === q.selectCount) $("answer-form").requestSubmit();
     });
     label.append(input, el("span", "choice-letter", LETTERS[i]), el("span", "choice-text", choice.text));
     $("quiz-choices").append(label);
