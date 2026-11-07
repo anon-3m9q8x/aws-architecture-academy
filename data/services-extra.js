@@ -388,6 +388,12 @@ export const EXTRA = {
     t: "車両データ → FleetWise", l: [["timestream", "時系列で保存"], ["s3", "データを保存"]] },
 
   /* ---------- コスト管理 ---------- */
+  billing: { n: "Billing and Cost Management", f: "AWS Billing and Cost Management", c: "コスト管理", d: D + "cost-management/latest/userguide/what-is-costmanagement.html",
+    s: "AWS の請求の確認・支払いと、Cost Explorer・Budgets などのコスト管理・分析ツールを統括する、コスト管理の中枢となる総合コンソール・機能群です。",
+    p: "請求と支払いを確認し、コストを組織の実態に沿って分類・分析・管理する", ft: ["請求書・支払い・一括請求(Organizations)", "コスト配分タグのアクティブ化", "コストカテゴリ(コストを任意のグループへ再分類)", "Cost Explorer・Budgets・Data Exports などへの入口"],
+    u: "部門別・事業単位別のコストレポート、マルチアカウントの請求管理、チャージバック",
+    t: "「部門別に集計」「表記ゆれをまとめたい」「タグの付いていないコストも割り当てたい」→ コストカテゴリ。設定は管理アカウントのみで、追加料金なし",
+    l: [["ce", "コストカテゴリを Cost Explorer のディメンションとして分析"], ["budgets", "コストカテゴリ単位で予算を設定"], ["dataexports", "CUR にコストカテゴリの列を出力"], ["orgs", "管理アカウントで一括請求・コストカテゴリを設定"], ["costanomaly", "コストの異常を検出"], ["savingsplans", "割引プランの購入・使用状況を確認"]] },
   savingsplans: { n: "Savings Plans", f: "Savings Plans", c: "コスト管理", d: D + "savingsplans/latest/userguide/what-is-savings-plan.html",
     s: "1 年または 3 年、一定額(1 時間あたり)の利用をコミットすることで、EC2・Fargate・Lambda などの料金が割引される料金モデルです。",
     p: "継続的な利用を約束して割引を得る", ft: ["Compute Savings Plans", "EC2 Instance Savings Plans", "SageMaker Savings Plans"], u: "定常的なワークロードのコスト削減",

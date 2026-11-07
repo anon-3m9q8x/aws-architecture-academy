@@ -34,7 +34,7 @@ const ABBR = {
   shield: "SHD", guardduty: "GD", sso: "SSO", controltower: "CTW", xray: "XR", trustedadvisor: "TA", mq: "MQ", dms: "DMS", datasync: "DS",
   snowball: "SNW", mgn: "MGN", fargate: "FG", batch: "BAT", apprunner: "AR", glacier: "GLC", neptune: "NEP", timestream: "TS", emr: "EMR",
   msk: "MSK", quicksight: "QS", lakeformation: "LF", networkfirewall: "NFW", inspector: "INS", macie: "MAC", securityhub: "SH", cloudhsm: "HSM",
-  directory: "AD", appsync: "GQL", ses: "SES", servicecatalog: "SC", ce: "CE", budgets: "$", transfer: "SFTP", migrationhub: "MH", bedrock: "BR",
+  directory: "AD", appsync: "GQL", ses: "SES", servicecatalog: "SC", ce: "CE", budgets: "$", billing: "BCM", transfer: "SFTP", migrationhub: "MH", bedrock: "BR",
   sagemaker: "SGM", rekognition: "REK", textract: "TXT", transcribe: "TRN", iotcore: "IoT", connect: "CC", fwm: "FMS", grafana: "GF", mgrafana: "AMG",
   sct: "SCT", dlm: "DLM", migeval: "ME", lambdaedge: "λ@E", rdsproxy: "PXY", dax: "DAX", cwlogs: "LOG", sts: "STS", gwlb: "GWLB", privateca: "PCA", cdk: "CDK", sam: "SAM",
 };
