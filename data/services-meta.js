@@ -95,7 +95,7 @@ export const META = {
   ce: ["AWS Cost Explorer", D + "cost-management/latest/userguide/ce-what-is.html", "AWS のコストと使用量を時系列で可視化・分析するツールです。サービス・タグ・アカウント別に絞り込み、最大 12 か月の予測や RI／Savings Plans の推奨を確認できます。"],
   budgets: ["AWS Budgets", D + "cost-management/latest/userguide/budgets-managing-costs.html", "コストや使用量の予算を設定し、実績や予測がしきい値を超えたときに通知するサービスです。予算アクションで IAM ポリシー適用やインスタンス停止も自動化できます。"],
   transfer: ["AWS Transfer Family", D + "transfer/latest/userguide/what-is-aws-transfer-family.html", "SFTP・FTPS・FTP・AS2 によるファイル転送を、S3 や EFS に対してフルマネージドで提供するサービスです。既存の取引先のファイル連携をそのまま移行できます。"],
-  migrationhub: ["AWS Migration Hub", D + "migrationhub/latest/ug/whatishub.html", "複数の移行ツールにまたがるサーバー・アプリケーションの移行状況を一か所で追跡・計画するサービスです。"],
+  migrationhub: ["AWS Migration Hub", D + "migrationhub/latest/ug/whatishub.html", "複数の移行ツールにまたがるサーバー・アプリケーションの移行状況を一か所で追跡・計画するサービスです。2025-11-07 に新規顧客の受付を終了しました(既存の利用者は継続可、後継は AWS Transform)。"],
   bedrock: ["Amazon Bedrock", D + "bedrock/latest/userguide/what-is-bedrock.html", "主要な AI 企業の基盤モデルを 1 つの API で利用できるフルマネージドサービスです。ナレッジベース(RAG)、エージェント、ガードレール、ファインチューニングで生成 AI アプリを構築します。"],
   sagemaker: ["Amazon SageMaker AI", D + "sagemaker/latest/dg/whatis.html", "機械学習モデルの構築・トレーニング・デプロイを行うフルマネージドサービスです。ノートブック、マネージドトレーニング、推論エンドポイント、MLOps の機能を提供します。"],
   rekognition: ["Amazon Rekognition", D + "rekognition/latest/dg/what-is.html", "学習済みのコンピュータービジョンで画像・動画から物体・顔・テキスト・不適切コンテンツなどを検出・分析するサービスです。"],

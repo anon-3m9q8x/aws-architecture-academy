@@ -21,6 +21,14 @@ DB準備が済むまでは `config.js` の `enabled: false` により従来の�
 - 従来の3教材に、添付Labの10教材を追加した13シーン。再生・停止・前後・先頭・速度・シーク。
 - 参考画像に寄せた3列のホーム、白・淡いブルー・丸いカード・写真のヒーロー。実回答に基づく直近7日間の回答数。ライト表示のみ(ダークモードは廃止)、モバイル対応。
 
+## Edition 06.11 — 学習メモを基に図鑑の解説を拡充(SAP 対策)
+
+- 「種類・発展形・関連機能」のあるサービスを 56 → **66**、項目を 248 → **285** に拡充。すべて重要ポイントの強調付き。
+- **新設**: Application Discovery Service(エージェント / エージェントレス、Migration Evaluator・Migration Hub との役割分担)、Elastic Beanstalk(管理の範囲、デプロイポリシー、WWAMA)、ECR(リポジトリポリシー、OCI / Helm、スキャン・レプリケーション)、Budgets(種類、実績 / 予測アラート、予算アクション)、Savings Plans(Compute / EC2 Instance、購入の判断)、RAM(組織内共有、TGW の共有 + 自動受け入れ、共有できるリソース)、Service Catalog(ポートフォリオ、組織共有、起動制約)、IoT Greengrass、Elastic Disaster Recovery(DR 戦略の 4 種類、RPO / RTO、方式ごとの RPO の目安)、WorkSpaces Applications(WorkSpaces との違い)。
+- **追加**: S3(イベント通知と Lambda の呼び出し許可、Storage Lens)、VPC(NAT ゲートウェイ / IGW、マネージドプレフィックスリスト、BYOIP)、EKS(Load Balancer Controller / Ingress、HPA と Metrics Server)、IAM(信頼ポリシー / 権限ポリシー)、Organizations(タグポリシー + SCP によるタグの必須化)、MGN(エージェントレス、WWAMA + Beanstalk との違い)。
+- **補強**: S3 File Gateway(仮想アプライアンス)、Transfer Family(3 種類のエンドポイント、PGP 鍵は Secrets Manager)、Client VPN、AD Connector。
+- **提供状況の反映**(公式ドキュメントで確認): Application Discovery Service と Migration Hub は 2025-11-07 に新規顧客の受付を終了(後継は AWS Transform)、FSx File Gateway は新規提供なし。
+
 ## Edition 06.10 — Compute Optimizer に拡張インフラストラクチャメトリクスを追加
 
 - Compute Optimizer に「種類・発展形・関連機能」を新設し、**拡張インフラストラクチャメトリクス**(ルックバックを標準 14 日 → 最大 93 日に延長する有料機能、対象は EC2・Auto Scaling グループ内の EC2・RDS、リソース / アカウント / 組織単位で有効化)を収録。「期間の拡張」と「指標の追加」は別物で、メモリのデータが無ければ反映されない点、800 台規模で一律に有効化するとコスト要件から外れる点を強調。

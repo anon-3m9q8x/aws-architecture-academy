@@ -275,7 +275,7 @@ export const EXTRA = {
 
   /* ---------- 移行 ---------- */
   ads: { n: "Application Discovery Service", f: "AWS Application Discovery Service", c: "移行", d: D + "application-discovery/latest/userguide/what-is-appdiscovery.html",
-    s: "オンプレミスのサーバーの構成・使用状況・依存関係の情報を収集し、移行計画に役立てるサービスです。",
+    s: "オンプレミスのサーバーの構成・使用状況・依存関係の情報を収集し、移行計画に役立てるサービスです。2025-11-07 に新規顧客の受付を終了しました(既存の利用者は継続可、後継は AWS Transform)。",
     p: "移行前に現状のサーバーと依存関係を把握する", ft: ["エージェント／エージェントレス収集", "依存関係の把握", "Migration Hub へ連携"], u: "移行のアセスメント",
     t: "移行計画のための現状調査 → Application Discovery Service", l: [["migrationhub", "収集データを集約"], ["onprem", "サーバー情報を収集"], ["athena", "データを分析"]] },
   m2: { n: "Mainframe Modernization", f: "AWS Mainframe Modernization", c: "移行", d: D + "m2/latest/userguide/what-is-m2.html",
