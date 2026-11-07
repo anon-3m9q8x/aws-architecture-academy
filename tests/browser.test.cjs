@@ -41,7 +41,8 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
   async function device(viewport={width:390,height:844}, configured=true) {
     const context = await browser.newContext({viewport,serviceWorkers:'block'});
     const state={online:true,failRead:false};
-    if(configured)await context.route('**/config.js', route=>route.fulfill({contentType:'text/javascript',body:`window.ACADEMY_CONFIG={enabled:true,supabaseUrl:'${origin}',supabasePublishableKey:'sb_publishable_test'};`}));
+    // Always replace production settings so tests never contact the live project.
+    await context.route('**/config.js', route=>route.fulfill({contentType:'text/javascript',body:`window.ACADEMY_CONFIG={enabled:${configured},supabaseUrl:'${origin}',supabasePublishableKey:'sb_publishable_test'};`}));
     await context.route(origin+'/**', async route=>{
       if(!state.online){await route.abort('internetdisconnected');return;}
       const req=route.request(), u=new URL(req.url()), body=req.postDataJSON();
@@ -210,6 +211,7 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
     await b.page.screenshot({path:'/tmp/academy-account-mobile.png'});
     // Learning still works when localStorage is disabled.
     const blockedContext=await browser.newContext();
+    await blockedContext.route('**/config.js', route=>route.fulfill({contentType:'text/javascript',body:'window.ACADEMY_CONFIG={enabled:false};'}));
     await blockedContext.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw Error('blocked')}}));
     const blocked=await blockedContext.newPage();blocked.on('pageerror',e=>errors.push(e.message));
     await blocked.goto(url);await openService(blocked);
