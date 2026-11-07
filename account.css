@@ -1,0 +1,8 @@
+.account-bar{border:1px solid var(--aaa-border);border-radius:16px;background:var(--aaa-panel);padding:16px 18px;margin:0 0 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;min-width:0}
+.account-email{overflow-wrap:anywhere;font-size:14px}.account-bar p{margin:4px 0 0;font-size:12px;color:var(--aaa-muted)}.account-actions{display:flex;gap:8px;flex-wrap:wrap}.account-bar .btn{font-size:12px}.account-bar .btn-primary,.account-dialog .btn-primary{background:var(--aaa-blue);color:white;border-color:var(--aaa-blue)}
+.account-overlay{position:fixed;inset:0;z-index:5000;display:grid;place-items:center;background:#17263b88;padding:18px;overflow:auto}.account-overlay[hidden]{display:none!important}
+.account-dialog{background:var(--aaa-panel);color:var(--aaa-text);border:1px solid var(--aaa-border);border-radius:18px;width:min(100%,490px);max-height:calc(100dvh - 36px);overflow:auto;padding:25px;box-shadow:0 20px 70px #0003}
+.account-dialog h2{margin:0 0 12px;font-size:22px}.account-dialog p{font-size:13px;line-height:1.8}.account-dialog form{display:grid;gap:14px}.account-dialog label{display:grid;gap:5px;font-size:13px;font-weight:600}.account-dialog input{width:100%;min-width:0;padding:12px}.account-dialog .account-actions{margin-top:14px}
+.account-message{min-height:1.5em;white-space:pre-wrap;color:var(--aaa-blue)}.account-message.error{color:#b33030}.account-conflict{border:2px solid #c78125}.account-conflict p{color:var(--aaa-text)}
+#learnerName{display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:600px){.account-bar{padding:13px;gap:10px}.account-actions .btn{min-height:42px;font-size:12px;padding:8px 10px}.account-dialog{padding:20px}}

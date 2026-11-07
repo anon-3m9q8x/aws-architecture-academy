@@ -1,8 +1,14 @@
 # AWS Architecture Academy
 
-日本語の AWS 資格学習ワークスペース。依存パッケージ不要の HTML / CSS / JavaScript 製です。
+日本語の AWS 資格学習ワークスペース。HTML / CSS / JavaScript と、同梱した公式Supabase SDKで動作します。
 
 公開サイト: https://anon-3m9q8x.github.io/aws-architecture-academy/
+
+## アカウントログイン・学習同期
+
+NutriPathと共通のメールアカウントでログインし、学習メモ・学習済み・演習の回答履歴・構築問題の進捗と配置を端末間で共有できます。
+**初回はSupabaseにAcademy専用SQLを実行し、認証のRedirect URLを追加してください。[設定手順](ACCOUNT_SETUP.md)**
+DB準備が済むまでは `config.js` の `enabled: false` により従来の端末内保存で動作します。
 
 ## 学習機能
 
@@ -128,11 +134,13 @@ docs/                要件・検証・出典到達性・画面キャプチャ
 
 ## 保存データ
 
-ブラウザのlocalStorageを使用します。端末間同期はありません。設定は `aaa.ui.preferences.v1`、既存のアニメーション履歴は `aaa.step1.progress.v1` を維持。問題の回答は `aaa.practice.attempts.v1`、個人ノート・お気に入り・学習済みは `aaa.notebook.v1` に保存します。メモは自動保存、テーマ変更で消えません。別端末への移動はノートのバックアップファイルを利用します。利用不可時はタブ内のメモリで動作し、警告します。
+未ログイン時は従来のlocalStorageキーを保持します。ログイン中はアカウントID別のキャッシュとSupabaseの `academy_accounts` に保存します。
+旧メモ・回答履歴・構築途中の配置は「端末データを取り込む」から確認後に移行できます。保存の範囲・競合解決・検証は [ACCOUNT_SETUP.md](ACCOUNT_SETUP.md) を参照してください。
+
 
 ## 検証
 
-サイト本体に追加依存はありません。ブラウザ検証にはPythonのPlaywrightとChromiumを使用します。ポート3300で起動してから実行してください。
+アカウント対応の現在の検証は `npm test` です。公式SDKは同梱済みです。以下は以前の版向けに保存した検証スクリプトで、古い問題数・画面構成・廃止したテーマ切り替えを前提とするため、現在の合否判定には使いません。
 
 ```sh
 node --check script.js

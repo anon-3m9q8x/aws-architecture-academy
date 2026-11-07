@@ -1,6 +1,7 @@
 // サービスごとの個人メモと「学習済み」(旧・学習ノートのデータを引き継ぐ)。
 // 保存キーは学習ノート時代と同じ aaa.notebook.v1 なので、これまでのメモはそのまま残る。
 import { byId } from "./services.js";
+import { store } from "./storage.js";
 const KEY = "aaa.notebook.v1";
 let state = { notes: {}, favorites: [], completed: [] };
 let ok = true;
@@ -15,14 +16,13 @@ function sanitize(raw) {
   return clean;
 }
 try {
-  state = sanitize(JSON.parse(localStorage.getItem(KEY) || "null"));
+  state = sanitize(store.get(KEY, null));
 } catch {
   ok = false;
 }
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-    ok = true;
+    ok = store.set(KEY, state);
   } catch {
     ok = false;
     document.getElementById("storage-warning").hidden = false;

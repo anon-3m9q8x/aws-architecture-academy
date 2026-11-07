@@ -1,5 +1,6 @@
 // AWS Architecture Academy: 画面全体の操作感(ナビのスライド表示・サイドバー開閉・検索候補・通知・続きから)
 import { SERVICES, byId as svcById } from "./services.js";
+import { store } from "./storage.js";
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -8,21 +9,6 @@ const el = (tag, cls, text) => {
   return n;
 };
 const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-const store = {
-  get(k, d) {
-    try {
-      const v = localStorage.getItem(k);
-      return v === null ? d : JSON.parse(v);
-    } catch {
-      return d;
-    }
-  },
-  set(k, v) {
-    try {
-      localStorage.setItem(k, JSON.stringify(v));
-    } catch {}
-  },
-};
 
 /* ---------- 通知(トースト) ---------- */
 const toast = el("div", "toast");

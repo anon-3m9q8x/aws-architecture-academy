@@ -1,3 +1,4 @@
+import { store } from "./storage.js";
 // ホーム(学習の続き・今週の回答数・おすすめ)、全体検索、「連携を調べる」。
 // 旧・学習ノートのページは廃止し、内容はサービス図鑑に統合した(メモは memo.js)。
 import { notebook } from "./data/notebook.js";
@@ -105,7 +106,7 @@ function renderConnection() {
 $("connection-find").addEventListener("click", renderConnection);
 function readJson(key, fallback) {
   try {
-    return JSON.parse(localStorage.getItem(key) || "null") || fallback;
+    return store.get(key, fallback);
   } catch {
     return fallback;
   }

@@ -1,3 +1,4 @@
+import { store } from "./storage.js";
 import { questions } from "./data/questions.js";
 import { solve } from "./data/solve.js";
 import { notebook } from "./data/notebook.js";
@@ -18,7 +19,7 @@ const el = (tag, cls, text) => {
 };
 let attempts = [];
 try {
-  const data = JSON.parse(localStorage.getItem(key) || "[]");
+  const data = store.get(key, []);
   if (Array.isArray(data))
     attempts = data.filter(
       (a) =>
@@ -514,7 +515,7 @@ $("answer-form").addEventListener("submit", (event) => {
   attempts.push(attempt);
   results.push(attempt);
   try {
-    localStorage.setItem(key, JSON.stringify(attempts));
+    store.set(key, attempts);
   } catch {
     $("storage-warning").hidden = false;
   }

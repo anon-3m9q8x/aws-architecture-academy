@@ -659,18 +659,13 @@ function openDetail(s) {
   {
     const ta = el("textarea", "memo-text");
     ta.value = memo.get(s.id);
-    ta.placeholder = "覚えたいこと、間違えた理由、試験での見分け方など。このブラウザに自動保存されます。";
+    ta.placeholder = "覚えたいこと、間違えた理由、試験での見分け方など。ログイン中はアカウントに同期されます。";
     ta.setAttribute("aria-label", `${s.name} のメモ`);
     const st = el("p", "muted memo-status");
     st.setAttribute("role", "status");
-    let t = 0;
     ta.addEventListener("input", () => {
-      clearTimeout(t);
-      st.textContent = "入力中…";
-      t = setTimeout(() => {
-        memo.set(s.id, ta.value);
-        st.textContent = memo.stored() ? "保存しました" : "このタブ内にだけ保持しています(ブラウザに保存できません)";
-      }, 400);
+      memo.set(s.id, ta.value);
+      st.textContent = memo.stored() ? "端末に保存しました。同期状態は画面上部を確認してください。" : "このタブ内にだけ保持しています(ブラウザに保存できません)";
     });
     secM.append(ta, st);
   }

@@ -13,9 +13,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&amp;display=swap" />
     <link rel="stylesheet" href="style.css" />
-    <script src="script.js" type="module"></script>
+    <link rel="stylesheet" href="account.css" />
   </head>
   <body>
+    <div id="siteShell">
     <a class="skip" href="#main">本文へ移動</a>
     <header class="topbar">
       <a class="brand" href="#home"
@@ -34,7 +35,7 @@
       <div class="learner-profile">
         <span class="learner-avatar" aria-hidden="true">A</span>
         <div>
-          <strong>マイワークスペース</strong
+          <strong id="learnerName">マイワークスペース</strong
           ><small>学びをつなげて、設計する力に</small>
         </div>
       </div>
@@ -64,7 +65,7 @@
         </nav>
         <div class="sidebar-note">
           <span class="dot"></span> つながりで覚える AWS 設計。
-          <p>実際の AWS 環境は操作しません。アカウント・認証情報は不要です。</p>
+          <p>実際の AWS 環境は操作しません。学習のアカウント登録に AWS の認証情報は不要です。</p>
         </div>
         <span class="version">ACADEMY EDITION / 06</span>
       </aside>
@@ -72,6 +73,7 @@
         <div class="breadcrumb">
           Workspace <span>/</span> <span id="page-label">ダッシュボード</span>
         </div>
+        <section id="accountBar" class="account-bar" aria-label="アカウントと同期"><p>学習データを読み込み中…</p></section>
         <section id="home" class="page">
           <div class="home-layout">
             <div class="home-primary">
@@ -336,5 +338,11 @@
         </footer>
       </main>
     </div>
+    </div>
+    <div id="accountOverlay" class="account-overlay" hidden></div>
+    <script src="config.js"></script>
+    <script src="vendor/supabase.js"></script>
+    <script src="account.js"></script>
+    <script src="script.js" type="module"></script>
   </body>
 </html>

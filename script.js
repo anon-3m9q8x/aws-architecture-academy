@@ -6,6 +6,7 @@ import "./home.js";
 import "./explorer.js";
 import { buildStats, refreshRec } from "./build.js";
 import "./academy.js";
+import { store } from "./storage.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   home: "ホーム",
@@ -18,21 +19,7 @@ const labels = {
 // 学習ノートは図鑑に統合: #notebook/<id> は #services/<id> へ
 const MOVED = { animation: "services", favorites: "services", notebook: "services", roadmap: "home", progress: "practice" };
 
-function read(key, fallback) {
-  try {
-    return JSON.parse(localStorage.getItem(key)) ?? fallback;
-  } catch {
-    $("storage-warning").hidden = false;
-    return fallback;
-  }
-}
-function save(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    $("storage-warning").hidden = false;
-  }
-}
+const read = store.get, save = store.set;
 const uiKey = "aaa.ui.preferences.v1";
 let preferences = read(uiKey, {});
 if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) preferences = {};

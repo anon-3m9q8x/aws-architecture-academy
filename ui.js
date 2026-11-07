@@ -86,18 +86,4 @@ export function toast(msg) {
   window.dispatchEvent(new CustomEvent("toast", { detail: msg }));
 }
 
-export const store = {
-  get(k, d) {
-    try {
-      const v = localStorage.getItem(k);
-      return v === null ? d : JSON.parse(v) ?? d;
-    } catch {
-      return d;
-    }
-  },
-  set(k, v) {
-    try {
-      localStorage.setItem(k, JSON.stringify(v));
-    } catch {}
-  },
-};
+export { store } from "./storage.js";
