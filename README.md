@@ -15,6 +15,12 @@
 - 従来の3教材に、添付Labの10教材を追加した13シーン。再生・停止・前後・先頭・速度・シーク。
 - 参考画像に寄せた3列のホーム、白・淡いブルー・丸いカード・写真のヒーロー。実回答に基づく直近7日間の回答数。ライト表示のみ(ダークモードは廃止)、モバイル対応。
 
+## Edition 06.5 — 図鑑を 259 サービスに拡充(2026-11 時点の AWS に合わせる)
+
+- AWS ドキュメントの全サービス一覧と照合し、新規利用できるのに図鑑に無かった **53 サービス**を追加(`data/services-2026.js`)。例: Bedrock AgentCore、Nova、Claude Platform on AWS、Continuum(旧 Security Agent)、DevOps Agent、Network Security Manager、Interconnect - multicloud、Application Recovery Controller、Elastic VMware Service、Oracle Database@AWS、Flat-Rate Plans、Marketplace、Connect Decisions / Talent / Health など。
+- 改名を反映: QuickSight → Amazon Quick、AppStream 2.0 → WorkSpaces Applications、Application Migration Service → AWS Transform MGN、Amazon Connect → Amazon Connect Customer。
+- 追加しなかったもの: 新規受付を停止・終了予定のサービス(Cloud9、CloudSearch、Data Pipeline、Forecast、Fraud Detector、FinSpace、App Mesh、Proton、Pinpoint、Chime など)と、SDK・CLI・コンソール・トレーニングなどサービス本体でないもの。
+
 ## Edition 06.4 — Billing and Cost Management を図鑑に追加
 
 - サービス図鑑(コスト管理)に **AWS Billing and Cost Management** を追加。請求・支払いと Cost Explorer / Budgets などを統括するコスト管理の中枢として解説。

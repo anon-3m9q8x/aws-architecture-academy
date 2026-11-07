@@ -1,15 +1,16 @@
-// 図鑑の全サービス = 学習ノート107項目 + 追加サービス。説明・連携・比較・キーワードを統合する。
+// 図鑑の全サービス = 学習ノート107項目 + 追加サービス(services-extra / services-sap / services-2026)。説明・連携・比較・キーワードを統合する。
 import { notebook } from "./data/notebook.js";
 import { META } from "./data/services-meta.js";
 import { EXTRA } from "./data/services-extra.js";
 import { LINKS } from "./data/links.js";
 import { cues } from "./data/cues.js";
 import { EXTRA_SAP } from "./data/services-sap.js";
+import { EXTRA_2026 } from "./data/services-2026.js";
 import { LINKS_SAP } from "./data/links-sap.js";
 import { PATTERNS } from "./data/sap-patterns.js";
 import { VARIANTS } from "./data/variants.js";
 import { COMPARE } from "./data/compare-groups.js";
-const EXTRA_ALL = { ...EXTRA, ...EXTRA_SAP };
+const EXTRA_ALL = { ...EXTRA, ...EXTRA_SAP, ...EXTRA_2026 };
 
 // 図鑑のカテゴリ(表示順)と色
 export const CATS = [

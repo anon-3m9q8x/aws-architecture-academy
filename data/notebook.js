@@ -982,7 +982,7 @@ export const notebook = {
     },
     {
       "id": "mgn",
-      "name": "Application Migration Service",
+      "name": "AWS Transform MGN (旧 Application Migration Service)",
       "category": "移行",
       "tip": "サーバーをそのままAWSへ移行(リホスト)。継続レプリケーションと切替前テスト",
       "features": [
@@ -1108,7 +1108,7 @@ export const notebook = {
     },
     {
       "id": "quicksight",
-      "name": "QuickSight",
+      "name": "Amazon Quick (旧 QuickSight)",
       "category": "分析",
       "tip": "サーバーレスのBI・可視化サービス",
       "features": [
@@ -1402,7 +1402,7 @@ export const notebook = {
     },
     {
       "id": "connect",
-      "name": "Amazon Connect",
+      "name": "Amazon Connect Customer",
       "category": "IoT・エンドユーザー",
       "tip": "クラウド型のコンタクトセンター",
       "features": [
