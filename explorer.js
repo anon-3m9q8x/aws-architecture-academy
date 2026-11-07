@@ -52,7 +52,7 @@ const chips = el("div", "ex-cats");
 chips.setAttribute("role", "group");
 chips.setAttribute("aria-label", "カテゴリ");
 const catCount = Object.fromEntries(CATS.map(([c]) => [c, SERVICES.filter((s) => s.cat === c).length]));
-[["all", "すべて", SERVICES.length], ...CATS.filter(([c]) => catCount[c]).map(([c, col]) => [c, c, catCount[c], col])].forEach(([v, t, n, col]) => {
+[["all", "すべて", serviceCount], ...CATS.filter(([c]) => catCount[c]).map(([c, col]) => [c, c, catCount[c], col])].forEach(([v, t, n, col]) => {
   const b = el("button", "ex-cat");
   b.type = "button";
   b.dataset.v = v;
@@ -142,7 +142,11 @@ function renderList() {
   catSlide();
   const q = query.trim().toLowerCase();
   const list = SERVICES.filter((s) => (cat === "all" || s.cat === cat) && (!q || [s.name, s.full, s.cat, s.purpose, s.summary, s.useCases, ...(s.features || []), ...(s.cues?.words || []), ...s.variants.map((v) => v[0])].join(" ").toLowerCase().includes(q)));
-  countLine.textContent = `${list.length} 件${list.length ? "" : " — キーワードやカテゴリを変えてみてください。"}`;
+  // 件数は「サービス」の数で表示(一般概念は別に数える)。ワークスペースの表示と揃える
+  const nSvc = list.filter((s) => s.cat !== "一般概念").length, nGen = list.length - nSvc;
+  countLine.textContent = list.length
+    ? (nSvc ? `${nSvc} サービス` : "") + (nGen ? `${nSvc ? " + " : ""}一般概念 ${nGen} 件` : "")
+    : "0 件 — キーワードやカテゴリを変えてみてください。";
   grid.replaceChildren(...list.map(card));
 }
 modeSeg.addEventListener("click", (e) => {
