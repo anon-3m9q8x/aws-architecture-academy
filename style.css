@@ -4048,3 +4048,13 @@ html.kind-open { overflow: hidden; }
   .track-progress { width: auto; flex: 1 1 100%; padding-left: calc(62px + 10px); }
   .track-progress progress { width: auto; flex: 1; max-width: 160px; }
 }
+
+/* 種類・発展形・関連機能の詳しい解説: 重要ポイントのマーカーと注意の強調 */
+.kmark { background: linear-gradient(transparent 52%, #ffe066 52%); color: inherit; font-weight: 700; padding: 0 2px; border-radius: 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.kwarn { color: #c2410c; font-weight: 700; background: linear-gradient(transparent 62%, rgba(251, 146, 60, .28) 62%); padding: 0 2px; border-radius: 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.kwarn::before { content: "⚠"; font-size: .85em; margin-right: 2px; font-weight: 400; }
+.kind-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 10px 0 0; font-size: 12px; color: var(--aaa-muted); }
+.kind-legend .kmark, .kind-legend .kwarn { font-size: 12px; }
+.kind-legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; margin-right: 10px; }
+.kind-dialog .ex-box p { line-height: 1.85; }
+@media print { .kmark { background: #fff3a8; } .kwarn { text-decoration: underline; } }

@@ -540,7 +540,7 @@ function openDetail(s) {
         const it = el("button", "kind-item");
         it.type = "button";
         it.setAttribute("aria-haspopup", "dialog");
-        it.append(el("b", "", v[0]), el("p", "", v[2]), el("span", "kind-more", "詳しく ›"));
+        it.append(el("b", "", v[0]), el("p", "", plainMarks(v[2])), el("span", "kind-more", "詳しく ›"));
         it.addEventListener("click", () => openKind(s, s.variants.indexOf(v)));
         ul.append(it);
       });
@@ -920,6 +920,18 @@ export { scenes };
 
 // 種類・発展形・関連機能の詳しい解説(画面の前面に表示するダイアログ)
 const KIND_LABEL = { 種類: "種類", 機能: "関連機能", 発展: "発展形" };
+// 解説文の強調記法: ==重要== は黄色のマーカー、!!注意!! はひっかけ・制限の赤下線(data/variants.js 参照)
+function plainMarks(t = "") { return t.replace(/==([^=]+?)==|!!([^!]+?)!!/g, "$1$2"); }
+function richMarks(tag, t = "") {
+  const p = el(tag, "");
+  t.split(/(==[^=]+?==|!![^!]+?!!)/).forEach((part) => {
+    if (!part) return;
+    if (part.startsWith("==") && part.endsWith("==") && part.length > 4) p.append(el("mark", "kmark", part.slice(2, -2)));
+    else if (part.startsWith("!!") && part.endsWith("!!") && part.length > 4) p.append(el("strong", "kwarn", part.slice(2, -2)));
+    else p.append(part);
+  });
+  return p;
+}
 let kindDlg = null;
 function kindDialog() {
   if (kindDlg) return kindDlg;
@@ -946,15 +958,22 @@ function openKind(s, i) {
   close.type = "button";
   close.setAttribute("aria-label", "閉じる");
   close.addEventListener("click", () => d.close());
-  head.append(crumb, title, el("p", "kind-dlg-lead", short), close);
+  head.append(crumb, title, el("p", "kind-dlg-lead", plainMarks(short)), close);
+  const legend = el("p", "kind-legend");
+  [["mark", "kmark", "重要", "試験で問われる要点"], ["strong", "kwarn", "注意", "ひっかけ・制限・費用"]].forEach(([tag, cls, chip, text]) => {
+    const item = el("span", "kind-legend-item");
+    item.append(el(tag, cls, chip), el("span", "", text));
+    legend.append(item);
+  });
   const grid = el("div", "ex-about");
   const ov = el("div", "ex-box wide");
-  ov.append(el("h3", "", "概要"), el("p", "", detail));
+  ov.append(el("h3", "", "概要"), richMarks("p", detail));
   const us = el("div", "ex-box wide");
-  us.append(el("h3", "", "使いどころ"), el("p", "", use));
+  us.append(el("h3", "", "使いどころ"), richMarks("p", use));
   const pt = el("div", "ex-box tip wide");
-  pt.append(el("h3", "", "試験・設計のポイント"), el("p", "", point));
+  pt.append(el("h3", "", "試験・設計のポイント"), richMarks("p", point));
   grid.append(ov, us, pt);
+  if (/==|!!/.test(detail + use + point)) head.append(legend);
   const foot = el("footer", "kind-dlg-foot");
   const prev = el("button", "button secondary", "‹ 前へ");
   const next = el("button", "button secondary", "次へ ›");
