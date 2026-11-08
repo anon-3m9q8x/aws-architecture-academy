@@ -21,6 +21,22 @@ DB準備が済むまでは `config.js` の `enabled: false` により従来の�
 - 従来の3教材に、添付Labの10教材を追加した13シーン。再生・停止・前後・先頭・速度・シーク。
 - 参考画像に寄せた3列のホーム、白・淡いブルー・丸いカード・写真のヒーロー。実回答に基づく直近7日間の回答数。ライト表示のみ(ダークモードは廃止)、モバイル対応。
 
+## Edition 07 — コマンド・ポリシー演習(AWS Command & Policy Lab)
+
+設計書「AWS Command & Policy Lab」の Phase 1(MVP)を実装。サイドバーの **⌘ コマンド・ポリシー演習**(`#command-lab`、各問は `#command-lab/<問題ID>`)から使えます。既存の図鑑・構築問題・資格問題演習は変更せず並存します。
+
+- **30 問**(IAM・S3 JSON 12 / AWS CLI 10 / API リクエスト 8)。モードは 読解・記述・実行・修復、難易度 1〜4、資格タグ(SAA / SAP / SCS / DVA / SOA など)。各問に要件・検証ケース・よくある誤答・公式資料・最終レビュー日。
+- **IAM JSON エディター**: 行番号、整形、補完候補、記号の入力補助、文字サイズ、拡大。JSON の構文エラーは行・列と直し方の手掛かりを表示。IAM の構造チェック(Action / NotAction などの排他、ポリシーの種類ごとの Principal・Resource の要否、S3 の ARN と操作の組み合わせ)と、過剰な許可のセキュリティ警告。
+- **IAM の模擬評価**(`lab-engine/simulator-iam.js`): 明示的な Deny → SCP → リソースベース(信頼ポリシーを含む)→ アクセス許可の境界 → アイデンティティベース。クロスアカウント、ポリシー変数(`${aws:username}`・`${aws:PrincipalTag/…}`)、条件演算子(String / Numeric / Date / Bool / IpAddress / Arn / Null、IfExists、ForAnyValue / ForAllValues)。対応外の条件キーなどは **判定対象外(unsupported)** とし、拒否として採点しない。
+- **AWS CLI ターミナル**(`lab-engine/parser-cli.js`・`simulator-cli.js`): 字句解析して操作・引数の構造で判定(オプションの順序・引用符の違いは不問)。sts / s3 / s3api / ec2 / cloudwatch / lambda / logs の対応コマンドだけを仮想リソースで模擬実行し、各操作を IAM の模擬評価に通す(AccessDenied も CLI と同じ形)。`--query`(JMESPath の基本)と `--output text`。シェルの記号・OS のコマンド・`--profile` は拒否。
+- **API リクエストラボ**(`lab-engine/simulator-api.js`): Method / URL / Headers / Body。API Gateway(ステージ・ルート・Cognito・API キーと使用量プラン・リクエストの検証)、DynamoDB(GetItem / PutItem / Query / DeleteItem、型付きの値、LeadingKeys)、Lambda Invoke、S3 REST。署名は模擬(`Credential=SIMULATED-<名前>`)。
+- **採点**(`lab-engine/grade.js`): 文字列の一致ではなく、検証ケース(許可すべき / 拒否すべき)と環境の状態・実行結果で判定。必須の挙動がすべて合致し、禁止の挙動が 0 件でクリア。等価な別解も正解。表示は「構文エラー / 設定上の問題 / セキュリティ警告 / テスト成功 / 判定対象外」。
+- **解説**: ①要件 ②入力した設定 ③具体的なリクエスト ④評価フロー ⑤結果 ⑥他の設定との違い・よくある誤答 ⑦公式資料。模範解答との行単位の差分。
+- **画面**: PC は 3 ペイン(問題 / エディター / 結果)、スマホは「問題 / エディター / 結果」のタブと下部の実行ボタン。Ctrl(⌘)+ Enter で実行。
+- **学習記録**: `aaa.commandLab.progress.v1`(試行回数・ヒント回数・クリア・復習フラグ・最終実行日時)と `aaa.commandLab.drafts.v1`(下書き)。`schemaVersion` 付きで不正な値は読み飛ばし、アカウント同期とバックアップの対象。本物の認証情報らしい文字列は下書きに保存せず、送信もしません。ホームにクリア数のカードを追加。
+- **安全性**: 実際の AWS とは通信しない(テストで確認)。入力は HTML として描画せず、eval・シェルは使わない。静的配信のため問題データと模範解答は利用者から読めます。模擬評価は現実の AWS の判定を完全には保証せず、公式の IAM Policy Simulator / Access Analyzer と同じ結果になるとは限りません。
+- テスト: `tests/command-lab.test.cjs`(エンジン・ブラウザ。受け入れ条件 AC-01〜14 に対応)。
+
 ## Edition 06.13 — KMS のマルチリージョンキーとクライアントサイド暗号化を強化
 
 - KMS の「マルチリージョンキー」を全面改訂: 同じキーマテリアルと「mrk-」で始まる共通のキー ID、暗号文に埋め込まれたキー ID による相互復号、レプリカは独立したキー(ポリシーはリージョンごと、片方のリージョンだけで暗号化・復号を継続)、プライマリへの依存はローテーションとプライマリの変更のみ。単一リージョンキーはリージョンをまたいで復号できず、マルチリージョンキーへ変換もできない点を注意として強調。

@@ -4,6 +4,7 @@ import { BUILD } from "./data/build.js";
 import "./practice.js";
 import "./home.js";
 import "./explorer.js";
+import "./command-lab.js";
 import { buildStats, refreshRec } from "./build.js";
 import "./academy.js";
 import { store } from "./storage.js";
@@ -13,6 +14,7 @@ const labels = {
   services: "サービス図鑑",
   build: "構築問題",
   practice: "資格問題演習",
+  "command-lab": "コマンド・ポリシー演習",
   connections: "連携を調べる",
 };
 // 旧ページの URL は統合先へ転送
@@ -98,4 +100,14 @@ function route() {
 }
 window.addEventListener("hashchange", route);
 route();
+// 初回表示: URL の #ページ名 と同じ id の要素へ、ブラウザが読み込み完了の直後に自動スクロールすることがある。
+// 利用者が操作する前に起きたものだけを打ち消し、先頭から表示する(#services/ec2 のような詳細ページは対象外)。
+{
+  let touched = false;
+  const mark = () => (touched = true);
+  for (const ev of ["wheel", "touchstart", "keydown", "pointerdown"]) window.addEventListener(ev, mark, { once: true, passive: true });
+  const reset = () => { if (!touched && window.scrollY > 0 && document.getElementById(location.hash.slice(1))) window.scrollTo({ top: 0, behavior: "auto" }); };
+  const later = () => { reset(); requestAnimationFrame(reset); setTimeout(reset, 150); setTimeout(reset, 450); };
+  if (document.readyState === "complete") later(); else window.addEventListener("load", later, { once: true });
+}
 export { SERVICES };

@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&amp;display=swap" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="account.css" />
+    <link rel="stylesheet" href="command-lab.css" />
   </head>
   <body>
     <div id="siteShell">
@@ -59,6 +60,10 @@
             ><span aria-hidden="true">✓</span> 資格問題演習
             <span class="nav-badge" data-question-count>60</span></a
           >
+          <a href="#command-lab" data-page="command-lab"
+            ><span aria-hidden="true">⌘</span> コマンド・ポリシー演習
+            <span class="nav-badge" data-lab-count>30</span></a
+          >
           <a href="#connections" data-page="connections"
             ><span aria-hidden="true">◇</span> 連携を調べる</a
           >
@@ -67,7 +72,7 @@
           <span class="dot"></span> つながりで覚える AWS 設計。
           <p>実際の AWS 環境は操作しません。学習のアカウント登録に AWS の認証情報は不要です。</p>
         </div>
-        <span class="version">ACADEMY EDITION / 06</span>
+        <span class="version">ACADEMY EDITION / 07</span>
       </aside>
       <main id="main" tabindex="-1">
         <div class="breadcrumb">
@@ -111,6 +116,12 @@
                   ><a href="#practice">演習をはじめる →</a>
                 </div>
                 <div class="panel stat">
+                  <span><i class="stat-icon green">⌘</i> コマンド・ポリシー演習</span
+                  ><strong id="lab-solved">0 / 30</strong
+                  ><progress id="lab-progress" value="0" max="30" aria-label="コマンド・ポリシー演習のクリア数"></progress
+                  ><a href="#command-lab">CLI・IAM・API を試す →</a>
+                </div>
+                <div class="panel stat">
                   <span><i class="stat-icon amber">◇</i> 連携シナリオ</span
                   ><strong id="scene-count">—</strong
                   ><small>複数サービスの流れを再生</small
@@ -135,7 +146,14 @@
               <section class="panel rail-panel">
                 <div class="section-heading">
                   <h2>お知らせ</h2>
-                  <span class="rail-label">Edition 06</span>
+                  <span class="rail-label">Edition 07</span>
+                </div>
+                <div class="update-item">
+                  <span class="update-icon green">⌘</span>
+                  <div>
+                    <strong>コマンド・ポリシー演習 30 問</strong>
+                    <p>IAM の JSON ポリシー・AWS CLI・API リクエストを書いて、模擬環境で許可・拒否や実行結果を確かめる。</p>
+                  </div>
                 </div>
                 <div class="update-item">
                   <span class="update-icon violet">◆</span>
@@ -204,6 +222,7 @@
         </section>
         
         <section id="services" class="page" hidden></section>
+        <section id="command-lab" class="page" hidden></section>
         <section id="build" class="page" hidden></section>
         <section id="practice" class="page" hidden>
           <div class="page-heading">
@@ -334,7 +353,7 @@
           ブラウザに保存できないため、このタブを閉じると設定と学習記録が失われます。
         </p>
         <footer>
-          AWS Architecture Academy <span>非公式の学習プロジェクト · Academy Edition 06</span>
+          AWS Architecture Academy <span>非公式の学習プロジェクト · Academy Edition 07</span>
         </footer>
       </main>
     </div>
