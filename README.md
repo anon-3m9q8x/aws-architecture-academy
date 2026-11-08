@@ -21,6 +21,17 @@ DB準備が済むまでは `config.js` の `enabled: false` により従来の�
 - 従来の3教材に、添付Labの10教材を追加した13シーン。再生・停止・前後・先頭・速度・シーク。
 - 参考画像に寄せた3列のホーム、白・淡いブルー・丸いカード・写真のヒーロー。実回答に基づく直近7日間の回答数。ライト表示のみ(ダークモードは廃止)、モバイル対応。
 
+## Edition 08 — コマンド・ポリシー演習 Phase 2(80 問・CloudFormation・ロードマップ)
+
+設計書「AWS Command & Policy Lab」の Phase 2 を実装。問題は公式ドキュメント(IAM・KMS・Organizations・EventBridge・SQS・CloudFormation・AWS CLI リファレンス)と照合しています(最終レビュー 2026-11-08)。
+
+- **80 問**(IAM・S3 JSON 28 / AWS CLI 22 / API リクエスト 18 / CloudFormation 12)。追加分: Lambda・GitHub Actions(OIDC)の信頼ポリシー、PassRole と iam:PassedToService、作成時のタグ(aws:RequestTag・aws:TagKeys)、MFA と IP の AND 条件、SCP(監査サービスの保護・許可リスト方式)、KMS のキーポリシー(ルートへの委任・kms:ViaService)、SNS→SQS・CloudFront OAC・Lambda のリソースベースのポリシー、aws:PrincipalOrgID、Deny の例外、境界を必須にした権限の委任。
+- **CLI の追加**(35 コマンド): sts assume-role(外部 ID・最大セッション時間)、iam simulate-principal-policy、dynamodb get-item / query(GSI・予約語)/ put-item(条件付き)、events put-events / test-event-pattern / list-rules、cloudformation validate-template(`file://`)/ describe-stacks / describe-stack-events、kms describe-key / list-aliases、sqs send-message(FIFO)/ get-queue-attributes。
+- **API の追加**: API Gateway の IAM 認可(execute-api の SigV4)・CORS のプリフライト、DynamoDB の条件付き PutItem・インデックスの Query、SQS・EventBridge の JSON プロトコル、Lambda の非同期呼び出し、匿名の S3 GET、署名のスコープの誤り。
+- **CloudFormation の模擬デプロイ**(`lab-engine/yaml.js`・`lab-engine/cfn.js`): YAML(短縮形のタグ)/ JSON のテンプレートを検証し、組み込み関数・疑似パラメーター・Conditions を解決して、作成の順序・解決後のプロパティ・出力を表示。循環依存・未解決の参照・不明なプロパティは行番号付きのエラー。採点は構成のチェック(安全性のチェックを満たさないと「セキュリティ警告」)で、dev / prod など複数のパラメーターでも確かめます。対応外のリソースタイプは「判定対象外」。
+- **エラー行の表示**: IAM の指摘・テンプレートのエラーの行に、行番号の印(エラー・注意・セキュリティ)を付け、「◯ 行へ」で移動。不合格の検証ケースには見直しのヒントを表示。
+- **学習ロードマップ**(10 ステップ)と「次の問題」、**分野別の成績**(カテゴリ・モード・資格)。サービス図鑑の各サービスのページから、関連する演習を開けます。
+
 ## Edition 07 — コマンド・ポリシー演習(AWS Command & Policy Lab)
 
 設計書「AWS Command & Policy Lab」の Phase 1(MVP)を実装。サイドバーの **⌘ コマンド・ポリシー演習**(`#command-lab`、各問は `#command-lab/<問題ID>`)から使えます。既存の図鑑・構築問題・資格問題演習は変更せず並存します。

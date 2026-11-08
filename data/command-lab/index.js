@@ -2,12 +2,16 @@
 import { IAM_QUESTIONS } from "./questions-iam.js";
 import { CLI_QUESTIONS } from "./questions-cli.js";
 import { API_QUESTIONS } from "./questions-api.js";
+import { IAM_QUESTIONS_2 } from "./questions-iam2.js";
+import { CLI_QUESTIONS_2 } from "./questions-cli2.js";
+import { API_QUESTIONS_2 } from "./questions-api2.js";
+import { CFN_QUESTIONS } from "./questions-cfn.js";
 import { ACCOUNT } from "./environments.js";
 
-export const LAB_QUESTIONS = [...IAM_QUESTIONS, ...CLI_QUESTIONS, ...API_QUESTIONS];
+export const LAB_QUESTIONS = [...IAM_QUESTIONS, ...IAM_QUESTIONS_2, ...CLI_QUESTIONS, ...CLI_QUESTIONS_2, ...API_QUESTIONS, ...API_QUESTIONS_2, ...CFN_QUESTIONS];
 export const labById = new Map(LAB_QUESTIONS.map((q) => [q.id, q]));
 
-export const CATEGORY = { iam: { label: "IAM・S3 JSON", short: "IAM", icon: "{ }" }, cli: { label: "AWS CLI", short: "CLI", icon: ">_" }, api: { label: "API リクエスト", short: "API", icon: "⇄" } };
+export const CATEGORY = { iam: { label: "IAM・S3 JSON", short: "IAM", icon: "{ }" }, cli: { label: "AWS CLI", short: "CLI", icon: ">_" }, api: { label: "API リクエスト", short: "API", icon: "⇄" }, cfn: { label: "CloudFormation", short: "CFN", icon: "▤" } };
 export const MODE = { read: { label: "読解", note: "コードの意図・影響範囲を読む" }, write: { label: "記述", note: "要件を設定に落とし込む" }, exec: { label: "実行", note: "実行して結果を確かめる" }, fix: { label: "修復", note: "誤設定・誤ったコマンドを直す" } };
 export const LEVEL = { 1: "意味・一部分", 2: "単一サービスの設定", 3: "複数条件の検証", 4: "複数アカウント・権限・障害復旧" };
 export const EXAM_TAGS = [...new Set(LAB_QUESTIONS.flatMap((q) => q.examTags))].sort();

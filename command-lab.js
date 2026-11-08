@@ -2,7 +2,9 @@
 // 入力はすべて文字列として扱い、HTML として描画しない(textContent のみ)。eval やシェルの実行は行わない。
 // シミュレーションはブラウザの中だけで完結し、AWS の実環境へは通信しない。
 import { LAB_QUESTIONS, labById, CATEGORY, MODE, LEVEL, EXAM_TAGS, iamEnv, readPolicies, searchText } from "./data/command-lab/index.js";
-import { gradePolicy, gradeChoice, gradeGoals, lineDiff, STATUS, DECISION_LABEL } from "./lab-engine/grade.js";
+import { gradePolicy, gradeChoice, gradeGoals, gradeTemplate, lineDiff, STATUS, DECISION_LABEL } from "./lab-engine/grade.js";
+import { deployTemplate, RESOURCE_SPECS } from "./lab-engine/cfn.js";
+import { ROADMAP } from "./data/command-lab/roadmap.js";
 import { KNOWN_ACTIONS, POLICY_KINDS, CONDITION_OPERATORS } from "./lab-engine/validator-iam.js";
 import { SUPPORT, evaluate } from "./lab-engine/simulator-iam.js";
 import { newSession, runCli, SUPPORTED_COMMANDS } from "./lab-engine/simulator-cli.js";
@@ -163,15 +165,81 @@ function renderList() {
     el("p", "", "この演習の判定は、学習用に定義した仮想環境と、対応した範囲のルールだけで行う模擬評価です。現実の AWS の許可判定や実行結果を完全には保証しません。公式の IAM Policy Simulator や IAM Access Analyzer と同じ結果になるとは限りません。対応していない要素は「判定対象外」と表示し、成功・失敗をでっちあげません。"),
     section("IAM ポリシー", el("p", "", `要素: ${SUPPORT.elements.join(", ")}`), el("p", "", `ポリシーの種類: ${SUPPORT.policyTypes.join("、")}`), el("p", "", `条件キー: ${SUPPORT.conditionKeys.join(", ")}`), el("p", "", `扱わないもの: ${SUPPORT.notModeled.join("、")}`)),
     section("AWS CLI", el("p", "", SUPPORTED_COMMANDS.join(" / ")), el("p", "", "--query は JMESPath の基本的な書き方、--output は json と text(--query と併用)に対応。シェルの記号(| ; > など)と OS のコマンドは実行しません。")),
-    section("API リクエスト", el("p", "", "API Gateway(REST・Cognito / API キー / リクエストの検証)、DynamoDB(GetItem・PutItem・Query・DeleteItem)、Lambda(Invoke)、S3(オブジェクトの GET・PUT・DELETE)。署名(SigV4)は模擬で、実際の署名計算・送信は行いません。")),
+    section("API リクエスト", el("p", "", "API Gateway(REST・Cognito / IAM 認可 / API キー / リクエストの検証 / CORS のプリフライト)、DynamoDB(GetItem・PutItem・Query・DeleteItem、インデックス・予約語・条件付き書き込み)、Lambda(Invoke の同期・非同期・DryRun)、S3(オブジェクトの GET・PUT・DELETE、匿名の要求)、SQS(SendMessage・GetQueueAttributes、FIFO)、EventBridge(PutEvents とルールの照合)。署名(SigV4)は模擬で、実際の署名計算・送信は行いません。")),
+    section("CloudFormation", el("p", "", `テンプレート(YAML / JSON)の検証と模擬デプロイ。Parameters・Mappings・Conditions・Resources・Outputs、組み込み関数(Ref・GetAtt・Sub・Join・Select・Split・If・Equals・Not・And・Or・FindInMap・GetAZs・ImportValue・Base64)、疑似パラメーター、DependsOn・循環依存の検出、DeletionPolicy。対応するリソースタイプ: ${Object.keys(RESOURCE_SPECS).join(", ")}。それ以外のタイプや Transform(SAM)は「判定対象外」です。プロパティは最上位の名前と必須項目だけを確かめます(値の形式までは確かめません)。`)),
     el("p", "cl-warn", "本物の AWS 認証情報(アクセスキー・シークレットキー・セッショントークン)やプロファイル名は入力しないでください。この画面は外部と通信しません。"),
   );
   scope.append(sc);
-  wrap.append(head, how, bar, count, grid, scope);
+  wrap.append(head, how, roadmapPanel(), statsPanel(), bar, count, grid, scope);
   host.replaceChildren(wrap);
   searchClear(search);
 }
 function persist() { store.set(FKEY, filters); }
+/* ---------- ロードマップ・分野別の成績 ---------- */
+const cleared = (id) => progress.items[id]?.cleared === true;
+/** 指定した問題より後(なければ最初の未クリアのステップ)で、まだクリアしていない問題 */
+function nextOnRoadmap(fromId) {
+  const flat = ROADMAP.flatMap((st) => st.ids);
+  const i = fromId ? flat.indexOf(fromId) : -1;
+  const after = [...flat.slice(i + 1), ...flat.slice(0, Math.max(0, i))];
+  const id = after.find((x) => !cleared(x) && x !== fromId);
+  return id ? labById.get(id) : null;
+}
+function roadmapPanel() {
+  const box = el("section", "panel cl-roadmap");
+  const head = el("div", "cl-rm-head");
+  const nx = nextOnRoadmap(null);
+  head.append(el("h2", "", "学習ロードマップ"), el("p", "muted", "基礎(読む)→ 単一サービス → 複数の条件 → IaC・複数アカウントの順に進みます。順番どおりでなくても解けます。"));
+  if (nx) head.append(link(`▶ 次の問題: ${nx.title}`, `#command-lab/${nx.id}`, "primary cl-rm-next"));
+  else head.append(el("p", "cl-rm-done", "すべてのステップをクリアしました 🎉"));
+  const ol = el("ol", "cl-rm-steps");
+  let currentMarked = false;
+  ROADMAP.forEach((st, i) => {
+    const n = st.ids.filter(cleared).length;
+    const done = n === st.ids.length;
+    const isCur = !done && !currentMarked;
+    if (isCur) currentMarked = true;
+    const li = el("li", `cl-rm-step${done ? " done" : ""}${isCur ? " current" : ""}`);
+    const d = el("details");
+    if (isCur) d.open = true;
+    const sm = el("summary");
+    const bar = el("span", "cl-rm-bar");
+    bar.style.setProperty("--p", `${Math.round((n / st.ids.length) * 100)}%`);
+    sm.append(el("i", "", done ? "✓" : String(i + 1)), el("b", "", st.title), el("span", "cl-rm-n", `${n} / ${st.ids.length}`), bar);
+    const ul = el("ul", "cl-rm-qs");
+    st.ids.forEach((id) => { const q = labById.get(id); if (!q) return; const it = el("li", `st-${STATE(id)}`); it.append(el("span", "cl-mark", cleared(id) ? "✓" : "○"), link(`${CATEGORY[q.category].short} · ${q.title}`, `#command-lab/${id}`)); ul.append(it); });
+    d.append(sm, el("p", "cl-rm-goal", st.goal), ul);
+    li.append(d);
+    ol.append(li);
+  });
+  box.append(head, ol);
+  return box;
+}
+function statsPanel() {
+  const d = el("details", "panel cl-stats-panel");
+  d.append(el("summary", "", "分野別の成績"));
+  const grid = el("div", "cl-stat-grid");
+  const row = (label, ids) => {
+    const tried = ids.filter((id) => progress.items[id]?.attempts > 0).length;
+    const n = ids.filter(cleared).length;
+    const wrong = ids.filter((id) => STATE(id) === "wrong").length;
+    const r = el("div", "cl-stat-row");
+    const bar = el("span", "cl-rm-bar");
+    bar.style.setProperty("--p", `${ids.length ? Math.round((n / ids.length) * 100) : 0}%`);
+    r.append(el("b", "", label), bar, el("span", "cl-stat-n", `${n} / ${ids.length}`), el("small", "muted", `挑戦 ${tried}${wrong ? ` · 誤答あり ${wrong}` : ""}`));
+    return r;
+  };
+  const block = (title, rows) => { const b = el("div", "cl-stat-block"); b.append(el("h3", "", title), ...rows); return b; };
+  grid.append(
+    block("カテゴリ", Object.entries(CATEGORY).map(([k, v]) => row(v.label, LAB_QUESTIONS.filter((q) => q.category === k).map((q) => q.id)))),
+    block("モード", Object.entries(MODE).map(([k, v]) => row(v.label, LAB_QUESTIONS.filter((q) => q.mode === k).map((q) => q.id)))),
+    block("資格", EXAM_TAGS.map((t) => row(t, LAB_QUESTIONS.filter((q) => q.examTags.includes(t)).map((q) => q.id)))),
+  );
+  const weak = Object.entries(CATEGORY).map(([k, v]) => { const ids = LAB_QUESTIONS.filter((q) => q.category === k).map((q) => q.id); return { v, k, wrong: ids.filter((id) => STATE(id) === "wrong").length }; }).filter((x) => x.wrong).sort((a, b) => b.wrong - a.wrong)[0];
+  if (weak) d.append(el("p", "cl-weak", `誤答が多い分野: ${weak.v.label}(${weak.wrong} 問)。「状況: 誤答あり」で絞り込んで復習できます。`));
+  d.append(grid);
+  return d;
+}
 function card(q, i) {
   const a = el("a", `bd-card cl-card st-${STATE(q.id)}`);
   a.href = `#command-lab/${q.id}`;
@@ -190,7 +258,7 @@ function renderProblem(q) {
   const r = rec(q.id);
   const d = drafts.items[q.id]?.v;
   cur = { q, hints: 0, tab: "brief", picked: [], result: null, revealed: false, value: null, session: null };
-  if (q.category === "iam") cur.value = q.mode === "read" ? null : typeof d === "string" ? d : q.editor.starter;
+  if (q.category === "iam" || q.category === "cfn") cur.value = q.mode === "read" ? null : typeof d === "string" ? d : q.editor.starter;
   if (q.category === "cli") { cur.value = typeof d === "string" ? d : q.editor.starter; cur.session = newSession(q.editor.env); }
   if (q.category === "api") { cur.value = d && typeof d === "object" ? { ...d } : { ...q.editor.starter }; cur.session = newApiSession(q.editor.env); }
   const root = el("div", "cl-problem");
@@ -330,18 +398,29 @@ function codeEditor({ value, readOnly = false, lang = "json", label, onInput, on
       return;
     }
     escaped = false;
-    if (e.key === "Enter" && lang === "json" && !e.shiftKey) {
+    if (e.key === "Enter" && (lang === "json" || lang === "yaml") && !e.shiftKey) {
       e.preventDefault();
       const { selectionStart: s, value: v } = ta;
       const ls = v.lastIndexOf("\n", s - 1) + 1;
       const indent = /^\s*/.exec(v.slice(ls, s))[0];
-      const prevCh = v.slice(ls, s).trimEnd().slice(-1);
-      const extra = prevCh === "{" || prevCh === "[" ? "  " : "";
+      const prevCh = v.slice(ls, s).replace(/\s+#.*$/, "").trimEnd().slice(-1);
+      // JSON は { [ の後、YAML は「キー:」で終わる行の後に字下げを 1 段深くする
+      const extra = (lang === "json" ? prevCh === "{" || prevCh === "[" : prevCh === ":" || prevCh === "|" || prevCh === ">") ? "  " : "";
       ta.setRangeText("\n" + indent + extra, s, ta.selectionEnd, "end");
       ta.dispatchEvent(new Event("input"));
     }
   });
-  function markLine(n) { [...gut.children].forEach((s, i) => s.classList.toggle("err", i + 1 === n)); }
+  function markLine(n) { [...gut.children].forEach((s, i) => { s.classList.toggle("err", i + 1 === n); s.classList.remove("warn", "sec"); s.removeAttribute("title"); }); }
+  /** 指摘のある行に印を付ける: [{ line, level: "error" | "warning" | "security", msg }] */
+  function markLines(items) {
+    markLine(0);
+    for (const it of items) {
+      const g = gut.children[it.line - 1];
+      if (!g || !it.line) continue;
+      g.classList.add(it.level === "error" ? "err" : it.level === "security" ? "sec" : "warn");
+      g.title = [g.title, it.msg].filter(Boolean).join("\n");
+    }
+  }
   function insert(text, back = 0) {
     if (readOnly) return;
     const { selectionStart: s, selectionEnd: en } = ta;
@@ -361,7 +440,7 @@ function codeEditor({ value, readOnly = false, lang = "json", label, onInput, on
   }
   root.append(gut, ta);
   lines();
-  return { root, ta, markLine, insert, goto, set(v) { ta.value = v; lines(); markLine(0); } };
+  return { root, ta, markLine, markLines, insert, goto, set(v) { ta.value = v; lines(); markLine(0); } };
 }
 function toolbar(...btns) { const t = el("div", "cl-toolbar"); t.append(...btns.filter(Boolean)); return t; }
 function symbolBar(ed, symbols) {
@@ -420,6 +499,7 @@ function renderWork() {
   p.replaceChildren();
   if (q.category === "iam" && q.mode === "read") return renderRead(p);
   if (q.category === "iam") return renderPolicyEditor(p);
+  if (q.category === "cfn") return q.mode === "read" ? renderTemplateRead(p) : renderTemplateEditor(p);
   if (q.category === "cli") return renderTerminal(p);
   return renderApiForm(p);
 }
@@ -575,6 +655,60 @@ function renderApiForm(p) {
   p.append(el("div", "cl-filetab", "API リクエスト(模擬・外部へは送信しない)"), toolbar(run, fmt, reset, copyButton(() => `${cur.value.method} ${cur.value.url}\n${cur.value.headers}\n\n${cur.value.body}`), ...fontButtons(p), expandButton()), form, secretWarning(), el("p", "cl-note", "Ctrl + Enter で送信。署名はダミーで、実際の鍵は使いません。"));
 }
 
+/* ----- CloudFormation テンプレート ----- */
+const YAML_SYMBOLS = [["!Ref ", 0], ["!GetAtt ", 0], ["!Sub \"\"", 1, "!Sub"], ["!If [, , ]", 6, "!If"], ["!Equals [, ]", 4, "!Equals"], ["- ", 0], [": ", 0], ["\"\"", 1, '" "'], ["[]", 1, "[ ]"], ["${AWS::StackName}", 0]];
+function cfnVocab() {
+  const keys = ["AWSTemplateFormatVersion", "Description", "Parameters", "Mappings", "Conditions", "Resources", "Outputs", "Type", "Properties", "DependsOn", "DeletionPolicy", "UpdateReplacePolicy", "Condition", "Default", "AllowedValues", "Value", "Export", "Name", "Retain", "Snapshot", "Delete", "AWS::StackName", "AWS::Region", "AWS::AccountId", "AWS::NoValue"];
+  const props = Object.values(RESOURCE_SPECS).flatMap((x) => Object.keys(x.props));
+  return [...new Set([...keys, ...Object.keys(RESOURCE_SPECS), ...props])];
+}
+function renderTemplateEditor(p) {
+  const { q } = cur;
+  const tab = el("div", "cl-filetab");
+  tab.append(el("span", "cl-file", "template.yaml"), el("span", "cl-kind", "CloudFormation テンプレート(YAML / JSON)"), el("span", "cl-attach", `スタック名: ${q.editor.stackName || "lab-stack"}${q.editor.variants ? ` · 採点では ${Object.keys(q.editor.variants).join("・")} でもデプロイ` : ""}`));
+  const ed = codeEditor({ value: cur.value, lang: "yaml", label: "CloudFormation テンプレート", rows: 20, onInput: (v) => { cur.value = v; saveDraft(q.id, v); }, onRun: () => runTemplate() });
+  cur.ed = ed;
+  const reset = button("リセット", "cl-tool", () => { if (!confirm("入力を初期状態に戻します。よろしいですか?")) return; ed.set(q.editor.starter); cur.value = q.editor.starter; dropDraft(q.id); });
+  const run = runBar("▶ 模擬デプロイ", () => runTemplate());
+  p.append(tab, toolbar(run, reset, copyButton(() => ed.ta.value), ...fontButtons(p), expandButton()), ed.root, suggestBar(ed, cfnVocab()), symbolBar(ed, YAML_SYMBOLS), secretWarning(), el("p", "cl-note", "模擬デプロイは、テンプレートの検証・組み込み関数の解決・作成順序の計算をブラウザの中で行います(実際の AWS には作成しません)。字下げはスペース 2 つ。Tab でも字下げできます。"));
+}
+function renderTemplateRead(p) {
+  const { q } = cur;
+  const tab = el("div", "cl-filetab");
+  tab.append(el("span", "cl-file", "template.yaml(読み取り専用)"), el("span", "cl-kind", "CloudFormation テンプレート"));
+  const ed = codeEditor({ value: q.code, readOnly: true, lang: "yaml", label: "読み取り専用のテンプレート", rows: 20 });
+  // 模擬デプロイ(パラメーターを選べる)
+  const opts = [["既定値", {}], ...Object.entries(q.deployParams || {}).map(([k, v]) => [Object.entries(v).map(([a, b]) => `${a}=${b}`).join("・") || k, v])];
+  const pick = el("select");
+  pick.setAttribute("aria-label", "模擬デプロイのパラメーター");
+  opts.forEach(([label], i) => { const o = el("option", "", label); o.value = String(i); pick.append(o); });
+  const preview = button("▶ 模擬デプロイ", "cl-tool", () => {
+    const [label, params] = opts[Number(pick.value)];
+    cur.preview = { stack: deployTemplate(q.code, { params, stackName: "lab-stack" }), label };
+    renderResult();
+    setTab("result");
+  });
+  const dep = el("div", "cl-sig");
+  dep.append(el("span", "", "パラメーター:"), pick, preview);
+  const form = el("form", "cl-choices");
+  const fs = el("fieldset");
+  fs.append(el("legend", "", q.multi ? "当てはまるものをすべて選ぶ" : "1 つ選ぶ"));
+  q.choices.forEach((c, i) => {
+    const l = el("label", "cl-choice");
+    const inp = el("input");
+    inp.type = q.multi ? "checkbox" : "radio";
+    inp.name = "c";
+    inp.value = String(i);
+    l.append(inp, el("span", "", c.text));
+    fs.append(l);
+  });
+  const submit = button("回答する", "primary cl-run", () => answerRead(form));
+  cur.mbar.replaceChildren(button("回答する", "primary", () => answerRead(form)), button("ヒント", "", () => showHint()), button("結果", "", () => setTab("result")));
+  form.addEventListener("submit", (e) => { e.preventDefault(); answerRead(form); });
+  form.append(fs, submit);
+  p.append(tab, toolbar(copyButton(() => q.code), ...fontButtons(p), expandButton()), ed.root, dep, form);
+}
+
 /* ---------- 採点と記録 ---------- */
 function record(pass) {
   const x = rec(cur.q.id);
@@ -588,7 +722,19 @@ function runPolicy() {
   const { q } = cur;
   const res = gradePolicy(q, cur.ed.ta.value, iamEnv(q));
   cur.result = res;
-  cur.ed.markLine(res.syntax ? res.syntax.line : 0);
+  if (res.syntax) cur.ed.markLine(res.syntax.line);
+  else cur.ed.markLines((res.issues || []).filter((i) => i.line));
+  if (res.status !== "unsupported") record(res.status === "pass");
+  renderResult();
+  setTab("result");
+}
+function runTemplate() {
+  const { q } = cur;
+  const res = gradeTemplate(q, cur.ed.ta.value);
+  cur.result = res;
+  const st = res.stack;
+  if (st.syntax) cur.ed.markLine(st.syntax.line);
+  else cur.ed.markLines([...(st.errors || []).map((e) => ({ line: e.line, level: "error", msg: e.msg })), ...(st.warnings || []).map((w) => ({ line: w.line, level: "warning", msg: w.msg }))]);
   if (res.status !== "unsupported") record(res.status === "pass");
   renderResult();
   setTab("result");
@@ -635,15 +781,20 @@ function renderResult() {
   const x = rec(q.id);
   if (x.attempts) kids.push(el("p", "cl-stats", `試行 ${x.attempts} 回 · ヒント ${x.hints} 回${x.cleared ? ` · クリア済み(${(x.clearedAt || "").slice(0, 10)})` : ""}`));
   if (!result) {
-    kids.push(statusBanner("idle", q.category === "iam" ? (q.mode === "read" ? "コードを読み、選択肢に回答してください" : "ポリシーを書いて「テスト実行」") : q.category === "cli" ? "コマンドを入力して実行してください" : "リクエストを組み立てて「送信」"));
+    kids.push(statusBanner("idle", q.mode === "read" ? "コードを読み、選択肢に回答してください" : q.category === "iam" ? "ポリシーを書いて「テスト実行」" : q.category === "cfn" ? "テンプレートを書いて「模擬デプロイ」" : q.category === "cli" ? "コマンドを入力して実行してください" : "リクエストを組み立てて「送信」"));
     if (q.category === "cli" || q.category === "api") kids.push(goalList(q.goals.map((g) => ({ label: g.label, ok: false }))));
-  } else if (q.category === "iam" && q.mode === "read") kids.push(...readResult());
+    if (q.category === "cfn" && q.checks) kids.push(goalList(q.checks.map((c) => ({ label: c.label + (c.security ? "(安全性)" : ""), ok: false }))));
+    if (q.category === "cfn" && q.mode === "read" && cur.preview) kids.push(...deployView(cur.preview.stack, cur.preview.label));
+  } else if (q.category === "cfn" && q.mode === "read") kids.push(...readResult(), ...(cur.preview ? deployView(cur.preview.stack, cur.preview.label) : []));
+  else if (q.category === "cfn") kids.push(...templateResult());
+  else if (q.category === "iam" && q.mode === "read") kids.push(...readResult());
   else if (q.category === "iam") kids.push(...policyResult());
   else if (q.category === "cli") kids.push(...cliResult());
   else kids.push(...apiResult());
   // 解説(クリア後は自動で表示。それ以前はボタンで)
   const done = x.cleared || cur.result?.status === "pass" || cur.result?.status === "correct";
   if (cur.revealed || (done && cur.result)) kids.push(explanation());
+  if (done && cur.result) { const nx = nextOnRoadmap(q.id); if (nx) kids.push(link(`ロードマップの次の問題: ${nx.title} →`, `#command-lab/${nx.id}`, "cl-next")); }
   else if (cur.result) kids.push(button("解説と模範解答を見る(答えが表示されます)", "cl-reveal", () => { if (!x.cleared && !confirm("模範解答が表示されます。自分で解く前に見てもよいですか?")) return; cur.revealed = true; const r2 = rec(q.id); if (!r2.cleared) { r2.sawModel = true; saveProgress(); } renderResult(); }));
   kids.push(el("p", "cl-disclaimer", "模擬評価: 定義済みの仮想環境と対応範囲のルールだけで判定しています。現実の AWS での許可判定・動作を完全には保証しません。"));
   p.replaceChildren(...kids);
@@ -672,10 +823,20 @@ function caseTable(cases, showExpect = true) {
     row("判定の理由", c.reason);
     body.append(dl, traceList(c.trace));
     if (c.overGrant) body.append(el("p", "cl-warn", "許可してはいけない操作を許可しています(過剰な許可)。"));
+    if (showExpect && !c.pass && !c.unsupported) body.append(el("p", "cl-tip", `ヒント: ${c.tip || caseTip(c)}`));
     d.append(s, body);
     wrap.append(d);
   });
   return wrap;
+}
+/** 不合格のケースの、汎用の見直しポイント(問題ごとの tip があればそちらを使う) */
+function caseTip(c) {
+  const allowBy = (c.trace || []).filter((t) => /Allow が一致/.test(t.result)).map((t) => t.result.replace(/^Allow が一致: /, "")).join("、");
+  if (c.overGrant) return `${allowBy ? `${allowBy} がこの要求にも一致しています。` : ""}Action・Resource を必要な範囲に絞るか、Condition で条件を付けましょう。`;
+  if (c.got === "explicit-deny") return "明示的な Deny が一致しています。Deny の条件や対象が広すぎないか(例外にすべき主体・操作が含まれていないか)を確かめましょう。";
+  if (c.expect === "allow") return "この要求に一致する Allow がありません。評価フローで、Action・Resource・Principal・Condition のどれが一致しなかったかを確かめましょう。";
+  if (c.expect === "explicit-deny") return "この要求は明示的な Deny で拒否されるべきです(暗黙的な拒否ではなく)。Deny のステートメントで条件に合わない要求を拒否しましょう。";
+  return "期待と違う判定です。評価フローの各段階を確かめましょう。";
 }
 function traceList(trace = []) {
   const ol = el("ol", "cl-trace");
@@ -686,8 +847,13 @@ function issueList(issues) {
   if (!issues?.length) return null;
   const ul = el("ul", "cl-issues");
   const L = { error: "設定のエラー", warning: "注意", security: "セキュリティ警告" };
-  issues.forEach((i) => { const li = el("li", `lv-${i.level}`); li.append(el("b", "", L[i.level]), el("span", "", i.msg)); ul.append(li); });
-  return section("ポリシーのチェック", ul);
+  issues.forEach((i) => {
+    const li = el("li", `lv-${i.level}`);
+    li.append(el("b", "", L[i.level]), el("span", "", i.msg));
+    if (i.line && cur?.ed) li.append(button(`${i.line} 行へ`, "cl-goto", () => { setTab("work"); cur.ed.goto(i.line); }));
+    ul.append(li);
+  });
+  return section("ポリシーのチェック(行番号の印と対応)", ul);
 }
 function policyResult() {
   const r = cur.result;
@@ -716,6 +882,7 @@ function readResult() {
   const ul = el("ul", "cl-why");
   q.choices.forEach((c, i) => { const li = el("li", c.correct ? "ok" : result.picked.includes(i) ? "ng" : ""); li.append(el("span", "cl-mark", c.correct ? "✓" : result.picked.includes(i) ? "✗" : "・"), el("span", "", `${c.text} — ${c.why}`)); ul.append(li); });
   out.push(section("選択肢の解説", ul));
+  if (q.category === "cfn") return out;
   const doc = JSON.parse(q.code);
   const cases = q.tests.map((t) => { const e = evaluate({ ...t }, readPolicies(q, doc)); return { ...t, got: e.decision, reason: e.reason, trace: e.trace, principalLabel: e.principal.label, pass: true }; });
   out.push(section("模擬評価で確かめる", caseTable(cases.map((c) => ({ ...c, pass: true })), false)));
@@ -760,6 +927,77 @@ function apiResult() {
   return out;
 }
 
+function templateResult() {
+  const r = cur.result;
+  const st = r.stack;
+  const out = [];
+  if (r.status === "syntax") {
+    out.push(statusBanner("syntax", "テンプレートを解析できません"));
+    const box = el("div", "cl-syntax");
+    box.append(el("b", "", `${st.syntax.line} 行 ${st.syntax.col} 列: ${st.syntax.message}`));
+    if (st.syntax.hint) box.append(el("p", "", st.syntax.hint));
+    box.append(button("その位置へ移動", "cl-tool", () => { setTab("work"); cur.ed.goto(st.syntax.line, st.syntax.col); }));
+    out.push(box);
+    return out;
+  }
+  const failed = r.checks.filter((c) => !c.ok);
+  out.push(statusBanner(r.status, r.status === "config" && st.errors.length ? `テンプレートのエラー ${st.errors.length} 件(スタックの作成に失敗します)` : r.status === "security" ? "安全性のチェックを満たしていません" : r.status === "config" ? `満たしていないチェックが ${failed.length} 件あります` : r.status === "unsupported" ? "対応範囲外の要素があるため、模擬デプロイできません" : undefined));
+  if (st.errors.length) {
+    const ul = el("ul", "cl-issues");
+    st.errors.forEach((e) => { const li = el("li", "lv-error"); li.append(el("b", "", "エラー"), el("span", "", e.msg)); if (e.line) li.append(button(`${e.line} 行へ`, "cl-goto", () => { setTab("work"); cur.ed.goto(e.line); })); ul.append(li); });
+    out.push(section("テンプレートのエラー(直したら再実行。次の段階のエラーが出ることもあります)", ul));
+  }
+  if (st.unsupported.length) out.push(section("判定対象外", list(st.unsupported)));
+  if (r.checks.length) out.push(section("構成のチェック", (() => { const ul = el("ul", "cl-goals"); r.checks.forEach((c) => { const li = el("li", c.ok ? "ok" : "ng"); li.append(el("span", "cl-mark", c.ok ? "✓" : c.security ? "!" : "○"), el("span", "", c.label + (c.security ? "(安全性)" : ""))); ul.append(li); }); return ul; })()));
+  if (!st.errors.length && !st.unsupported.length) {
+    out.push(...deployView(st, "既定のパラメーター"));
+    for (const [name, v] of Object.entries(st.variants || {})) {
+      const d = el("details", "cl-variant");
+      d.append(el("summary", "", `別の条件でのデプロイ: ${name}(作成 ${v.order.length} 件${v.skipped?.length ? `・条件で省略 ${v.skipped.join("、")}` : ""})`), ...deployView(v, name, true));
+      out.push(d);
+    }
+  }
+  return out;
+}
+/** 模擬デプロイの結果(作成の順序・リソース・出力) */
+function deployView(st, label, compact = false) {
+  const out = [];
+  if (st.syntax || st.errors?.length) {
+    const ul = el("ul", "cl-issues");
+    if (st.syntax) ul.append(el("li", "lv-error", `${st.syntax.line} 行 ${st.syntax.col} 列: ${st.syntax.message}`));
+    (st.errors || []).forEach((e) => ul.append(el("li", "lv-error", `${e.line ? `${e.line} 行: ` : ""}${e.msg}`)));
+    out.push(section(`模擬デプロイ(${label}): 失敗`, ul));
+    return out;
+  }
+  const flow = el("ol", "cl-order");
+  st.order.forEach((lid) => { const r = st.resources[lid]; const li = el("li"); li.append(el("b", "", lid), el("span", "", r.type), r.dependsOn.length ? el("small", "", `← ${r.dependsOn.join("、")} の後`) : el("small", "", "依存なし")); flow.append(li); });
+  const sec = section(`模擬デプロイ(${label}): 作成の順序`, flow);
+  if (st.skipped?.length) sec.append(el("p", "cl-note", `条件が偽のため作らないリソース: ${st.skipped.join("、")}`));
+  if (Object.keys(st.conditions || {}).length) sec.append(el("p", "cl-note", `条件: ${Object.entries(st.conditions).map(([k, v]) => `${k} = ${v ? "真" : "偽"}`).join("、")}`));
+  out.push(sec);
+  if (compact) return out;
+  const res = el("div", "cl-cases");
+  st.order.forEach((lid) => {
+    const r = st.resources[lid];
+    const d = el("details", "cl-case");
+    const sm = el("summary");
+    sm.append(el("span", "cl-mark", "▸"), el("span", "cl-case-l", `${lid}(${r.type})`), el("span", "cl-dec", r.deletionPolicy !== "Delete" ? `削除時 ${r.deletionPolicy}` : ""));
+    const body = el("div", "cl-case-b");
+    const dl = el("dl");
+    const row = (k, v) => dl.append(el("dt", "", k), el("dd", "", v));
+    row("物理 ID(模擬)", String(r.physicalId));
+    if (r.arn) row("ARN(模擬)", r.arn);
+    row("DeletionPolicy", r.deletionPolicy);
+    body.append(dl, pre(JSON.stringify(r.props, null, 2), "cl-props"));
+    d.append(sm, body);
+    res.append(d);
+  });
+  out.push(section("作成されるリソースと、解決されたプロパティ(行を開く)", res));
+  if (Object.keys(st.outputs || {}).length) out.push(section("出力(Outputs)", list(Object.entries(st.outputs).map(([k, o]) => `${k} = ${typeof o.value === "string" ? o.value : JSON.stringify(o.value)}${o.export ? `(エクスポート名 ${o.export})` : ""}`))));
+  if (st.warnings?.length) out.push(section("注意", list(st.warnings.map((w) => `${w.line ? `${w.line} 行: ` : ""}${w.msg}`))));
+  return out;
+}
+
 /* ----- 解説 ①〜⑦ ----- */
 function modelText(q) { return q.category === "api" ? reqText(q.model) : q.model; }
 function reqText(v) { return `${v.method} ${v.url}\n${v.headers}${v.body ? `\n\n${v.body}` : ""}`; }
@@ -770,12 +1008,13 @@ function explanation() {
   const step = (n, t, ...kids) => { const s = el("section", "cl-step"); s.append(el("h3", "", `${n} ${t}`), ...kids); box.append(s); };
   step("①", "要件", list(q.requirements || [q.scenario]));
   // ② 入力した設定
-  if (q.category === "iam" && q.mode !== "read") step("②", "入力した設定", pre(cur.ed.ta.value));
+  if ((q.category === "iam" || q.category === "cfn") && q.mode !== "read") step("②", q.category === "cfn" ? "入力したテンプレート" : "入力した設定", pre(cur.ed.ta.value));
   else if (q.category === "cli") step("②", "実行したコマンド", pre(cur.session.history.map((h) => `$ ${h.line}`).join("\n") || "(まだ実行していません)"));
   else if (q.category === "api") step("②", "送信したリクエスト", pre(cur.session.history.length ? reqText(cur.session.history.at(-1).req) : "(まだ送信していません)"));
-  else step("②", "読んだポリシー", pre(q.code));
+  else step("②", q.category === "cfn" ? "読んだテンプレート" : "読んだポリシー", pre(q.code));
   // ③ 具体的なリクエスト
   if (q.category === "iam") step("③", "具体的なリクエスト(検証ケース)", list(q.tests.map((t) => `${t.label} → ${EXPECT_LABEL[t.expect]}`)));
+  else if (q.category === "cfn") { const st = q.mode === "read" ? deployTemplate(q.code, { stackName: "lab-stack" }) : cur.result?.stack; step("③", "作成されるリソース(順序)", el("p", "", st?.order?.length ? st.order.map((lid) => `${lid}(${st.resources[lid].type})`).join(" → ") : "(模擬デプロイがまだ成功していません)")); }
   else if (q.category === "cli") { const c = cur.session.history.filter((h) => h.call).at(-1); step("③", "呼び出された API", el("p", "", c ? `${c.call.service} ${c.call.op} → ${c.checks.map((k) => `${k.action}(${shortArn(k.resource)})`).join("、") || "権限の確認なし"}` : "—")); }
   else { const c = cur.session.history.at(-1); step("③", "API の呼び出し", el("p", "", c?.req ? `${c.req.method} ${c.req.url}` : "—")); }
   step("④", "評価フローの要点", el("p", "", q.explain.point));
@@ -795,9 +1034,9 @@ function explanation() {
     const m = el("details", "cl-model");
     m.append(el("summary", "", "模範解答(一つの例。等価な別解も正解)"));
     m.append(pre(modelText(q)));
-    if (q.category === "iam") {
+    if ((q.category === "iam" || q.category === "cfn") && cur.ed && q.mode !== "read") {
       let mine = cur.ed.ta.value;
-      try { mine = formatJson(mine); } catch { /* 構文エラーのときはそのまま */ }
+      if (q.category === "iam") try { mine = formatJson(mine); } catch { /* 構文エラーのときはそのまま */ }
       const diff = el("div", "cl-diff");
       diff.setAttribute("aria-label", "あなたの入力と模範解答の差分");
       lineDiff(mine, q.model).forEach((d) => diff.append(el("div", `dl-${d.t}`, `${d.t === "add" ? "+ " : d.t === "del" ? "− " : "  "}${d.line}`)));

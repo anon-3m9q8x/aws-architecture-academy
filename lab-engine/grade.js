@@ -3,6 +3,7 @@
 // 判定対象外(unsupported)は「拒否」として採点しない。
 import { validatePolicy } from "./validator-iam.js";
 import { evaluate, DECISION_LABEL } from "./simulator-iam.js";
+import { deployTemplate } from "./cfn.js";
 
 export const STATUS = {
   syntax: { label: "構文エラー", tone: "bad", note: "JSON を解析できません" },
@@ -57,6 +58,33 @@ export function gradeGoals(q, session) {
   const last = session.history.at(-1);
   if (last && last.status === "unsupported" && !goals.every((g) => g.ok)) return { status: "unsupported", goals };
   return { status: goals.every((g) => g.ok) ? "pass" : "config", goals };
+}
+
+/**
+ * CloudFormation テンプレートの記述・修復問題: 模擬デプロイ(検証・組み込み関数の解決)をしてから、
+ * 作られるリソースの設定を checks で確認する。security: true のチェックが満たされないときは「セキュリティ警告」。
+ */
+export function gradeTemplate(q, src) {
+  const stack = deployTemplate(src, { params: q.editor.params || {}, stackName: q.editor.stackName || "lab-stack", imports: q.editor.imports });
+  if (stack.syntax) return { status: "syntax", syntax: stack.syntax, stack, checks: [] };
+  if (stack.errors.length) return { status: "config", stack, checks: [] };
+  if (stack.unsupported.length) return { status: "unsupported", stack, checks: [] };
+  // 別のパラメーターでのデプロイ結果(例: dev と prod の両方で確かめる)
+  stack.variants = {};
+  // variants の値は パラメーターの表、または { params, stackName }(別のスタック名でのデプロイ)
+  for (const [name, cfg] of Object.entries(q.editor.variants || {})) {
+    const opt = cfg && (cfg.params || cfg.stackName) ? cfg : { params: cfg };
+    const v = deployTemplate(src, { params: opt.params || q.editor.params || {}, stackName: opt.stackName || q.editor.stackName || "lab-stack", imports: q.editor.imports });
+    if (v.errors.length) return { status: "config", stack: { ...v, errors: v.errors.map((e) => ({ ...e, msg: `パラメーター ${name} でのデプロイ: ${e.msg}` })) }, checks: [] };
+    stack.variants[name] = v;
+  }
+  const checks = q.checks.map((c) => {
+    let ok = false;
+    try { ok = !!c.test(stack); } catch { ok = false; }
+    return { label: c.label, ok, security: !!c.security };
+  });
+  const status = checks.some((c) => c.security && !c.ok) ? "security" : checks.every((c) => c.ok) ? "pass" : "config";
+  return { status, stack, checks };
 }
 
 /** 行単位の差分(LCS)。[{ t: "same" | "add" | "del", line }] */

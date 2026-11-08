@@ -3,6 +3,7 @@ import { SERVICES, CATS, byId, relsOf, compsOf, metaOf, serviceCount, patternsOf
 import { memo } from "./memo.js";
 import { FlowPlayer, normalizeScene, serviceScene, problemScene } from "./flow.js";
 import { BUILD } from "./data/build.js";
+import { LAB_QUESTIONS, CATEGORY as LAB_CAT, MODE as LAB_MODE } from "./data/command-lab/index.js";
 import { PATTERNS, EXERCISES, patternScene } from "./data/sap-patterns.js";
 import { $, el, slider, store, searchClear } from "./ui.js";
 
@@ -660,6 +661,21 @@ function openDetail(s) {
     pbs.forEach((pb) => {
       const a = el("a", "ex-pb", `${pb.level}${pb.mode === "fix" ? " · 障害対応" : ""} · ${pb.title} →`);
       a.href = `#build/${pb.id}`;
+      ul.append(a);
+    });
+    b.append(ul);
+    dz.append(b);
+  }
+  // コマンド・ポリシー演習のうち、このサービスを扱う問題
+  const labs = LAB_QUESTIONS.filter((q) => q.services.includes(s.id));
+  if (labs.length) {
+    const done = store.get("aaa.commandLab.progress.v1", null)?.items || {};
+    const b = el("div", "ex-box wide");
+    b.append(el("h3", "", `このサービスのコマンド・ポリシー演習(${labs.length} 問)`));
+    const ul = el("div", "ex-pbs ex-labs");
+    labs.forEach((q) => {
+      const a = el("a", `ex-pb ex-lab${done[q.id]?.cleared ? " is-clear" : ""}`, `${done[q.id]?.cleared ? "✓ " : ""}${LAB_CAT[q.category].short} · ${LAB_MODE[q.mode].label} · ${q.title} →`);
+      a.href = `#command-lab/${q.id}`;
       ul.append(a);
     });
     b.append(ul);

@@ -2,6 +2,9 @@
 // 実際の AWS とは通信しない。各操作は IAM の模擬評価(simulator-iam.js)を通し、拒否されれば CLI と同じ形のエラーを返す。
 import { parseCommand, shorthand, jmes, CliError } from "./parser-cli.js";
 import { evaluate } from "./simulator-iam.js";
+import { validatePattern, matchPattern, toEvent, PatternError } from "./events.js";
+import { deployTemplate } from "./cfn.js";
+import { wrap, unwrap, DDB_RESERVED } from "./simulator-api.js";
 
 // 操作ごとのオプション定義。params の型: value / flag / list / int
 export const COMMANDS = {
@@ -38,6 +41,32 @@ export const COMMANDS = {
     "filter-log-events": { params: { "log-group-name": "value", "filter-pattern": "value", "start-time": "int", "end-time": "int", "log-stream-names": "list", limit: "int" }, required: ["log-group-name"], api: "FilterLogEvents", example: { "filter-pattern": "ERROR" } },
   },
 };
+Object.assign(COMMANDS.sts, {
+  "assume-role": { params: { "role-arn": "value", "role-session-name": "value", "external-id": "value", "duration-seconds": "int", "serial-number": "value", "token-code": "value" }, required: ["role-arn", "role-session-name"], api: "AssumeRole", example: { "role-arn": "arn:aws:iam::111122223333:role/ReadOnlyAudit", "role-session-name": "audit" } },
+});
+Object.assign(COMMANDS, {
+  iam: { "simulate-principal-policy": { params: { "policy-source-arn": "value", "action-names": "list", "resource-arns": "list", "context-entries": "list" }, required: ["policy-source-arn", "action-names"], api: "SimulatePrincipalPolicy", example: { "action-names": "s3:GetObject" } } },
+  dynamodb: {
+    "get-item": { params: { "table-name": "value", key: "value", "consistent-read": "flag", "projection-expression": "value" }, required: ["table-name", "key"], api: "GetItem", example: { key: "'{\"orderId\": {\"S\": \"o-1001\"}}'" } },
+    query: { params: { "table-name": "value", "key-condition-expression": "value", "expression-attribute-values": "value", "expression-attribute-names": "value", "index-name": "value", "filter-expression": "value", "scan-index-forward": "flag", "no-scan-index-forward": "flag" }, required: ["table-name", "key-condition-expression"], api: "Query", example: { "key-condition-expression": "'customerId = :c'" } },
+    "put-item": { params: { "table-name": "value", item: "value", "condition-expression": "value" }, required: ["table-name", "item"], api: "PutItem" },
+  },
+  events: {
+    "put-events": { params: { entries: "value" }, required: ["entries"], api: "PutEvents", example: { entries: "file://event.json" } },
+    "test-event-pattern": { params: { "event-pattern": "value", event: "value" }, required: ["event-pattern", "event"], api: "TestEventPattern", example: { "event-pattern": "file://pattern.json" } },
+    "list-rules": { params: { "event-bus-name": "value", "name-prefix": "value" }, api: "ListRules" },
+  },
+  cloudformation: {
+    "validate-template": { params: { "template-body": "value", "template-url": "value" }, api: "ValidateTemplate", example: { "template-body": "file://template.yaml" } },
+    "describe-stacks": { params: { "stack-name": "value" }, api: "DescribeStacks" },
+    "describe-stack-events": { params: { "stack-name": "value", "max-items": "int" }, required: ["stack-name"], api: "DescribeStackEvents" },
+  },
+  kms: { "describe-key": { params: { "key-id": "value" }, required: ["key-id"], api: "DescribeKey", example: { "key-id": "alias/app-data" } }, "list-aliases": { params: { "key-id": "value" }, api: "ListAliases" } },
+  sqs: {
+    "send-message": { params: { "queue-url": "value", "message-body": "value", "message-group-id": "value", "message-deduplication-id": "value", "delay-seconds": "int", "message-attributes": "value" }, required: ["queue-url", "message-body"], api: "SendMessage" },
+    "get-queue-attributes": { params: { "queue-url": "value", "attribute-names": "list" }, required: ["queue-url"], api: "GetQueueAttributes" },
+  },
+});
 export const SUPPORTED_COMMANDS = Object.entries(COMMANDS).flatMap(([s, ops]) => Object.keys(ops).map((o) => `aws ${s} ${o}`));
 
 class AwsError extends Error { constructor(code, message, status = 254) { super(message); this.code = code; this.status = status; } }
@@ -98,7 +127,8 @@ function authorize(ctx, action, resource, extra = {}, resourcePolicy = null, res
   if (r.decision === "unsupported") throw new CliError(`この操作の権限は模擬評価の対象外です: ${r.reason}`, "", "unsupported");
   const who = r.principal.arn || r.principal.label;
   const why = r.decision === "explicit-deny" ? (r.matched.find((m) => m.effect === "Deny")?.kind === "scp" ? "with an explicit deny in a service control policy" : r.matched.find((m) => m.effect === "Deny")?.kind === "resource" ? "with an explicit deny in a resource-based policy" : "with an explicit deny in an identity-based policy") : /SCP/.test(r.reason) ? "because no service control policy allows the " + action + " action" : /境界/.test(r.reason) ? "because no permissions boundary allows the " + action + " action" : "because no identity-based policy allows the " + action + " action";
-  const code = ctx.cmd.service === "ec2" ? "UnauthorizedOperation" : ctx.cmd.service === "s3" || ctx.cmd.service === "s3api" ? "AccessDenied" : "AccessDeniedException";
+  const svc = ctx.cmd.service;
+  const code = svc === "ec2" ? "UnauthorizedOperation" : ["s3", "s3api", "sts", "iam", "sqs", "cloudformation"].includes(svc) ? "AccessDenied" : "AccessDeniedException";
   throw new AwsError(code, `User: ${who} is not authorized to perform: ${action} on resource: ${ctx.cmd.service === "ec2" ? resource : `"${resource}"`} ${why}`);
 }
 
@@ -464,4 +494,262 @@ function runFunction(f, event) {
     case "fail": return { error: true, body: { errorType: "Error", errorMessage: "Task timed out after 3.00 seconds" } };
     default: return { body: { ok: true } };
   }
+}
+
+/* ---------- Phase 2 で追加した操作 ---------- */
+/** file://名前 なら手元の(模擬環境の)ファイルの内容を返す */
+function fileArg(ctx, v, label) {
+  if (typeof v !== "string" || !v.startsWith("file://")) return v;
+  const name = v.slice(7).replace(/^\.\//, "");
+  const f = ctx.session.local.files[name];
+  if (!f) throw new CliError(`Error parsing parameter '${label}': Unable to load paramfile ${v}: [Errno 2] No such file or directory: '${name}'`, `この環境の手元のファイル: ${Object.keys(ctx.session.local.files).join(", ") || "なし"}`);
+  if (typeof f.content !== "string") throw new CliError(`${name} はテキストとして読めません`);
+  return f.content;
+}
+function jsonArg(ctx, v, label) {
+  const t = fileArg(ctx, v, label);
+  try { return JSON.parse(t); } catch { throw new CliError(`Error parsing parameter '--${label}': Invalid JSON: ${String(t).slice(0, 60)}`, "JSON はシングルクォートで囲み、中のキーと文字列はダブルクォートにします(file:// でファイルからも渡せます)"); }
+}
+function principalFromArn(env, arn) {
+  const m = /^arn:aws:(iam|sts)::(\d{12}):(user|role|assumed-role)\/([^/]+)/.exec(arn || "");
+  if (!m) return null;
+  const tags = env.iam?.tags?.[`${m[3] === "user" ? "user" : "role"}:${m[4]}`];
+  return m[3] === "user" ? { kind: "iam-user", name: m[4], account: m[2], tags } : { kind: "iam-role", name: m[4], account: m[2], session: "simulation", tags };
+}
+function ddbTable(ctx, name) {
+  const t = ctx.env.dynamodb?.tables?.[name];
+  if (!t || (t.region || ctx.env.region) !== ctx.region) throw new AwsError("ResourceNotFoundException", "Requested resource not found");
+  return t;
+}
+function checkTyped(av, where) {
+  if (!av || typeof av !== "object" || Array.isArray(av) || Object.keys(av).length !== 1 || !["S", "N", "BOOL", "L", "M", "NULL", "SS", "NS"].includes(Object.keys(av)[0])) throw new CliError(`Parameter validation failed: ${where} は {"S": "値"} のような型付きの形にします`, "DynamoDB の低レベル API(CLI を含む)では、値に型(S / N / BOOL など)を付けます");
+  if (av.N !== undefined && (typeof av.N !== "string" || Number.isNaN(Number(av.N)))) throw new CliError(`Parameter validation failed: ${where} の N は "42" のように文字列で書きます`);
+}
+Object.assign(HANDLERS, {
+  "sts assume-role"(ctx) {
+    const { cmd, env } = ctx;
+    const o = cmd.opts;
+    const m = /^arn:aws:iam::(\d{12}):role\/(.+)$/.exec(o["role-arn"]);
+    if (!m) throw new AwsError("ValidationError", `1 validation error detected: Value '${o["role-arn"]}' at 'roleArn' failed to satisfy constraint: ロールの ARN(arn:aws:iam::アカウント:role/名前)を指定します`);
+    if (!/^[\w+=,.@-]{2,64}$/.test(o["role-session-name"])) throw new AwsError("ValidationError", "1 validation error detected: Value at 'roleSessionName' failed to satisfy constraint: Member must satisfy regular expression pattern: [\\w+=,.@-]*(2〜64 文字)");
+    const role = env.iam?.roles?.[m[2]];
+    const policies = [...(env.policies || [])];
+    if (role?.trust) policies.push({ kind: "trust", name: `${m[2]} の信頼ポリシー`, doc: role.trust, account: m[1] });
+    const extra = { "sts:RoleSessionName": o["role-session-name"] };
+    if (o["external-id"]) extra["sts:ExternalId"] = o["external-id"];
+    if (o["serial-number"] && o["token-code"]) extra["aws:MultiFactorAuthPresent"] = "true";
+    if (!role) {
+      const r = evaluate({ principal: env.caller, action: "sts:AssumeRole", resource: o["role-arn"], resourceAccount: m[1], context: extra }, policies);
+      ctx.rec.checks.push({ action: "sts:AssumeRole", resource: o["role-arn"], context: extra, decision: "implicit-deny", reason: "ロールが存在しない(または信頼ポリシーが許可していない)", trace: r.trace });
+      throw new AwsError("AccessDenied", `User: ${principalArnOf(env.caller)} is not authorized to perform: sts:AssumeRole on resource: ${o["role-arn"]}`);
+    }
+    authorizeWith(ctx, policies, "sts:AssumeRole", o["role-arn"], extra, m[1]);
+    const max = role.maxSessionDuration || 3600;
+    const dur = Number(o["duration-seconds"] || 3600);
+    if (dur > max || dur < 900) throw new AwsError("ValidationError", dur < 900 ? "The requested DurationSeconds is less than the minimum of 900 seconds." : `The requested DurationSeconds exceeds the MaxSessionDuration set for this role.(このロールの上限は ${max} 秒)`);
+    const exp = new Date(Date.parse(env.now || "2026-11-08T06:00:00Z") + dur * 1000).toISOString().replace(".000Z", "+00:00");
+    ctx.rec.assumed = { role: m[2], account: m[1], session: o["role-session-name"] };
+    ctx.rec.changes.push(`ロール ${m[2]} の一時的な認証情報を取得(有効期限 ${exp})。以降のコマンドの呼び出し元は変わりません(実際の CLI では環境変数やプロファイルで切り替えます)`);
+    return { data: { Credentials: { AccessKeyId: "ASIA-SIMULATED-EXAMPLE", SecretAccessKey: "(模擬のため表示しません)", SessionToken: "(模擬のため表示しません)", Expiration: exp }, AssumedRoleUser: { AssumedRoleId: `AROA${m[2].toUpperCase().replace(/[^A-Z0-9]/g, "")}EXAMPLE:${o["role-session-name"]}`, Arn: `arn:aws:sts::${m[1]}:assumed-role/${m[2]}/${o["role-session-name"]}` } } };
+  },
+  "iam simulate-principal-policy"(ctx) {
+    const { cmd, env } = ctx;
+    const o = cmd.opts;
+    authorize(ctx, "iam:SimulatePrincipalPolicy", o["policy-source-arn"]);
+    const p = principalFromArn(env, o["policy-source-arn"]);
+    if (!p) throw new AwsError("InvalidInput", `Invalid ARN: ${o["policy-source-arn"]}(IAM ユーザー・ロールの ARN を指定します)`);
+    const known = (env.iam?.principals || []).includes(`${p.kind === "iam-user" ? "user" : "role"}:${p.name}`);
+    if (!known) throw new AwsError("NoSuchEntity", `The ${p.kind === "iam-user" ? "user" : "role"} with name ${p.name} cannot be found.`);
+    const context = {};
+    for (const raw of o["context-entries"] || []) {
+      const e = shorthand(raw, ["ContextKeyValues"]);
+      if (!e.ContextKeyName || !e.ContextKeyValues) throw new CliError("--context-entries は ContextKeyName=キー,ContextKeyValues=値,ContextKeyType=string の形で指定します");
+      context[e.ContextKeyName] = e.ContextKeyValues.length === 1 ? e.ContextKeyValues[0] : e.ContextKeyValues;
+    }
+    const resources = o["resource-arns"] || ["*"];
+    const policies = (env.policies || []).filter((x) => ["identity", "boundary", "scp"].includes(x.kind));
+    const results = [];
+    for (const action of o["action-names"]) for (const res of resources) {
+      const r = evaluate({ principal: p, action, resource: res, context }, policies);
+      if (r.decision === "unsupported") throw new CliError(`模擬評価の対象外です: ${r.reason}`, "", "unsupported");
+      results.push({ EvalActionName: action, EvalResourceName: res, EvalDecision: { allow: "allowed", "implicit-deny": "implicitDeny", "explicit-deny": "explicitDeny" }[r.decision], MatchedStatements: r.matched.filter((x) => (r.decision === "explicit-deny" ? x.effect === "Deny" : x.effect === "Allow")).map((x) => ({ SourcePolicyId: x.policy, SourcePolicyType: { identity: "IAM Policy", boundary: "Permissions Boundary", scp: "Organizations Policy" }[x.kind] || x.kind, StatementId: x.sid })), MissingContextValues: [] });
+    }
+    ctx.rec.simulated = results;
+    return { data: { EvaluationResults: results, IsTruncated: false } };
+  },
+  "dynamodb get-item"(ctx) {
+    const o = ctx.cmd.opts;
+    const key = jsonArg(ctx, o.key, "key");
+    Object.entries(key).forEach(([k, v]) => checkTyped(v, `Key.${k}`));
+    const arn = `arn:aws:dynamodb:${ctx.region}:${ctx.env.account}:table/${o["table-name"]}`;
+    authorize(ctx, "dynamodb:GetItem", arn, { "dynamodb:LeadingKeys": Object.values(key).map((v) => String(unwrap(v))) });
+    const t = ddbTable(ctx, o["table-name"]);
+    if (Object.keys(key).length !== 1 || !(t.key in key) || Object.keys(key[t.key])[0] !== t.keyType) throw new AwsError("ValidationException", "The provided key element does not match the schema");
+    const item = t.items.find((x) => String(x[t.key]) === String(unwrap(key[t.key])));
+    return { data: item ? { Item: wrap(item) } : {} };
+  },
+  "dynamodb query"(ctx) {
+    const o = ctx.cmd.opts;
+    const eav = o["expression-attribute-values"] ? jsonArg(ctx, o["expression-attribute-values"], "expression-attribute-values") : {};
+    const ean = o["expression-attribute-names"] ? jsonArg(ctx, o["expression-attribute-names"], "expression-attribute-names") : {};
+    Object.entries(eav).forEach(([k, v]) => checkTyped(v, k));
+    const arn = `arn:aws:dynamodb:${ctx.region}:${ctx.env.account}:table/${o["table-name"]}${o["index-name"] ? `/index/${o["index-name"]}` : ""}`;
+    const kce = o["key-condition-expression"].replace(/\s+/g, " ").trim();
+    const m = /^(#?[A-Za-z0-9_]+) = (:[A-Za-z0-9_]+)$/.exec(kce);
+    authorize(ctx, "dynamodb:Query", arn, m && eav[m[2]] ? { "dynamodb:LeadingKeys": [String(unwrap(eav[m[2]]))] } : {});
+    const t = ddbTable(ctx, o["table-name"]);
+    if (!m) throw new CliError("この環境の --key-condition-expression は「キー = :値」の形だけに対応しています", "", "unsupported");
+    if (!eav[m[2]]) throw new AwsError("ValidationException", `Invalid KeyConditionExpression: An expression attribute value used in expression is not defined; attribute value: ${m[2]}`);
+    if (!m[1].startsWith("#") && DDB_RESERVED.has(m[1].toLowerCase())) throw new AwsError("ValidationException", `Invalid KeyConditionExpression: Attribute name is a reserved keyword; reserved keyword: ${m[1]}`);
+    const name = m[1].startsWith("#") ? ean[m[1]] : m[1];
+    if (m[1].startsWith("#") && !name) throw new AwsError("ValidationException", `Invalid KeyConditionExpression: An expression attribute name used in the document path is not defined; attribute name: ${m[1]}`);
+    const index = o["index-name"] ? t.indexes?.[o["index-name"]] : null;
+    if (o["index-name"] && !index) throw new AwsError("ValidationException", `The table does not have the specified index: ${o["index-name"]}`);
+    const keyName = index ? index.key : t.key;
+    if (name !== keyName) throw new AwsError("ValidationException", `Query condition missed key schema element: ${keyName}`);
+    const items = t.items.filter((x) => String(x[keyName]) === String(unwrap(eav[m[2]])));
+    return { data: { Items: items.map(wrap), Count: items.length, ScannedCount: items.length, ConsumedCapacity: null } };
+  },
+  "dynamodb put-item"(ctx) {
+    const o = ctx.cmd.opts;
+    const item = jsonArg(ctx, o.item, "item");
+    Object.entries(item).forEach(([k, v]) => checkTyped(v, `Item.${k}`));
+    const t0 = ctx.env.dynamodb?.tables?.[o["table-name"]];
+    const arn = `arn:aws:dynamodb:${ctx.region}:${ctx.env.account}:table/${o["table-name"]}`;
+    authorize(ctx, "dynamodb:PutItem", arn, t0 && item[t0.key] ? { "dynamodb:LeadingKeys": [String(unwrap(item[t0.key]))] } : {});
+    const t = ddbTable(ctx, o["table-name"]);
+    if (!item[t.key] || Object.keys(item[t.key])[0] !== t.keyType) throw new AwsError("ValidationException", `One or more parameter values were invalid: Missing the key ${t.key} in the item`);
+    const plain = Object.fromEntries(Object.entries(item).map(([k, v]) => [k, unwrap(v)]));
+    const exists = t.items.some((x) => String(x[t.key]) === String(plain[t.key]));
+    if (o["condition-expression"]) {
+      if (o["condition-expression"].replace(/\s+/g, " ").trim() !== `attribute_not_exists(${t.key})`) throw new CliError(`この環境の --condition-expression は attribute_not_exists(${t.key}) だけに対応しています`, "", "unsupported");
+      if (exists) throw new AwsError("ConditionalCheckFailedException", "The conditional request failed");
+    }
+    if (exists) t.items[t.items.findIndex((x) => String(x[t.key]) === String(plain[t.key]))] = plain; else t.items.push(plain);
+    ctx.rec.changes.push(`${o["table-name"]} の項目 ${plain[t.key]} を${exists ? "上書き" : "作成"}`);
+    return { text: "" };
+  },
+  "events put-events"(ctx) {
+    const { env } = ctx;
+    const entries = jsonArg(ctx, ctx.cmd.opts.entries, "entries");
+    if (!Array.isArray(entries) || !entries.length) throw new CliError("--entries は配列([{...}])で指定します");
+    if (entries.length > 10) throw new AwsError("ValidationException", "1 validation error detected: Value at 'entries' failed to satisfy constraint: Member must have length less than or equal to 10");
+    const results = [], deliveries = [];
+    entries.forEach((e, i) => {
+      const bus = e.EventBusName || "default";
+      authorize(ctx, "events:PutEvents", `arn:aws:events:${ctx.region}:${env.account}:event-bus/${bus}`);
+      if (!e.Source || !e.DetailType || e.Detail === undefined) { results.push({ ErrorCode: "InvalidArgument", ErrorMessage: "Parameter(s) Source, DetailType, Detail must be specified" }); return; }
+      if (typeof e.Detail !== "string") { results.push({ ErrorCode: "MalformedDetail", ErrorMessage: "Detail は JSON を文字列にしたもの(\"{\\\"a\\\":1}\")で指定します" }); return; }
+      let ev;
+      try { ev = toEvent(e, { ...env, region: ctx.region }, i); } catch { results.push({ ErrorCode: "MalformedDetail", ErrorMessage: "Detail is malformed." }); return; }
+      if (!(env.events?.buses || ["default"]).includes(bus)) { results.push({ ErrorCode: "ResourceNotFoundException", ErrorMessage: `Event bus ${bus} does not exist.` }); return; }
+      results.push({ EventId: ev.id });
+      for (const r of env.events?.rules || []) {
+        if ((r.bus || "default") !== bus || r.state === "DISABLED" || !r.pattern) continue;
+        if (matchPattern(r.pattern, ev)) { deliveries.push({ rule: r.name, targets: r.targets, event: ev }); ctx.rec.changes.push(`ルール ${r.name} が一致 → ${r.targets.join("、")} に配信`); }
+      }
+    });
+    if (!deliveries.length && results.some((r) => r.EventId)) ctx.rec.changes.push("一致したルールはありません(イベントは受け付けられたが、どこにも配信されない)");
+    ctx.rec.deliveries = deliveries;
+    return { data: { FailedEntryCount: results.filter((r) => r.ErrorCode).length, Entries: results } };
+  },
+  "events test-event-pattern"(ctx) {
+    authorize(ctx, "events:TestEventPattern", "*");
+    const pattern = jsonArg(ctx, ctx.cmd.opts["event-pattern"], "event-pattern");
+    const event = jsonArg(ctx, ctx.cmd.opts.event, "event");
+    try { validatePattern(pattern); } catch (e) { if (e instanceof PatternError) throw new AwsError("InvalidEventPatternException", e.message); throw e; }
+    for (const k of ["id", "account", "source", "time", "region", "detail-type"]) if (!(k in event)) throw new AwsError("InvalidEventPatternException", `Event is not valid. Reason: イベントに「${k}」がありません(EventBridge のイベントの必須項目)`);
+    const result = matchPattern(pattern, event);
+    ctx.rec.patternResult = { pattern, event, result };
+    return { data: { Result: result } };
+  },
+  "events list-rules"(ctx) {
+    authorize(ctx, "events:ListRules", "*");
+    const bus = ctx.cmd.opts["event-bus-name"] || "default";
+    const rules = (ctx.env.events?.rules || []).filter((r) => (r.bus || "default") === bus && (!ctx.cmd.opts["name-prefix"] || r.name.startsWith(ctx.cmd.opts["name-prefix"])));
+    return { data: { Rules: rules.map((r) => ({ Name: r.name, Arn: `arn:aws:events:${ctx.region}:${ctx.env.account}:rule/${r.name}`, EventPattern: r.pattern ? JSON.stringify(r.pattern) : undefined, ScheduleExpression: r.schedule, State: r.state || "ENABLED", EventBusName: bus })) } };
+  },
+  "cloudformation validate-template"(ctx) {
+    authorize(ctx, "cloudformation:ValidateTemplate", "*");
+    const o = ctx.cmd.opts;
+    if (o["template-url"]) throw new CliError("--template-url は学習用環境では未対応です", "--template-body file://ファイル名 を使ってください", "unsupported");
+    if (!o["template-body"]) throw new CliError("--template-body を指定してください");
+    const body = fileArg(ctx, o["template-body"], "template-body");
+    // ファイル名だけ(file:// なし)などの 1 行の文字列は、テンプレートとして解釈できない
+    if (!/^\s*\{/.test(body) && !/^[^#\n]*:/m.test(body)) throw new AwsError("ValidationError", "Template format error: unsupported structure.");
+    const r = deployTemplate(body, { params: {}, stackName: "validate" });
+    // ValidateTemplate は構文・テンプレートの形式を確認する(プロパティの名前や値までは検証しない)
+    if (r.syntax) throw new AwsError("ValidationError", `Template format error: ${r.syntax.line} 行 ${r.syntax.col} 列: ${r.syntax.message}`);
+    const fmt = r.errors.filter((e) => /^Template (format )?error|Unresolved|Circular/.test(e.msg));
+    if (fmt.length) throw new AwsError("ValidationError", fmt[0].msg);
+    ctx.rec.validated = { ok: true, notes: r.errors.filter((e) => !fmt.includes(e)).map((e) => e.msg) };
+    const tpl = /^\s*\{/.test(body) ? JSON.parse(body) : null;
+    const params = Object.entries((tpl || {}).Parameters || {}).map(([k, v]) => ({ ParameterKey: k, DefaultValue: v.Default, NoEcho: !!v.NoEcho, Description: v.Description || "" }));
+    return { data: { Parameters: params, Description: tpl?.Description } };
+  },
+  "cloudformation describe-stacks"(ctx) {
+    authorize(ctx, "cloudformation:DescribeStacks", "*");
+    const all = ctx.env.cloudformation?.stacks || [];
+    const name = ctx.cmd.opts["stack-name"];
+    const list = name ? all.filter((s2) => s2.StackName === name) : all;
+    if (name && !list.length) throw new AwsError("ValidationError", `Stack with id ${name} does not exist`);
+    return { data: { Stacks: list.map(({ events, ...x }) => clone(x)) } };
+  },
+  "cloudformation describe-stack-events"(ctx) {
+    authorize(ctx, "cloudformation:DescribeStackEvents", "*");
+    const st = (ctx.env.cloudformation?.stacks || []).find((s2) => s2.StackName === ctx.cmd.opts["stack-name"]);
+    if (!st) throw new AwsError("ValidationError", `Stack [${ctx.cmd.opts["stack-name"]}] does not exist`);
+    let ev = st.events || [];
+    if (ctx.cmd.opts["max-items"]) ev = ev.slice(0, Number(ctx.cmd.opts["max-items"]));
+    return { data: { StackEvents: clone(ev) } };
+  },
+  "kms describe-key"(ctx) {
+    const { env } = ctx;
+    const id = ctx.cmd.opts["key-id"];
+    const keys = env.kms?.keys || {};
+    const kid = id.startsWith("alias/") ? env.kms?.aliases?.[id] : id.replace(/^arn:aws:kms:[^:]+:\d+:key\//, "");
+    const k = kid && keys[kid];
+    const arn = `arn:aws:kms:${ctx.region}:${env.account}:key/${kid || id}`;
+    authorizeWith(ctx, [...(env.policies || []), ...(k ? [{ kind: "key", name: `キー ${kid} のキーポリシー`, doc: k.policy, account: env.account }] : [])], "kms:DescribeKey", arn, {}, env.account);
+    if (!k) throw new AwsError("NotFoundException", `${id.startsWith("alias/") ? `Alias ${arn.replace(/key\/.*/, id)}` : `Key '${arn}'`} is not found.`);
+    return { data: { KeyMetadata: { AWSAccountId: env.account, KeyId: kid, Arn: arn, CreationDate: "2026-09-01T00:00:00+00:00", Enabled: k.enabled !== false, Description: k.description || "", KeyUsage: "ENCRYPT_DECRYPT", KeyState: k.enabled === false ? "Disabled" : "Enabled", Origin: "AWS_KMS", KeyManager: k.manager || "CUSTOMER", KeySpec: "SYMMETRIC_DEFAULT", EncryptionAlgorithms: ["SYMMETRIC_DEFAULT"], MultiRegion: !!k.multiRegion } } };
+  },
+  "kms list-aliases"(ctx) {
+    authorize(ctx, "kms:ListAliases", "*");
+    const al = Object.entries(ctx.env.kms?.aliases || {}).filter(([, k]) => !ctx.cmd.opts["key-id"] || k === ctx.cmd.opts["key-id"]);
+    return { data: { Aliases: al.map(([a, k]) => ({ AliasName: a, AliasArn: `arn:aws:kms:${ctx.region}:${ctx.env.account}:${a}`, TargetKeyId: k })) } };
+  },
+  "sqs send-message"(ctx) {
+    const { env } = ctx;
+    const o = ctx.cmd.opts;
+    const m = /^https:\/\/sqs\.([a-z0-9-]+)\.amazonaws\.com\/(\d{12})\/(.+)$/.exec(o["queue-url"]);
+    if (!m) throw new AwsError("InvalidAddress", "The address is not valid for this endpoint.(--queue-url には https://sqs.<リージョン>.amazonaws.com/<アカウント>/<キュー名> を指定)");
+    const q = env.sqs?.queues?.[m[3]];
+    const arn = `arn:aws:sqs:${m[1]}:${m[2]}:${m[3]}`;
+    authorizeWith(ctx, [...(env.policies || []), ...(q?.policy ? [{ kind: "resource", name: `${m[3]} のキューポリシー`, doc: q.policy, account: m[2] }] : [])], "sqs:SendMessage", arn, {}, m[2]);
+    if (!q) throw new AwsError("AWS.SimpleQueueService.NonExistentQueue", "The specified queue does not exist.");
+    if (q.fifo && !o["message-group-id"]) throw new AwsError("MissingParameter", "The request must contain the parameter MessageGroupId.");
+    if (q.fifo && !q.contentDedup && !o["message-deduplication-id"]) throw new AwsError("InvalidParameterValue", "The queue should either have ContentBasedDeduplication enabled or MessageDeduplicationId provided explicitly");
+    (q.messages ||= []).push({ body: o["message-body"], group: o["message-group-id"] });
+    ctx.rec.changes.push(`${m[3]} にメッセージを送信(キューのメッセージ ${q.messages.length} 件)`);
+    return { data: { MD5OfMessageBody: hashStr(o["message-body"]), MessageId: `0000${q.messages.length}-sim-message`, ...(q.fifo ? { SequenceNumber: String(18800000000000000000 + q.messages.length) } : {}) } };
+  },
+  "sqs get-queue-attributes"(ctx) {
+    const o = ctx.cmd.opts;
+    const m = /^https:\/\/sqs\.([a-z0-9-]+)\.amazonaws\.com\/(\d{12})\/(.+)$/.exec(o["queue-url"]);
+    const q = m && ctx.env.sqs?.queues?.[m[3]];
+    authorize(ctx, "sqs:GetQueueAttributes", m ? `arn:aws:sqs:${m[1]}:${m[2]}:${m[3]}` : "*");
+    if (!q) throw new AwsError("AWS.SimpleQueueService.NonExistentQueue", "The specified queue does not exist.");
+    const all = { QueueArn: `arn:aws:sqs:${m[1]}:${m[2]}:${m[3]}`, ApproximateNumberOfMessages: String((q.messages || []).length + (q.backlog || 0)), VisibilityTimeout: String(q.visibilityTimeout ?? 30), MessageRetentionPeriod: String(q.retention ?? 345600), ...(q.redrive ? { RedrivePolicy: JSON.stringify(q.redrive) } : {}), ...(q.fifo ? { FifoQueue: "true" } : {}), ...(q.policy ? { Policy: JSON.stringify(q.policy) } : {}) };
+    const names = o["attribute-names"] || [];
+    return { data: { Attributes: names.includes("All") ? all : Object.fromEntries(Object.entries(all).filter(([k]) => names.includes(k))) } };
+  },
+});
+function hashStr(s) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h.toString(16).padStart(8, "0").repeat(4); }
+function principalArnOf(p) { return p.kind === "iam-role" ? `arn:aws:sts::${p.account}:assumed-role/${p.name}/${p.session || "session"}` : `arn:aws:iam::${p.account}:user/${p.name}`; }
+/** リソース側のポリシー(信頼・キー・キュー)を加えて権限を確認する */
+function authorizeWith(ctx, policies, action, resource, extra, resourceAccount) {
+  const saved = ctx.env.policies;
+  ctx.env.policies = policies;
+  try { authorize(ctx, action, resource, extra, null, resourceAccount); } finally { ctx.env.policies = saved; }
 }

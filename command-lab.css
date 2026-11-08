@@ -263,3 +263,53 @@
 .cl-diff div { padding: 0 8px; white-space: pre; }
 .cl-diff .dl-add { background: #ecfdf3; color: #166534; }
 .cl-diff .dl-del { background: #fef2f2; color: #991b1b; }
+
+/* --- Phase 2: CloudFormation・行の印・ロードマップ・分野別の成績 --- */
+.cl-cat.c-cfn { background: #c2410c; }
+.cl-gut span.warn { color: #fff; background: var(--cl-warn); border-radius: 4px; padding: 0 3px; }
+.cl-gut span.sec { color: #fff; background: #9333ea; border-radius: 4px; padding: 0 3px; }
+.cl-goto { margin-left: auto; flex: none; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--glass-line); background: var(--glass-strong); font: 700 11px var(--cl-mono); cursor: pointer; }
+.cl-issues li { align-items: flex-start; }
+.cl-tip { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--cl-warn) 10%, transparent); font-size: 12.5px; line-height: 1.65; }
+.cl-next { display: inline-block; margin: 12px 0 4px; padding: 9px 14px; border-radius: 12px; font-weight: 750; background: var(--glass-strong); border: 1px solid var(--glass-line); }
+.cl-order { margin: 0; padding-left: 22px; display: grid; gap: 4px; font-size: 12.5px; }
+.cl-order li b { font-family: var(--cl-mono); margin-right: 6px; }
+.cl-order li span { color: var(--aaa-muted); margin-right: 6px; font-family: var(--cl-mono); font-size: 11.5px; }
+.cl-order li small { color: var(--aaa-muted); }
+.cl-props { max-height: 260px; overflow: auto; font-size: 11.5px; }
+.cl-variant { margin: 10px 0; padding: 8px 12px; border: 1px dashed var(--glass-line); border-radius: 12px; }
+.cl-variant > summary { cursor: pointer; font-weight: 700; font-size: 12.5px; }
+.cl-roadmap { padding: 16px 18px; border-radius: 18px; margin-bottom: 12px; }
+.cl-rm-head { display: grid; gap: 6px; margin-bottom: 10px; }
+.cl-rm-head h2 { font-size: 17px; margin: 0; }
+.cl-rm-head p { margin: 0; font-size: 12.5px; }
+.cl-rm-next { justify-self: start; padding: 9px 14px; border-radius: 12px; font-weight: 750; }
+.cl-rm-done { color: var(--cl-ok); font-weight: 750; }
+.cl-rm-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cl-rm-step summary { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto minmax(60px, 140px); align-items: center; gap: 10px; cursor: pointer; padding: 6px 4px; border-radius: 10px; font-size: 13px; }
+.cl-rm-step summary i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font: 800 11px var(--cl-mono); font-style: normal; background: var(--glass-strong); border: 1px solid var(--glass-line); }
+.cl-rm-step.done summary i { background: var(--cl-ok); color: #fff; border-color: transparent; }
+.cl-rm-step.current summary { background: color-mix(in srgb, #3985ff 8%, transparent); }
+.cl-rm-step.current summary i { background: #3985ff; color: #fff; border-color: transparent; }
+.cl-rm-n { font: 700 11.5px var(--cl-mono); color: var(--aaa-muted); }
+.cl-rm-bar { display: block; height: 6px; border-radius: 999px; background: var(--glass-line); position: relative; overflow: hidden; }
+.cl-rm-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); background: var(--cl-ok); border-radius: inherit; }
+.cl-rm-goal { margin: 4px 0 6px 36px; font-size: 12.5px; color: var(--aaa-muted); }
+.cl-rm-qs { list-style: none; margin: 0 0 8px 36px; padding: 0; display: grid; gap: 3px; font-size: 12.5px; }
+.cl-rm-qs li { display: flex; gap: 6px; }
+.cl-rm-qs li.st-clear .cl-mark { color: var(--cl-ok); }
+.cl-rm-qs li.st-wrong a { color: var(--cl-ng); }
+.cl-stats-panel { padding: 12px 16px; border-radius: 18px; margin-bottom: 12px; }
+.cl-stats-panel > summary { cursor: pointer; font-weight: 750; font-size: 14px; }
+.cl-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 10px; }
+.cl-stat-block h3 { font-size: 12.5px; margin: 0 0 6px; color: var(--aaa-muted); }
+.cl-stat-row { display: grid; grid-template-columns: minmax(84px, auto) minmax(50px, 1fr) auto; align-items: center; gap: 4px 8px; font-size: 12.5px; margin-bottom: 6px; }
+.cl-stat-row small { grid-column: 1 / -1; font-size: 11px; }
+.cl-stat-n { font: 700 11.5px var(--cl-mono); }
+.cl-weak { margin: 8px 0 0; font-size: 12.5px; color: var(--cl-ng); }
+.ex-lab.is-clear { border-color: color-mix(in srgb, var(--ac-ok, #16a34a) 55%, transparent); }
+@media (max-width: 560px) {
+  .cl-rm-step summary { grid-template-columns: 26px minmax(0, 1fr) auto; }
+  .cl-rm-step summary .cl-rm-bar { grid-column: 2 / -1; }
+  .cl-rm-goal, .cl-rm-qs { margin-left: 8px; }
+}

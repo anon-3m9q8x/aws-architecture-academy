@@ -10,15 +10,16 @@ export const POLICY_KINDS = {
   trust: "ロールの信頼ポリシー",
   scp: "サービスコントロールポリシー(SCP)",
   boundary: "アクセス許可の境界",
+  key: "KMS のキーポリシー",
 };
 
 // この学習環境で意味を確認できるアクション(サービスプレフィックス → アクション名)。綴りの確認と補完候補に使う。
 export const KNOWN_ACTIONS = {
   s3: ["GetObject", "PutObject", "DeleteObject", "ListBucket", "ListAllMyBuckets", "GetBucketLocation", "GetObjectVersion", "DeleteObjectVersion", "ListBucketVersions", "GetObjectTagging", "PutObjectTagging", "PutObjectAcl", "GetObjectAcl", "AbortMultipartUpload", "ListMultipartUploadParts", "GetBucketPolicy", "PutBucketPolicy", "DeleteBucketPolicy", "CreateBucket", "DeleteBucket", "GetBucketVersioning", "PutBucketVersioning", "GetEncryptionConfiguration", "PutEncryptionConfiguration", "PutLifecycleConfiguration", "GetLifecycleConfiguration", "PutBucketPublicAccessBlock", "GetBucketPublicAccessBlock", "ReplicateObject", "RestoreObject"],
-  ec2: ["DescribeInstances", "StartInstances", "StopInstances", "RebootInstances", "TerminateInstances", "RunInstances", "DescribeVpcs", "DescribeSubnets", "DescribeSecurityGroups", "AuthorizeSecurityGroupIngress", "RevokeSecurityGroupIngress", "CreateTags", "DeleteTags", "DescribeImages", "DescribeVolumes", "CreateSnapshot", "DescribeRegions", "DescribeAvailabilityZones"],
+  ec2: ["DescribeInstances", "StartInstances", "StopInstances", "RebootInstances", "TerminateInstances", "RunInstances", "DescribeVpcs", "DescribeSubnets", "DescribeSecurityGroups", "AuthorizeSecurityGroupIngress", "RevokeSecurityGroupIngress", "CreateTags", "DeleteTags", "DescribeImages", "DescribeVolumes", "CreateVolume", "DeleteVolume", "AttachVolume", "CreateSnapshot", "DescribeRegions", "DescribeAvailabilityZones"],
   dynamodb: ["GetItem", "PutItem", "UpdateItem", "DeleteItem", "Query", "Scan", "BatchGetItem", "BatchWriteItem", "DescribeTable", "ListTables", "CreateTable", "DeleteTable", "ConditionCheckItem"],
   sts: ["AssumeRole", "AssumeRoleWithWebIdentity", "AssumeRoleWithSAML", "GetCallerIdentity", "TagSession", "SetSourceIdentity", "GetSessionToken"],
-  iam: ["PassRole", "GetRole", "CreateRole", "DeleteRole", "AttachRolePolicy", "DetachRolePolicy", "PutRolePolicy", "ListRoles", "ListAttachedRolePolicies", "CreateUser", "DeleteUser", "ListUsers", "GetUser", "CreateAccessKey", "ChangePassword", "CreatePolicy", "SimulatePrincipalPolicy"],
+  iam: ["PassRole", "GetRole", "CreateRole", "DeleteRole", "AttachRolePolicy", "DetachRolePolicy", "PutRolePolicy", "ListRoles", "ListAttachedRolePolicies", "CreateUser", "DeleteUser", "ListUsers", "GetUser", "CreateAccessKey", "ChangePassword", "CreatePolicy", "SimulatePrincipalPolicy", "PutRolePermissionsBoundary", "DeleteRolePermissionsBoundary", "TagRole"],
   kms: ["Encrypt", "Decrypt", "GenerateDataKey", "GenerateDataKeyWithoutPlaintext", "ReEncryptFrom", "ReEncryptTo", "DescribeKey", "CreateGrant", "ScheduleKeyDeletion", "DisableKey", "PutKeyPolicy", "ListKeys"],
   lambda: ["InvokeFunction", "GetFunction", "ListFunctions", "CreateFunction", "UpdateFunctionCode", "UpdateFunctionConfiguration", "DeleteFunction", "AddPermission"],
   logs: ["CreateLogGroup", "CreateLogStream", "PutLogEvents", "DescribeLogGroups", "DescribeLogStreams", "FilterLogEvents", "GetLogEvents", "DeleteLogGroup", "PutRetentionPolicy"],
@@ -32,6 +33,9 @@ export const KNOWN_ACTIONS = {
   ssm: ["GetParameter", "GetParameters", "PutParameter", "StartSession", "SendCommand"],
   config: ["StopConfigurationRecorder", "DeleteConfigurationRecorder", "DescribeConfigRules"],
   guardduty: ["DeleteDetector", "DisassociateFromMasterAccount", "UpdateDetector"],
+  events: ["PutEvents", "PutRule", "PutTargets", "TestEventPattern", "ListRules", "DescribeRule", "DeleteRule"],
+  cloudformation: ["CreateStack", "UpdateStack", "DeleteStack", "DescribeStacks", "DescribeStackEvents", "ValidateTemplate", "CreateChangeSet", "ExecuteChangeSet"],
+  account: ["EnableRegion", "DisableRegion", "PutAlternateContact"],
 };
 const KNOWN_LOWER = Object.fromEntries(Object.entries(KNOWN_ACTIONS).map(([s, a]) => [s, new Map(a.map((x) => [x.toLowerCase(), x]))]));
 
@@ -66,7 +70,9 @@ export function validatePolicy(src, kind = "identity") {
   }
   const doc = parsed.value;
   const issues = [];
-  const add = (level, msg, where = "") => issues.push({ level, msg, where });
+  let curPath = [];
+  // 指摘には、該当する箇所の行番号を付ける(エディターの行番号に表示する)
+  const add = (level, msg, where = "", key) => issues.push({ level, msg, where, line: parsed.pos(key === undefined ? curPath : [...curPath, ...[].concat(key)]).line });
   parsed.dupKeys.forEach((d) => add("warning", `キー「${d.key}」が同じオブジェクトに 2 回書かれています(後の値だけが使われます)`, `${d.line} 行`));
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) {
     add("error", "ポリシーの最上位は { } のオブジェクトにします");
@@ -74,13 +80,15 @@ export function validatePolicy(src, kind = "identity") {
   }
   for (const k of Object.keys(doc)) if (!["Version", "Id", "Statement"].includes(k)) add("error", `最上位に「${k}」は書けません(使えるのは Version・Id・Statement)`, k);
   if (doc.Version === undefined) add("warning", "Version がありません。\"2012-10-17\" を指定しないと ${aws:username} などのポリシー変数が使えません", "Version");
-  else if (doc.Version === "2008-10-17") add("warning", "Version \"2008-10-17\" は古い版です。ポリシー変数を使うには \"2012-10-17\" にします", "Version");
-  else if (doc.Version !== "2012-10-17") add("error", `Version は日付の文字列 "2012-10-17" にします(「${String(doc.Version)}」はポリシーの言語の版として無効です)`, "Version");
+  else if (doc.Version === "2008-10-17") add("warning", "Version \"2008-10-17\" は古い版です。ポリシー変数を使うには \"2012-10-17\" にします", "Version", "Version");
+  else if (doc.Version !== "2012-10-17") add("error", `Version は日付の文字列 "2012-10-17" にします(「${String(doc.Version)}」はポリシーの言語の版として無効です)`, "Version", "Version");
   if (doc.Statement === undefined) { add("error", "Statement がありません", "Statement"); return { ok: false, syntax: null, doc, issues }; }
   const stmts = arr(doc.Statement);
+  const stmtArray = Array.isArray(doc.Statement);
   if (!stmts.length) add("error", "Statement が空です。少なくとも 1 つのステートメントが必要です", "Statement");
   const sids = new Set();
   stmts.forEach((st, i) => {
+    curPath = stmtArray ? ["Statement", i] : ["Statement"];
     const at = st && st.Sid ? `Statement「${st.Sid}」` : `Statement[${i}]`;
     if (!st || typeof st !== "object" || Array.isArray(st)) { add("error", `${at} はオブジェクト { } にします`, at); return; }
     for (const k of Object.keys(st)) if (!STATEMENT_KEYS.includes(k)) add("error", `「${k}」はステートメントの要素ではありません${/^(effect|action|resource|principal|condition|sid)$/i.test(k) ? "(大文字・小文字を区別します)" : ""}`, at);
@@ -90,7 +98,7 @@ export function validatePolicy(src, kind = "identity") {
       sids.add(st.Sid);
     }
     if (st.Effect === undefined) add("error", `${at}: Effect(Allow / Deny)がありません`, at);
-    else if (st.Effect !== "Allow" && st.Effect !== "Deny") add("error", `${at}: Effect は "Allow" か "Deny" です(「${st.Effect}」は無効。大文字・小文字も区別します)`, at);
+    else if (st.Effect !== "Allow" && st.Effect !== "Deny") add("error", `${at}: Effect は "Allow" か "Deny" です(「${st.Effect}」は無効。大文字・小文字も区別します)`, at, "Effect");
     // 排他の要素
     if ("Action" in st && "NotAction" in st) add("error", `${at}: Action と NotAction は同時に書けません`, at);
     if (!("Action" in st) && !("NotAction" in st)) add("error", `${at}: Action(または NotAction)がありません`, at);
@@ -101,7 +109,7 @@ export function validatePolicy(src, kind = "identity") {
     if (kind === "trust") {
       if (hasRes) add("error", `${at}: 信頼ポリシーに Resource は書けません(対象はそのロール自身です)`, at);
       if (!hasPr) add("error", `${at}: 信頼ポリシーには Principal(ロールを引き受けられる主体)が必要です`, at);
-    } else if (kind === "resource") {
+    } else if (kind === "resource" || kind === "key") {
       if (!hasPr) add("error", `${at}: リソースベースのポリシーには Principal が必要です`, at);
       if (!hasRes) add("error", `${at}: Resource がありません`, at);
     } else {
@@ -117,12 +125,12 @@ export function validatePolicy(src, kind = "identity") {
         if (a === "*") continue;
         // アクション名は大文字・小文字を区別しない(サービスのプレフィックスも同様)
         const m = /^([A-Za-z0-9-]+):([A-Za-z0-9*?]+)$/.exec(a);
-        if (!m) { add("error", `${at}: アクション「${a}」の形式が正しくありません(例: "s3:GetObject")`, at); continue; }
+        if (!m) { add("error", `${at}: アクション「${a}」の形式が正しくありません(例: "s3:GetObject")`, at, key); continue; }
         const svc = m[1].toLowerCase(), name = m[2];
-        if (!KNOWN_LOWER[svc]) add("warning", `${at}: サービス「${svc}」はこの学習環境の対応範囲外です(綴りも確認してください)`, at);
+        if (!KNOWN_LOWER[svc]) add("warning", `${at}: サービス「${svc}」はこの学習環境の対応範囲外です(綴りも確認してください)`, at, key);
         else if (!/[*?]/.test(name) && !KNOWN_LOWER[svc].has(name.toLowerCase())) {
           const near = [...KNOWN_LOWER[svc].values()].find((x) => x.toLowerCase().startsWith(name.toLowerCase().slice(0, 5)));
-          add("warning", `${at}: 「${a}」はこの学習環境で知られていないアクションです${near ? `(「${svc}:${near}」の誤り?)` : ""}`, at);
+          add("warning", `${at}: 「${a}」はこの学習環境で知られていないアクションです${near ? `(「${svc}:${near}」の誤り?)` : ""}`, at, key);
         }
       }
     }
@@ -131,7 +139,7 @@ export function validatePolicy(src, kind = "identity") {
       if (!list.length) add("error", `${at}: ${key} が空です`, at);
       for (const r of list) {
         if (typeof r !== "string") { add("error", `${at}: ${key} の値は文字列にします`, at); continue; }
-        if (r !== "*" && !/^arn:[a-z*-]+:[a-z0-9*-]+:[a-z0-9*-]*:(\d{12}|\*)?:.+$/.test(r)) add("error", `${at}: 「${r}」は ARN の形式ではありません(例: arn:aws:s3:::my-bucket/*)`, at);
+        if (r !== "*" && !/^arn:[a-z*-]+:[a-z0-9*-]+:[a-z0-9*-]*:(\d{12}|\*)?:.+$/.test(r)) add("error", `${at}: 「${r}」は ARN の形式ではありません(例: arn:aws:s3:::my-bucket/*)`, at, key);
       }
     }
     // S3 のアクションと ARN の組み合わせ(よくある誤り)
@@ -140,8 +148,8 @@ export function validatePolicy(src, kind = "identity") {
       const res = arr(st.Resource).filter((x) => typeof x === "string");
       const s3Res = res.filter((r) => r.startsWith("arn:aws:s3:::"));
       const objActs = acts.filter((a) => /^s3:(get|put|delete)object|^s3:abortmultipart/.test(a));
-      if (objActs.length && s3Res.length && s3Res.every((r) => !r.slice(13).includes("/"))) add("warning", `${at}: オブジェクトの操作(${objActs.join(", ")})にはオブジェクトの ARN(例: arn:aws:s3:::bucket/*)が必要です。バケットの ARN だけでは一致しません`, at);
-      if (acts.includes("s3:listbucket") && s3Res.length && s3Res.every((r) => r.slice(13).includes("/"))) add("warning", `${at}: s3:ListBucket はバケットの ARN(arn:aws:s3:::bucket)に対する操作です。オブジェクトの ARN では一致しません。一覧の範囲は Condition の s3:prefix で絞ります`, at);
+      if (objActs.length && s3Res.length && s3Res.every((r) => !r.slice(13).includes("/"))) add("warning", `${at}: オブジェクトの操作(${objActs.join(", ")})にはオブジェクトの ARN(例: arn:aws:s3:::bucket/*)が必要です。バケットの ARN だけでは一致しません`, at, "Resource");
+      if (acts.includes("s3:listbucket") && s3Res.length && s3Res.every((r) => r.slice(13).includes("/"))) add("warning", `${at}: s3:ListBucket はバケットの ARN(arn:aws:s3:::bucket)に対する操作です。オブジェクトの ARN では一致しません。一覧の範囲は Condition の s3:prefix で絞ります`, at, "Resource");
     }
     // Principal の形式
     for (const key of ["Principal", "NotPrincipal"]) if (key in st) {
@@ -155,19 +163,21 @@ export function validatePolicy(src, kind = "identity") {
       if (!c || typeof c !== "object" || Array.isArray(c)) add("error", `${at}: Condition は { "演算子": { "条件キー": 値 } } の形にします`, at);
       else for (const [op, block] of Object.entries(c)) {
         const o = splitOperator(op);
-        if (!o.known) add("error", `${at}: 条件演算子「${op}」はこの学習環境では使えないか、綴りが誤っています`, at);
+        if (!o.known) add("error", `${at}: 条件演算子「${op}」はこの学習環境では使えないか、綴りが誤っています`, at, ["Condition", op]);
         if (!block || typeof block !== "object" || Array.isArray(block)) add("error", `${at}: 「${op}」の中は { "条件キー": 値 } にします`, at);
       }
     }
     // セキュリティ警告(構文は正しくても許可が広すぎる)
-    if (st.Effect === "Allow") {
+    // キーポリシーの既定のステートメント(アカウントのルートに kms:* を委任し、IAM ポリシーで制御する)は警告しない
+    const rootDelegation = kind === "key" && st.Principal && typeof st.Principal === "object" && arr(st.Principal.AWS ?? []).length > 0 && arr(st.Principal.AWS).every((a) => typeof a === "string" && /^(arn:aws:iam::\d{12}:root|\d{12})$/.test(a)) && !st.Principal.Service;
+    if (st.Effect === "Allow" && !rootDelegation) {
       const acts = "Action" in st ? arr(st.Action) : [];
-      if (acts.includes("*")) add("security", `${at}: Action "*" はすべての操作を許可します`, at);
-      else { const wild = acts.filter((a) => typeof a === "string" && /^[a-z0-9-]+:\*$/.test(a)); if (wild.length) add("security", `${at}: ${wild.join(", ")} はそのサービスの全操作(削除や設定変更を含む)を許可します`, at); }
+      if (acts.includes("*")) add("security", `${at}: Action "*" はすべての操作を許可します`, at, "Action");
+      else { const wild = acts.filter((a) => typeof a === "string" && /^[a-z0-9-]+:\*$/.test(a)); if (wild.length) add("security", `${at}: ${wild.join(", ")} はそのサービスの全操作(削除や設定変更を含む)を許可します`, at, "Action"); }
       if ("NotAction" in st) add("security", `${at}: Allow と NotAction の組み合わせは、列挙した以外の「すべての操作」を許可します`, at);
       if ("NotResource" in st) add("security", `${at}: Allow と NotResource の組み合わせは、列挙した以外の「すべてのリソース」を許可します`, at);
-      if (kind !== "trust" && arr(st.Resource ?? []).includes("*") && acts.some((a) => typeof a === "string" && /^(s3|dynamodb|kms|secretsmanager):/.test(a) && !/list|describe/i.test(a))) add("security", `${at}: Resource "*" はアカウント内のすべての対象(他人のデータを含む)に適用されます`, at);
-      if ((kind === "resource" || kind === "trust") && (st.Principal === "*" || arr(st.Principal?.AWS ?? []).includes("*")) && !st.Condition) add("security", `${at}: Principal "*" を条件なしで許可すると、誰でも(他のアカウントや匿名の利用者も)対象になります`, at);
+      if (kind !== "trust" && kind !== "key" && arr(st.Resource ?? []).includes("*") && acts.some((a) => typeof a === "string" && /^(s3|dynamodb|kms|secretsmanager):/.test(a) && !/list|describe/i.test(a))) add("security", `${at}: Resource "*" はアカウント内のすべての対象(他人のデータを含む)に適用されます`, at, "Resource");
+      if ((kind === "resource" || kind === "trust" || kind === "key") && (st.Principal === "*" || arr(st.Principal?.AWS ?? []).includes("*")) && !st.Condition) add("security", `${at}: Principal "*" を条件なしで許可すると、誰でも(他のアカウントや匿名の利用者も)対象になります`, at);
     }
   });
   return { ok: !issues.some((x) => x.level === "error"), syntax: null, doc, issues };

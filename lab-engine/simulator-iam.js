@@ -6,12 +6,12 @@ import { splitOperator, arr } from "./validator-iam.js";
 
 export const SUPPORT = {
   elements: ["Version", "Statement", "Sid", "Effect", "Action", "NotAction", "Resource", "NotResource", "Principal", "NotPrincipal", "Condition"],
-  policyTypes: ["アイデンティティベース", "リソースベース(S3 バケットポリシーなど)", "ロールの信頼ポリシー", "SCP", "アクセス許可の境界"],
-  conditionKeys: ["aws:username", "aws:userid", "aws:PrincipalArn", "aws:PrincipalAccount", "aws:PrincipalType", "aws:PrincipalOrgID", "aws:PrincipalTag/*", "aws:ResourceTag/*", "aws:RequestTag/*", "aws:TagKeys", "aws:SourceIp", "aws:SourceVpce", "aws:SourceVpc", "aws:SecureTransport", "aws:MultiFactorAuthPresent", "aws:RequestedRegion", "aws:CurrentTime", "aws:SourceArn", "aws:SourceAccount", "aws:CalledVia", "s3:prefix", "s3:delimiter", "s3:max-keys", "s3:x-amz-server-side-encryption", "s3:x-amz-server-side-encryption-aws-kms-key-id", "s3:x-amz-acl", "s3:ExistingObjectTag/*", "s3:RequestObjectTag/*", "sts:ExternalId", "sts:RoleSessionName", "ec2:ResourceTag/*", "dynamodb:LeadingKeys", "kms:ViaService", "iam:PassedToService"],
+  policyTypes: ["アイデンティティベース", "リソースベース(S3 バケットポリシー・SQS キューポリシー・Lambda のリソースポリシーなど)", "KMS のキーポリシー", "ロールの信頼ポリシー(AWS・Service・Federated)", "SCP", "アクセス許可の境界"],
+  conditionKeys: ["aws:username", "aws:userid", "aws:PrincipalArn", "aws:PrincipalAccount", "aws:PrincipalType", "aws:PrincipalOrgID", "aws:PrincipalTag/*", "aws:ResourceTag/*", "aws:RequestTag/*", "aws:TagKeys", "aws:SourceIp", "aws:SourceVpce", "aws:SourceVpc", "aws:SecureTransport", "aws:MultiFactorAuthPresent", "aws:RequestedRegion", "aws:CurrentTime", "aws:SourceArn", "aws:SourceAccount", "aws:CalledVia", "s3:prefix", "s3:delimiter", "s3:max-keys", "s3:x-amz-server-side-encryption", "s3:x-amz-server-side-encryption-aws-kms-key-id", "s3:x-amz-acl", "s3:ExistingObjectTag/*", "s3:RequestObjectTag/*", "sts:ExternalId", "sts:RoleSessionName", "ec2:ResourceTag/*", "dynamodb:LeadingKeys", "kms:ViaService", "kms:CallerAccount", "kms:EncryptionContext:*", "iam:PassedToService", "iam:PermissionsBoundary", "lambda:FunctionArn", "token.actions.githubusercontent.com:sub", "token.actions.githubusercontent.com:aud", "cognito-identity.amazonaws.com:aud", "cognito-identity.amazonaws.com:amr", "saml:aud", "aws:SourceOrgID"],
   notModeled: ["セッションポリシー", "S3 のブロックパブリックアクセス・ACL・オブジェクト所有権", "KMS のグラント", "VPC エンドポイントポリシー", "RCP(リソースコントロールポリシー)", "サービスリンクロールの例外", "IPv6 の IpAddress 条件"],
 };
-const KEY_PREFIXES = SUPPORT.conditionKeys.filter((k) => k.endsWith("/*")).map((k) => k.slice(0, -1).toLowerCase());
-const KEY_EXACT = new Set(SUPPORT.conditionKeys.filter((k) => !k.endsWith("/*")).map((k) => k.toLowerCase()));
+const KEY_PREFIXES = SUPPORT.conditionKeys.filter((k) => k.endsWith("/*") || k.endsWith(":*")).map((k) => k.slice(0, -1).toLowerCase());
+const KEY_EXACT = new Set(SUPPORT.conditionKeys.filter((k) => !k.endsWith("/*") && !k.endsWith(":*")).map((k) => k.toLowerCase()));
 const keySupported = (k) => KEY_EXACT.has(k.toLowerCase()) || KEY_PREFIXES.some((p) => k.toLowerCase().startsWith(p));
 const MULTI_KEYS = new Set(["aws:tagkeys", "aws:calledvia", "dynamodb:leadingkeys"]);
 
@@ -20,6 +20,8 @@ const MULTI_KEYS = new Set(["aws:tagkeys", "aws:calledvia", "dynamodb:leadingkey
 export function principalInfo(p) {
   if (!p || p.kind === "anonymous") return { arn: null, account: null, label: "匿名(認証なし)", ctx: {}, type: "Anonymous" };
   if (p.kind === "service") return { arn: null, account: null, label: `サービス ${p.service}`, ctx: {}, type: "Service", service: p.service };
+  // OIDC / SAML のフェデレーション(例: GitHub Actions の OIDC トークンでロールを引き受ける)
+  if (p.kind === "federated") return { arn: null, account: null, label: `フェデレーション ${p.provider.split("/").pop()}`, ctx: {}, type: "Federated", provider: p.provider };
   const account = p.account;
   const tags = Object.fromEntries(Object.entries(p.tags || {}).map(([k, v]) => [`aws:PrincipalTag/${k}`, v]));
   if (p.kind === "iam-user") {
@@ -177,6 +179,7 @@ function principalMatch(pel, pi) {
   for (const [type, v] of Object.entries(pel)) {
     for (const val of arr(v)) {
       if (type === "Service" && pi.type === "Service" && val === pi.service) return "direct";
+      if (type === "Federated" && pi.type === "Federated" && val === pi.provider) return "direct";
       if (type !== "AWS") continue;
       if (val === "*") return "direct"; // {"AWS": "*"} は "*" と同じく、匿名を含むすべての主体
       if (!pi.account) continue;
@@ -225,7 +228,7 @@ export function matchStatement(st, req, pi, version, kind) {
   }
   // Principal(リソースベース・信頼ポリシー)
   let via = null;
-  if (kind === "resource" || kind === "trust") {
+  if (kind === "resource" || kind === "trust" || kind === "key") {
     if ("Principal" in st) { via = principalMatch(st.Principal, pi); if (!via) return { hit: false, why: "Principal が一致しない" }; }
     else if ("NotPrincipal" in st) { if (principalMatch(st.NotPrincipal, pi)) return { hit: false, why: "NotPrincipal に含まれる" }; via = "direct"; }
   }
@@ -258,7 +261,7 @@ export function evaluate(req, policies) {
     const doc = pol.doc;
     if (!doc || typeof doc !== "object") continue;
     // SCP・境界・アイデンティティは主体のアカウントのものだけが効く
-    if (["identity", "boundary", "scp"].includes(pol.kind) && (pi.type === "Service" || pi.type === "Anonymous")) continue;
+    if (["identity", "boundary", "scp"].includes(pol.kind) && (pi.type === "Service" || pi.type === "Anonymous" || pi.type === "Federated")) continue;
     if (pol.kind === "scp" && pi.type === "Account") continue; // 管理アカウントのルートは除外(学習用の単純化)
     const version = doc.Version;
     arr(doc.Statement || []).forEach((st, idx) => {
@@ -283,7 +286,8 @@ export function evaluate(req, policies) {
     trace.push({ step: "対応範囲", result: unsupported[0], decisive: true });
     return { decision: "unsupported", reason: `模擬評価の対応範囲外の要素があるため判定できません: ${unsupported[0]}`, matched, trace, principal: pi };
   }
-  const has = (k) => policies.some((p) => p.kind === k && !(["identity", "boundary", "scp"].includes(k) && (pi.type === "Service" || pi.type === "Anonymous")) && !(k === "scp" && pi.type === "Account"));
+  const external = pi.type === "Service" || pi.type === "Anonymous" || pi.type === "Federated";
+  const has = (k) => policies.some((p) => p.kind === k && !(["identity", "boundary", "scp"].includes(k) && external) && !(k === "scp" && pi.type === "Account"));
   const A = (k) => hits.Allow[k] || [];
   // ② SCP
   if (has("scp")) {
@@ -294,23 +298,32 @@ export function evaluate(req, policies) {
     trace.push({ step: "SCP", result: `許可の範囲内: ${A("scp").map(label).join("、")}` });
   }
   // ③ リソースベース(信頼ポリシーを含む)
-  const resAllow = [...A("resource"), ...A("trust")];
+  const resAllow = [...A("resource"), ...A("trust"), ...A("key")];
   const direct = resAllow.filter((r) => r.via === "direct");
   const resourceAccount = req.resourceAccount || policies.find((p) => p.kind === "resource" || p.kind === "trust")?.account || pi.account;
   const same = pi.account && resourceAccount === pi.account;
-  const hasRes = has("resource") || has("trust");
+  const hasRes = has("resource") || has("trust") || has("key");
   if (hasRes) trace.push({ step: "リソースベースのポリシー", result: resAllow.length ? `Allow が一致: ${resAllow.map((r) => `${label(r)}${r.via === "account" ? "(アカウント単位)" : ""}`).join("、")}` : "Allow の一致なし" });
   if (has("trust") && !A("trust").length) {
     trace.push({ step: "結果", result: "信頼ポリシーがこの主体を許可していない", decisive: true });
     return { decision: "implicit-deny", reason: "ロールを引き受けるには、そのロールの信頼ポリシーが主体を許可している必要がある(許可が無いので拒否)", matched, trace, principal: pi };
   }
-  if (pi.type === "Service" || pi.type === "Anonymous") {
+  // KMS: キーポリシーが許可しない限り、IAM ポリシーだけでは使えない(同じアカウントでも)
+  if (has("key") && !A("key").length) {
+    trace.push({ step: "結果", result: "キーポリシーがこの主体(またはアカウント)を許可していない", decisive: true });
+    return { decision: "implicit-deny", reason: "KMS キーは、キーポリシーが許可していないと IAM ポリシーだけでは使えない(キーポリシーにアカウントのルートか主体の許可が必要)", matched, trace, principal: pi };
+  }
+  if (external) {
     if (direct.length) { trace.push({ step: "結果", result: "リソースベースのポリシーが許可", decisive: true }); return { decision: "allow", reason: `リソースベースのポリシー(${direct.map(label).join("、")})が許可`, matched, trace, principal: pi }; }
     return { decision: "implicit-deny", reason: "この主体を許可するリソースベースのポリシーが無いため拒否(暗黙的な拒否)", matched, trace, principal: pi };
   }
-  if (same && direct.length && !has("trust")) {
+  if (same && direct.length && !has("trust") && !has("key")) {
     trace.push({ step: "結果", result: "同じアカウントで、リソースベースのポリシーが主体を直接指定して許可", decisive: true });
     return { decision: "allow", reason: `同じアカウント内では、主体を直接指定したリソースベースのポリシー(${direct.map(label).join("、")})だけで許可される`, matched, trace, principal: pi };
+  }
+  if (same && direct.length && has("key")) {
+    trace.push({ step: "結果", result: "キーポリシーが主体を直接指定して許可", decisive: true });
+    return { decision: "allow", reason: `キーポリシー(${direct.map(label).join("、")})が主体を直接指定して許可(この場合 IAM ポリシーは不要)`, matched, trace, principal: pi };
   }
   if (same && direct.length && has("trust")) {
     trace.push({ step: "結果", result: "信頼ポリシーが主体を直接指定して許可", decisive: true });

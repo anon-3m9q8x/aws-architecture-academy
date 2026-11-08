@@ -1,0 +1,222 @@
+// コマンド・ポリシー演習: API リクエスト(Phase 2 の 10 問)。IAM 認可・CORS・DynamoDB・SQS・EventBridge・Lambda・S3。
+// 署名(SigV4)は役割を学ぶためのダミー。本物のアクセスキー・シークレットキーは入力しない。
+import { apiEnv } from "./environments.js";
+import { parseHeaders } from "../../lab-engine/simulator-api.js";
+
+const H = "a1b2c3d4e5.execute-api.ap-northeast-1.amazonaws.com";
+const RH = "r4e5p6o7r8.execute-api.ap-northeast-1.amazonaws.com";
+const DDB = "https://dynamodb.ap-northeast-1.amazonaws.com/";
+const SQS = "https://sqs.ap-northeast-1.amazonaws.com/";
+const EVB = "https://events.ap-northeast-1.amazonaws.com/";
+const LAMBDA = "https://lambda.ap-northeast-1.amazonaws.com/2015-03-31/functions/order-total/invocations";
+const QURL = "https://sqs.ap-northeast-1.amazonaws.com/111122223333/orders.fifo";
+const okRes = (s, pred) => s.history.some((r) => r.status === "ok" && r.response && pred(r));
+const sig = (who, service) => `Authorization: AWS4-HMAC-SHA256 Credential=SIMULATED-${who}/20261108/ap-northeast-1/${service}/aws4_request, SignedHeaders=host;x-amz-date, Signature=simulated-not-a-real-signature\nX-Amz-Date: 20261108T060000Z`;
+const R = {
+  iamAuth: { title: "API Gateway の IAM 認可(SigV4 で署名して呼び出す)", url: "https://docs.aws.amazon.com/apigateway/latest/developerguide/permissions.html" },
+  execArn: { title: "API の呼び出し許可(execute-api:Invoke とリソースの ARN)", url: "https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-invoke-api.html" },
+  cors: { title: "REST API の CORS を有効にする", url: "https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-cors.html" },
+  mdnCors: { title: "オリジン間リソース共有(CORS)とプリフライト(MDN)", url: "https://developer.mozilla.org/ja/docs/Web/HTTP/CORS" },
+  call: { title: "API Gateway の REST API を呼び出す", url: "https://docs.aws.amazon.com/apigateway/latest/developerguide/how-to-call-api.html" },
+  putItem: { title: "DynamoDB API: PutItem", url: "https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_PutItem.html" },
+  cond: { title: "DynamoDB の条件式", url: "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ConditionExpressions.html" },
+  query: { title: "DynamoDB API: Query", url: "https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Query.html" },
+  reserved: { title: "DynamoDB の予約語", url: "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ReservedWords.html" },
+  sqsJson: { title: "Amazon SQS の AWS JSON プロトコル", url: "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-making-api-requests-json.html" },
+  sqsSend: { title: "SQS API: SendMessage", url: "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html" },
+  fifo: { title: "SQS FIFO キュー", url: "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues.html" },
+  putEvents: { title: "EventBridge API: PutEvents", url: "https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html" },
+  patterns: { title: "EventBridge のイベントパターン", url: "https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html" },
+  invoke: { title: "Lambda API: Invoke(InvocationType)", url: "https://docs.aws.amazon.com/lambda/latest/api/API_Invoke.html" },
+  async: { title: "Lambda の非同期呼び出し", url: "https://docs.aws.amazon.com/lambda/latest/dg/invocation-async.html" },
+  getObject: { title: "S3 API: GetObject", url: "https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html" },
+  bucketEx: { title: "Amazon S3 のバケットポリシーの例", url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html" },
+  bpa: { title: "S3 のブロックパブリックアクセス", url: "https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html" },
+  sigv4: { title: "AWS API リクエストの署名(SigV4)", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html" },
+  sigTrouble: { title: "SigV4 の署名のトラブルシューティング", url: "https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv-troubleshooting.html" },
+};
+
+export const API_QUESTIONS_2 = [
+  {
+    id: "api-iam-009", category: "api", mode: "fix", level: 3, examTags: ["DVA", "SCS", "SAP"], services: ["apigw", "iam"],
+    title: "【障害対応】IAM 認可の API が Missing Authentication Token",
+    scenario: "社内の BI ツールが、月次レポートの API(IAM 認可)を呼ぶと 403 Missing Authentication Token になります。URL とメソッドは正しいことを確認済みです。BI ツールのロール ReportReader として、2026-10 のレポートを取得してください。",
+    environment: [`API: https://${RH}/prod`, "GET /reports/{id}: IAM 認可(AWS_IAM)", "ReportReader の IAM ポリシー: execute-api:Invoke(…/prod/GET/reports/*)", "署名は「模擬署名を付ける」で ReportReader・サービス execute-api を選ぶ"],
+    requirements: ["SigV4 で署名したリクエストを送る", "200 でレポート 2026-10 を受け取る"],
+    editor: { language: "http", starter: { method: "GET", url: `https://${RH}/prod/reports/2026-10`, headers: "", body: "" }, env: apiEnv() },
+    goals: [{ label: "レポート 2026-10 を 200 で取得した", test: (s) => okRes(s, (r) => r.response.status === 200 && r.call?.route === "GET /reports/{id}" && r.response.data?.id === "2026-10") }],
+    hints: ["IAM 認可のメソッドには、SigV4 の Authorization ヘッダーが必要です。署名が無いと、名前のとおり「認証トークンが無い」という 403 になります。", "API Gateway を呼ぶときの署名のサービス名は execute-api です。", "Authorization: AWS4-HMAC-SHA256 Credential=SIMULATED-ReportReader/20261108/ap-northeast-1/execute-api/aws4_request, … と X-Amz-Date を付けます。"],
+    model: { method: "GET", url: `https://${RH}/prod/reports/2026-10`, headers: sig("ReportReader", "execute-api"), body: "" },
+    explain: {
+      point: "IAM 認可(AWS_IAM)のメソッドは、SigV4 で署名されたリクエストを受け取り、署名した主体に execute-api:Invoke の許可があるかを確認します。リソースの ARN は arn:aws:execute-api:<リージョン>:<アカウント>:<API ID>/<ステージ>/<メソッド>/<パス> の形で、ポリシーでメソッドやパスごとに絞れます。",
+      compare: "未定義のパスへのリクエストも同じ 403 Missing Authentication Token になるため、まず URL を確かめてから署名を疑います(api-path-002)。ブラウザのアプリの利用者向けには Cognito のオーソライザー、AWS の認証情報を持つサーバーやツール向けには IAM 認可、という使い分けが一般的です。",
+      pitfalls: ["署名のサービス名を apigateway にする(呼び出しは execute-api)", "API キー(x-api-key)を付ければよいと考える(API キーは認可ではなく使用量の管理)"],
+    },
+    references: [R.iamAuth, R.execArn, R.sigv4], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+  {
+    id: "api-cors-010", category: "api", mode: "exec", level: 2, examTags: ["DVA"], services: ["apigw"],
+    title: "CORS のプリフライトを送って、許可されるかを確かめる",
+    scenario: "フロントエンド(https://shop.example.com)から注文 API に POST する前に、ブラウザはプリフライト(OPTIONS)を送ります。ブラウザと同じプリフライトを手で送り、このオリジンからの POST が許可されることを確かめてください。",
+    environment: [`API: https://${H}/prod`, "/orders に CORS を設定済み(許可するオリジン https://shop.example.com)", "プリフライトには Origin・Access-Control-Request-Method ヘッダーを付ける"],
+    requirements: ["OPTIONS メソッドで /prod/orders に送る", "Origin と Access-Control-Request-Method: POST を付ける", "応答の Access-Control-Allow-Origin と Access-Control-Allow-Methods を確かめる"],
+    editor: { language: "http", starter: { method: "OPTIONS", url: `https://${H}/prod/orders`, headers: "", body: "" }, env: apiEnv() },
+    goals: [
+      { label: "Origin と Access-Control-Request-Method を付けてプリフライトを送った", test: (s) => okRes(s, (r) => { const h = parseHeaders(r.req.headers).headers; return r.req.method.toUpperCase() === "OPTIONS" && h.origin === "https://shop.example.com" && /POST/i.test(h["access-control-request-method"] || ""); }) },
+      { label: "応答で shop.example.com からの POST が許可された", test: (s) => okRes(s, (r) => r.response.headers["access-control-allow-origin"] === "https://shop.example.com" && /POST/.test(r.response.headers["access-control-allow-methods"] || "")) },
+    ],
+    hints: ["ヘッダーは 1 行に 1 つ、「名前: 値」で書きます。", "Origin: https://shop.example.com", "Access-Control-Request-Method: POST(必要なら Access-Control-Request-Headers: Content-Type,Authorization も)"],
+    model: { method: "OPTIONS", url: `https://${H}/prod/orders`, headers: "Origin: https://shop.example.com\nAccess-Control-Request-Method: POST\nAccess-Control-Request-Headers: Content-Type,Authorization", body: "" },
+    explain: {
+      point: "ブラウザは、別オリジンへの「単純ではない」リクエスト(JSON の POST や Authorization ヘッダー付きなど)の前に OPTIONS のプリフライトを送り、応答の Access-Control-Allow-Origin・Allow-Methods・Allow-Headers を確かめてから本番のリクエストを送ります。REST API では OPTIONS メソッド(モック統合)で応答を返します。",
+      compare: "Lambda プロキシ統合では、本番のリクエスト(POST など)の応答にも、Lambda 関数のコードで Access-Control-Allow-Origin を付ける必要があります。CORS はブラウザの仕組みなので、curl やサーバー間の呼び出しには関係しません(CORS は認可ではない)。",
+      pitfalls: ["CORS のエラーを、サーバー側の認証エラーと混同する", "Access-Control-Allow-Origin: * と認証情報(Cookie)を組み合わせる(ブラウザが拒否する)"],
+    },
+    references: [R.cors, R.mdnCors], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+  {
+    id: "api-delete-011", category: "api", mode: "fix", level: 2, examTags: ["DVA", "SOA"], services: ["apigw", "cognito"],
+    title: "【障害対応】注文のキャンセルが 403 になる",
+    scenario: "alice が保留中の注文 o-1004 をキャンセルしようとすると、403 Missing Authentication Token になります。トークンは有効です。API の定義に合わせてリクエストを直し、o-1004 を削除してください。",
+    environment: [`API: https://${H}/prod`, "DELETE /orders/{id}: Cognito オーソライザー。自分が作った注文だけ削除できる", "alice のトークン(模擬): eyJ.alice.valid", "o-1004: alice の注文、o-1002: bob の注文"],
+    requirements: ["o-1004 を削除する(204)", "bob の注文は削除しない"],
+    editor: { language: "http", starter: { method: "POST", url: `https://${H}/prod/orders/o-1004/cancel`, headers: "Authorization: Bearer eyJ.alice.valid", body: "" }, env: apiEnv() },
+    goals: [
+      { label: "o-1004 を削除した(204)", test: (s) => okRes(s, (r) => r.response.status === 204 && r.call?.deleted?.orderId === "o-1004") },
+      { label: "bob の注文 o-1002 は残っている", test: (s) => s.env.dynamodb.tables.Orders.items.some((x) => x.orderId === "o-1002") },
+    ],
+    hints: ["評価フローの「ルート」の行を見て、定義されているパスとメソッドを確かめます。", "この API では、注文のキャンセルは DELETE /orders/{id} です。"],
+    model: { method: "DELETE", url: `https://${H}/prod/orders/o-1004`, headers: "Authorization: Bearer eyJ.alice.valid", body: "" },
+    explain: {
+      point: "REST API は、定義されていないパス・メソッドへのリクエストに 403 Missing Authentication Token を返します。トークンが有効でも、ルートが一致しなければオーソライザーまで進みません。REST の設計では、リソース(/orders/{id})に対する操作をメソッド(DELETE)で表します。",
+      compare: "削除の成功は 204 No Content(本文なし)で返すのが一般的です。他人の注文 o-1002 を指定すると、オーソライザーは通過しますが、関数の中の所有者チェックで 403 になります。認可(誰か)と、データの所有者の確認(どのデータか)は別の層で行います。",
+      pitfalls: ["403 を見てトークンの再発行を繰り返す", "所有者の確認をフロントエンドだけで行う(API 側でも確認が必要)"],
+    },
+    references: [R.call, R.iamAuth], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+  {
+    id: "api-ddb-012", category: "api", mode: "write", level: 3, examTags: ["DVA", "SAA"], services: ["dynamodb", "iam"],
+    title: "DynamoDB の PutItem を、上書きしない条件付きで呼ぶ",
+    scenario: "OrderService として、新しい注文 o-3001(customer: bob、status: PENDING、total: 2600)を Orders テーブルに登録します。同じ ID の注文があっても上書きしないよう、条件付きで書き込んでください。",
+    environment: [`エンドポイント: ${DDB}`, "テーブル Orders(パーティションキー orderId: 文字列 S)", "OrderService には Orders の PutItem を許可", "署名は「模擬署名を付ける」で OrderService を選ぶ"],
+    requirements: ["X-Amz-Target で PutItem を指定する", "すべての値を型付きで書く(total は数値 N)", "ConditionExpression で、orderId が存在しないときだけ書き込む", "200 を受け取る"],
+    editor: { language: "http", starter: { method: "POST", url: DDB, headers: `Content-Type: application/x-amz-json-1.0\n${sig("OrderService", "dynamodb")}`, body: "{\n  \"TableName\": \"Orders\",\n  \"Item\": {\n    \n  }\n}" }, env: apiEnv() },
+    goals: [
+      { label: "条件付きの PutItem が 200 で成功した", test: (s) => okRes(s, (r) => r.response.status === 200 && r.call?.op === "PutItem" && /attribute_not_exists\(\s*orderId\s*\)/.test(r.req.body)) },
+      { label: "o-3001 が total 2600(数値)で保存された", test: (s) => s.env.dynamodb.tables.Orders.items.some((x) => x.orderId === "o-3001" && x.total === 2600 && x.customer === "bob" && x.status === "PENDING") },
+    ],
+    hints: ["X-Amz-Target: DynamoDB_20120810.PutItem", "\"Item\": { \"orderId\": {\"S\": \"o-3001\"}, \"total\": {\"N\": \"2600\"}, … }", "\"ConditionExpression\": \"attribute_not_exists(orderId)\""],
+    model: { method: "POST", url: DDB, headers: `Content-Type: application/x-amz-json-1.0\nX-Amz-Target: DynamoDB_20120810.PutItem\n${sig("OrderService", "dynamodb")}`, body: "{\n  \"TableName\": \"Orders\",\n  \"Item\": {\n    \"orderId\": { \"S\": \"o-3001\" },\n    \"customer\": { \"S\": \"bob\" },\n    \"status\": { \"S\": \"PENDING\" },\n    \"total\": { \"N\": \"2600\" }\n  },\n  \"ConditionExpression\": \"attribute_not_exists(orderId)\"\n}" },
+    explain: {
+      point: "PutItem は既定で同じキーの項目を丸ごと置き換えます。ConditionExpression に attribute_not_exists(orderId) を書くと、項目が無いときだけ書き込み、あれば 400 ConditionalCheckFailedException を返します。条件の確認と書き込みは 1 つの操作として行われるため、先に GetItem で確かめるより安全です(競合が起きない)。",
+      compare: "Item の中の属性名 status は予約語ですが、Item のキーとして書く分には問題ありません(予約語の制限は式の中だけ)。数値の N は文字列で渡します。冪等にリトライしたいときは、ClientRequestToken が使える TransactWriteItems も選択肢です。",
+      pitfalls: ["total を {\"N\": 2600} と数値のまま書く → SerializationException", "ConditionExpression を付けずに既存の注文を上書きする"],
+    },
+    references: [R.putItem, R.cond, R.sigv4], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+  {
+    id: "api-ddb-013", category: "api", mode: "fix", level: 3, examTags: ["DVA", "SOA"], services: ["dynamodb"],
+    title: "【障害対応】インデックスの Query が「reserved keyword」で失敗",
+    scenario: "OrderService が、保留中(PENDING)の注文をインデックス StatusIndex から取得するリクエストを送ると 400 ValidationException になります。リクエストを直して、保留中の注文を取得してください。",
+    environment: [`エンドポイント: ${DDB}`, "テーブル Orders、GSI StatusIndex(パーティションキー status)", "OrderService には Orders とそのインデックス(table/Orders/index/*)の Query を許可"],
+    requirements: ["StatusIndex を使って status = PENDING の注文を取得する(2 件)"],
+    editor: { language: "http", starter: { method: "POST", url: DDB, headers: `Content-Type: application/x-amz-json-1.0\nX-Amz-Target: DynamoDB_20120810.Query\n${sig("OrderService", "dynamodb")}`, body: "{\n  \"TableName\": \"Orders\",\n  \"IndexName\": \"StatusIndex\",\n  \"KeyConditionExpression\": \"status = :s\",\n  \"ExpressionAttributeValues\": { \":s\": { \"S\": \"PENDING\" } }\n}" }, env: apiEnv() },
+    goals: [{ label: "StatusIndex から PENDING の注文 2 件を取得した", test: (s) => okRes(s, (r) => r.response.status === 200 && r.call?.op === "Query" && r.response.data?.Count === 2) }],
+    hints: ["status は DynamoDB の予約語です。", "式では #s のようなプレースホルダーを使い、\"ExpressionAttributeNames\": { \"#s\": \"status\" } を加えます。"],
+    model: { method: "POST", url: DDB, headers: `Content-Type: application/x-amz-json-1.0\nX-Amz-Target: DynamoDB_20120810.Query\n${sig("OrderService", "dynamodb")}`, body: "{\n  \"TableName\": \"Orders\",\n  \"IndexName\": \"StatusIndex\",\n  \"KeyConditionExpression\": \"#s = :s\",\n  \"ExpressionAttributeNames\": { \"#s\": \"status\" },\n  \"ExpressionAttributeValues\": { \":s\": { \"S\": \"PENDING\" } }\n}" },
+    explain: {
+      point: "式(KeyConditionExpression・FilterExpression・UpdateExpression など)の中で予約語を属性名として使うには、ExpressionAttributeNames で置き換えます。インデックスへの Query の認可は、インデックスの ARN(table/Orders/index/StatusIndex)に対して行われるため、IAM ポリシーにもインデックスの ARN が必要です。",
+      compare: "テーブルの ARN だけを許可していると、インデックスへの Query は AccessDenied になります。インデックスの設計では、よく使う検索条件(状態・日付など)をパーティションキーにした GSI を用意し、Scan を避けます。",
+      pitfalls: ["属性名を \"status\" と引用符で囲めば回避できると考える", "IndexName を付けずに status で Query する → キーのスキーマに合わない"],
+    },
+    references: [R.query, R.reserved], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+  {
+    id: "api-sqs-014", category: "api", mode: "fix", level: 3, examTags: ["DVA", "SAA"], services: ["sqs"],
+    title: "【障害対応】FIFO キューへの SendMessage が 400 になる",
+    scenario: "OrderService が FIFO キュー orders.fifo に注文のメッセージを送ると 400 MissingParameter になります。顧客ごとに順序を守り、同じ注文の二重送信を防ぐ形に直してください。",
+    environment: [`エンドポイント: ${SQS}(AWS JSON プロトコル)`, `キュー URL: ${QURL}(FIFO、コンテンツに基づく重複排除は無効)`, "OrderService には orders.fifo の SendMessage を許可"],
+    requirements: ["MessageGroupId に顧客を表す値(例: customer-bob)を指定", "MessageDeduplicationId に注文 ID(o-1002)を指定", "200 を受け取る"],
+    editor: { language: "http", starter: { method: "POST", url: SQS, headers: `Content-Type: application/x-amz-json-1.0\nX-Amz-Target: AmazonSQS.SendMessage\n${sig("OrderService", "sqs")}`, body: `{\n  "QueueUrl": "${QURL}",\n  "MessageBody": "{\\"orderId\\": \\"o-1002\\", \\"customer\\": \\"bob\\"}"\n}` }, env: apiEnv() },
+    goals: [{ label: "グループ ID・重複排除 ID 付きで送信した", test: (s) => okRes(s, (r) => r.response.status === 200 && r.call?.sent && /"MessageGroupId"\s*:\s*"[^"]*bob[^"]*"/.test(r.req.body) && /"MessageDeduplicationId"\s*:\s*"o-1002"/.test(r.req.body)) }],
+    hints: ["FIFO キューには MessageGroupId が必須です。", "重複排除が無効のキューでは MessageDeduplicationId も必要です。", "本文に \"MessageGroupId\": \"customer-bob\", \"MessageDeduplicationId\": \"o-1002\" を加えます。"],
+    model: { method: "POST", url: SQS, headers: `Content-Type: application/x-amz-json-1.0\nX-Amz-Target: AmazonSQS.SendMessage\n${sig("OrderService", "sqs")}`, body: `{\n  "QueueUrl": "${QURL}",\n  "MessageBody": "{\\"orderId\\": \\"o-1002\\", \\"customer\\": \\"bob\\"}",\n  "MessageGroupId": "customer-bob",\n  "MessageDeduplicationId": "o-1002"\n}` },
+    explain: {
+      point: "SQS は AWS JSON プロトコル(X-Amz-Target: AmazonSQS.<操作名>、Content-Type: application/x-amz-json-1.0)に対応しています。FIFO キューでは、MessageGroupId ごとに順序が守られ、MessageDeduplicationId が同じメッセージは 5 分間 1 回だけ受け付けられます。",
+      compare: "従来の Query プロトコル(Action=SendMessage のフォーム形式)も使えますが、現在の SDK は JSON プロトコルを使います。MessageBody は文字列なので、JSON を送るときは文字列にエスケープします。",
+      pitfalls: ["MessageGroupId に毎回ランダムな値を使う → 順序が保証されない", "MessageBody に JSON のオブジェクトをそのまま書く → 文字列にする"],
+    },
+    references: [R.sqsJson, R.sqsSend, R.fifo], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+  {
+    id: "api-events-015", category: "api", mode: "write", level: 3, examTags: ["DVA", "SAA"], services: ["eventbridge"],
+    title: "EventBridge にイベントを送り、高額注文のルールを動かす",
+    scenario: "OrderService として、注文 o-5100(合計 15000 円)が確定したイベントを既定のイベントバスに送ってください。ルール big-order-review(合計 10000 以上)にも届くようにします。",
+    environment: [`エンドポイント: ${EVB}(AWS JSON 1.1 プロトコル)`, "ルール: order-placed-to-sqs(source app.orders・detail-type OrderPlaced)、big-order-review(さらに detail.total >= 10000)", "OrderService には default バスへの events:PutEvents を許可"],
+    requirements: ["X-Amz-Target: AWSEvents.PutEvents", "Source: app.orders、DetailType: OrderPlaced", "Detail に orderId と total(数値)を入れる", "FailedEntryCount が 0 で、big-order-review に一致する"],
+    editor: { language: "http", starter: { method: "POST", url: EVB, headers: `Content-Type: application/x-amz-json-1.1\n${sig("OrderService", "events")}`, body: "{\n  \"Entries\": [\n    \n  ]\n}" }, env: apiEnv() },
+    goals: [
+      { label: "FailedEntryCount が 0", test: (s) => okRes(s, (r) => r.call?.kind === "events" && r.response.data?.FailedEntryCount === 0) },
+      { label: "big-order-review に一致した", test: (s) => okRes(s, (r) => (r.call?.deliveries || []).some((d) => d.rule === "big-order-review")) },
+    ],
+    hints: ["X-Amz-Target: AWSEvents.PutEvents を加えます。", "Entries の各要素に Source・DetailType・Detail を書きます。", "Detail は JSON を文字列にしたもの: \"Detail\": \"{\\\"orderId\\\": \\\"o-5100\\\", \\\"total\\\": 15000}\""],
+    model: { method: "POST", url: EVB, headers: `Content-Type: application/x-amz-json-1.1\nX-Amz-Target: AWSEvents.PutEvents\n${sig("OrderService", "events")}`, body: "{\n  \"Entries\": [\n    {\n      \"Source\": \"app.orders\",\n      \"DetailType\": \"OrderPlaced\",\n      \"Detail\": \"{\\\"orderId\\\": \\\"o-5100\\\", \\\"total\\\": 15000}\"\n    }\n  ]\n}" },
+    explain: {
+      point: "EventBridge は、受け取ったイベントを、バスのすべてのルールのパターンと照合し、一致したルールのターゲットに届けます。1 つのイベントが複数のルールに一致することもあります(ここでは order-placed-to-sqs と big-order-review の両方)。Detail は文字列で送り、EventBridge が JSON として解釈します。",
+      compare: "total を文字列(\"15000\")で送ると、numeric の条件に一致しません。どのルールにも一致しないイベントもエラーにはならず、捨てられるだけです。送信元と受信側の取り決め(スキーマ)は、EventBridge のスキーマレジストリで管理できます。",
+      pitfalls: ["Detail をオブジェクトのまま書く → MalformedDetail", "Content-Type を application/x-amz-json-1.0 にする(EventBridge は 1.1)", "HTTP 200 だけを見て、FailedEntryCount を確認しない"],
+    },
+    references: [R.putEvents, R.patterns], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+  {
+    id: "api-lambda-016", category: "api", mode: "write", level: 2, examTags: ["DVA", "SAA"], services: ["lambda"],
+    title: "Lambda を非同期(Event)で呼び出す",
+    scenario: "注文の集計は時間がかかることがあるため、結果を待たずに Lambda 関数 order-total を呼び出します。OrderService として非同期で呼び出し、受け付けられたこと(202)を確かめてください。",
+    environment: [`エンドポイント: ${LAMBDA}`, "OrderService には order-total の lambda:InvokeFunction を許可", "署名は「模擬署名を付ける」で OrderService・サービス lambda を選ぶ"],
+    requirements: ["POST で Invoke を呼ぶ", "呼び出しの種類を非同期(Event)にする", "202 Accepted を受け取る"],
+    editor: { language: "http", starter: { method: "POST", url: LAMBDA, headers: `Content-Type: application/json\n${sig("OrderService", "lambda")}`, body: "{\n  \"orderId\": \"o-5100\",\n  \"items\": [{ \"price\": 5000, \"qty\": 3 }]\n}" }, env: apiEnv() },
+    goals: [{ label: "非同期で呼び出し、202 を受け取った", test: (s) => okRes(s, (r) => r.response.status === 202 && r.call?.kind === "lambda" && r.call.type === "Event") }],
+    hints: ["呼び出しの種類は X-Amz-Invocation-Type ヘッダーで指定します。", "既定は RequestResponse(同期)で、200 と関数の結果が返ります。", "X-Amz-Invocation-Type: Event"],
+    model: { method: "POST", url: LAMBDA, headers: `Content-Type: application/json\nX-Amz-Invocation-Type: Event\n${sig("OrderService", "lambda")}`, body: "{\n  \"orderId\": \"o-5100\",\n  \"items\": [{ \"price\": 5000, \"qty\": 3 }]\n}" },
+    explain: {
+      point: "非同期呼び出し(Event)では、Lambda がイベントを内部のキューに入れて 202 をすぐに返し、関数は後で実行されます。失敗したときは既定で 2 回まで再試行され、それでも失敗したイベントは、送信先(OnFailure)やデッドレターキューで受け取れます。",
+      compare: "同期呼び出し(RequestResponse)は関数の結果を待って 200 を返します。DryRun は権限とパラメーターだけを確認して 204 を返します。S3 や EventBridge からの呼び出しは非同期、API Gateway からの呼び出しは同期です。",
+      pitfalls: ["非同期でも関数の戻り値を受け取れると考える", "再試行で同じイベントが複数回処理されることを考慮しない(冪等に作る)"],
+    },
+    references: [R.invoke, R.async, R.sigv4], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+  {
+    id: "api-s3anon-017", category: "api", mode: "exec", level: 1, examTags: ["CLF", "SAA"], services: ["s3"],
+    title: "公開プレフィックスのオブジェクトを、署名なしで取得する",
+    scenario: "サイトのロゴ public/logo.png は、バケットポリシーで公開(匿名での読み取り)にしてあります。署名を付けずに GET で取得できることを確かめてください。同じバケットの private/ 配下は公開していません。",
+    environment: ["バケット public-assets-111122223333(ap-northeast-1)", "バケットポリシー: Principal \"*\" に public/* の s3:GetObject を許可", "このバケットはブロックパブリックアクセスを、公開用に意図して解除済み"],
+    requirements: ["Authorization ヘッダーを付けない(匿名)", "public/logo.png を 200 で取得する"],
+    editor: { language: "http", starter: { method: "GET", url: "https://public-assets-111122223333.s3.ap-northeast-1.amazonaws.com/private/draft.png", headers: "", body: "" }, env: apiEnv() },
+    goals: [{ label: "匿名で public/logo.png を 200 で取得した", test: (s) => okRes(s, (r) => r.response.status === 200 && r.call?.kind === "s3" && r.call.key === "public/logo.png" && r.call.principal === "anonymous") }],
+    hints: ["まずそのまま送って、private/ 配下が 403 になることを確かめましょう。", "仮想ホスト形式の URL: https://<バケット名>.s3.<リージョン>.amazonaws.com/<キー>"],
+    model: { method: "GET", url: "https://public-assets-111122223333.s3.ap-northeast-1.amazonaws.com/public/logo.png", headers: "", body: "" },
+    explain: {
+      point: "署名の無いリクエストは匿名の主体として評価され、バケットポリシーの Principal \"*\" の許可に一致したときだけ成功します。ポリシーの Resource が public/* なので、private/ 配下は 403 AccessDenied です。",
+      compare: "ウェブサイトの配信には、バケットを公開するより、CloudFront の OAC で S3 を非公開のまま配信する方法が推奨されます(iam-oac-024)。一時的に特定のファイルを渡すなら、署名付き URL を使います。アカウント全体でブロックパブリックアクセスを有効にしておき、公開が必要なバケットだけを例外にするのが安全です。",
+      pitfalls: ["バケット全体(Resource: bucket/*)を公開する", "公開しているつもりが、ブロックパブリックアクセスで無効になっている(この環境では対象外)"],
+    },
+    references: [R.getObject, R.bucketEx, R.bpa], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+  {
+    id: "api-sigv4-018", category: "api", mode: "fix", level: 3, examTags: ["DVA", "SCS"], services: ["lambda", "iam"],
+    title: "【障害対応】InvalidSignatureException: scoped to correct service",
+    scenario: "DynamoDB を呼ぶコードを流用して Lambda の Invoke を呼んだところ、400 InvalidSignatureException(Credential should be scoped to correct service)になります。署名を直して、order-total を同期で呼び出し、合計金額を受け取ってください。",
+    environment: [`エンドポイント: ${LAMBDA}`, "OrderService には order-total の lambda:InvokeFunction を許可", "関数は items の price × qty の合計を返す"],
+    requirements: ["署名の資格情報のスコープを、呼び出し先のサービスに合わせる", "200 で total 15000 を受け取る"],
+    editor: { language: "http", starter: { method: "POST", url: LAMBDA, headers: `Content-Type: application/json\n${sig("OrderService", "dynamodb")}`, body: "{\n  \"orderId\": \"o-5100\",\n  \"items\": [{ \"price\": 5000, \"qty\": 3 }]\n}" }, env: apiEnv() },
+    goals: [{ label: "200 で total 15000 を受け取った", test: (s) => okRes(s, (r) => r.response.status === 200 && r.call?.kind === "lambda" && r.call.result?.total === 15000) }],
+    hints: ["Credential=<鍵>/<日付>/<リージョン>/<サービス>/aws4_request の「サービス」の部分を見ます。", "Lambda の署名のサービス名は lambda です。"],
+    model: { method: "POST", url: LAMBDA, headers: `Content-Type: application/json\n${sig("OrderService", "lambda")}`, body: "{\n  \"orderId\": \"o-5100\",\n  \"items\": [{ \"price\": 5000, \"qty\": 3 }]\n}" },
+    explain: {
+      point: "SigV4 の署名鍵は、日付・リージョン・サービス名から導出されます(資格情報のスコープ)。スコープがエンドポイントのサービスやリージョンと違うと、署名の計算以前に InvalidSignatureException で拒否されます。スコープは「どこに対する署名か」を限定し、署名の流用を防ぎます。",
+      compare: "S3 では同じ誤りが AuthorizationHeaderMalformed として返ります。SDK や CLI は、エンドポイントからサービス名とリージョンを自動で決めるため、自前で署名するときだけ起きやすい誤りです。時刻が 5 分以上ずれていると、別のエラー(SignatureDoesNotMatch・RequestExpired)になります。",
+      pitfalls: ["IAM の権限を疑って、ポリシーを変更する(認可より前の段階のエラー)", "リージョンだけを直して、サービス名を直さない"],
+    },
+    references: [R.sigv4, R.sigTrouble, R.invoke], reviewedAt: "2026-11-08", contentVersion: 1,
+  },
+];

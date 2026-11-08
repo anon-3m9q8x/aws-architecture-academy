@@ -3,6 +3,7 @@
 // 署名(SigV4)は役割を学ぶためのダミーで、Credential=SIMULATED-<名前> の形だけを受け付ける。本物のアクセスキーは拒否する。
 import { parseJson } from "./json.js";
 import { evaluate } from "./simulator-iam.js";
+import { matchPattern, toEvent } from "./events.js";
 
 /** 本物の認証情報らしい文字列(アクセスキー ID・シークレットキー・セッショントークン)を検出 */
 export function looksLikeSecret(s) {
@@ -55,6 +56,8 @@ export function sendRequest(session, req) {
     else if (/^dynamodb\.[a-z0-9-]+\.amazonaws\.com$/.test(host)) response = dynamo(ctx);
     else if (/^lambda\.[a-z0-9-]+\.amazonaws\.com$/.test(host)) response = lambdaApi(ctx);
     else if (/^[a-z0-9.-]+\.s3\.[a-z0-9-]+\.amazonaws\.com$/.test(host)) response = s3Rest(ctx);
+    else if (/^sqs\.[a-z0-9-]+\.amazonaws\.com$/.test(host)) response = sqsApi(ctx);
+    else if (/^events\.[a-z0-9-]+\.amazonaws\.com$/.test(host)) response = eventsApi(ctx);
     else return done({ status: "unsupported", problems: [`ホスト「${host}」は模擬環境にありません`, `この問題で使えるホスト: ${[...Object.values(env.apis || {}).map((a) => a.host), ...(env.apiHosts || [])].join(", ")}`], flow, req });
   } catch (e) {
     if (e instanceof Unsup) return done({ status: "unsupported", problems: [e.message], flow, req });
@@ -222,6 +225,8 @@ const handlers = {
 };
 
 /* ---------- DynamoDB(JSON 1.0 プロトコル) ---------- */
+// DynamoDB の予約語(一部)。式の中では #名前 と ExpressionAttributeNames で置き換える
+export const DDB_RESERVED = new Set(["status", "name", "date", "data", "size", "type", "user", "time", "count", "value", "timestamp", "year", "month", "day", "comment", "key", "level", "region", "state", "order", "group", "owner", "total", "items", "role", "zone"]);
 const ATTR = { S: "string", N: "number-string", BOOL: "boolean", L: "array", M: "object", NULL: "boolean", SS: "array", NS: "array" };
 function dynamo(ctx) {
   const { headers, env, flow } = ctx;
@@ -240,7 +245,7 @@ function dynamo(ctx) {
   const tableName = body?.TableName;
   if (!tableName) return json(400, { __type: "com.amazon.coral.validate#ValidationException", message: "1 validation error detected: Value null at 'tableName' failed to satisfy constraint: Member must not be null" });
   const region = /^dynamodb\.([a-z0-9-]+)\./.exec(ctx.url.hostname)[1];
-  const arn = `arn:aws:dynamodb:${region}:${env.account}:table/${tableName}`;
+  const arn = `arn:aws:dynamodb:${region}:${env.account}:table/${tableName}${op === "Query" && body.IndexName ? `/index/${body.IndexName}` : ""}`;
   ctx.call = { kind: "dynamodb", op, table: tableName, principal: sig.who };
   const keyVals = op === "Query" ? leadingKeys(body) : body.Key ? [unwrap(body.Key[Object.keys(body.Key)[0]])] : body.Item ? [unwrap(body.Item[env.dynamodb.tables[tableName]?.key])] : [];
   const r = authz(ctx, sig.principal, `dynamodb:${op}`, arn, keyVals.length ? { "dynamodb:LeadingKeys": keyVals.map(String) } : {});
@@ -285,7 +290,9 @@ function dynamo(ctx) {
   const kce = (body.KeyConditionExpression || "").replace(/\s+/g, " ").trim();
   const km = /^#?([A-Za-z0-9_]+) = (:[A-Za-z0-9_]+)$/.exec(kce);
   if (!km) { if (!kce) return json(400, { __type: "com.amazon.coral.validate#ValidationException", message: "Either the KeyConditions or KeyConditionExpression parameter must be specified in the request." }); throw new Unsup("この環境の KeyConditionExpression は「キー = :値」の形だけに対応しています"); }
+  if (!kce.startsWith("#") && DDB_RESERVED.has(km[1].toLowerCase())) { flow.push({ step: "Query", result: `「${km[1]}」は DynamoDB の予約語。#名前 と ExpressionAttributeNames で置き換える`, ok: false }); return json(400, { __type: "com.amazon.coral.validate#ValidationException", message: `Invalid KeyConditionExpression: Attribute name is a reserved keyword; reserved keyword: ${km[1]}` }); }
   const name = kce.startsWith("#") ? body.ExpressionAttributeNames?.["#" + km[1]] : km[1];
+  if (kce.startsWith("#") && !name) return json(400, { __type: "com.amazon.coral.validate#ValidationException", message: `Invalid KeyConditionExpression: An expression attribute name used in the document path is not defined; attribute name: #${km[1]}` });
   const av = body.ExpressionAttributeValues?.[km[2]];
   if (!av) return json(400, { __type: "com.amazon.coral.validate#ValidationException", message: `Invalid KeyConditionExpression: An expression attribute value used in expression is not defined; attribute value: ${km[2]}` });
   const e = typeErr(av, km[2]);
@@ -378,7 +385,78 @@ function s3Rest(ctx) {
   return { status: 200, statusText: "OK", headers: { etag: '"simulated"', "x-amz-server-side-encryption": extra["s3:x-amz-server-side-encryption"] || "AES256" }, body: "", data: null };
 }
 
+/* ---------- JSON プロトコル(X-Amz-Target)の共通部品 ---------- */
+function jsonProtocol(ctx, service, prefix, ctype, ops) {
+  const { headers, flow } = ctx;
+  if (ctx.method !== "POST") { flow.push({ step: service, result: "この API は POST / で呼び出す", ok: false }); return { error: json(400, { __type: "UnknownOperationException" }) }; }
+  const m = new RegExp(`^${prefix.replace(".", "\\.")}\\.([A-Za-z]+)$`).exec(headers["x-amz-target"] || "");
+  if (!m) { flow.push({ step: service, result: headers["x-amz-target"] ? `X-Amz-Target「${headers["x-amz-target"]}」が正しくない(${prefix}.操作名)` : `X-Amz-Target ヘッダーが無い(${prefix}.操作名)`, ok: false }); return { error: json(400, { __type: "UnknownOperationException", message: "" }) }; }
+  if ((headers["content-type"] || "") !== ctype) flow.push({ step: "Content-Type", result: `「${headers["content-type"] || "なし"}」(${service} は ${ctype})`, ok: false });
+  const sig = sigv4(ctx, service);
+  if (sig.error) return { error: sigErrorJson(sig, service) };
+  if (!ops.includes(m[1])) throw new Unsup(`${service} の ${m[1]} は学習用環境では未対応です(${ops.join(" / ")})`);
+  let body;
+  try { body = parseJson(ctx.body).value; } catch (e) { flow.push({ step: "本文", result: `JSON として読めない(${e.line} 行 ${e.col} 列)`, ok: false }); return { error: json(400, { __type: "SerializationException", message: "Start of structure or map found where not expected." }) }; }
+  return { op: m[1], sig, body };
+}
+function resPolicyAuthz(ctx, principal, action, resource, policy, account, extra = {}) {
+  const policies = [...(ctx.env.policies || []), ...(policy ? [{ kind: "resource", name: policy.name, doc: policy.doc, account }] : [])];
+  const r = evaluate({ principal, action, resource, resourceAccount: account, context: { "aws:SecureTransport": String(ctx.url.protocol === "https:"), "aws:SourceIp": ctx.env.sourceIp || "203.0.113.10", ...extra } }, policies);
+  ctx.flow.push({ step: `IAM の認可(${action})`, result: `${r.decision === "allow" ? "許可" : r.decision === "unsupported" ? "判定対象外" : "拒否"}: ${r.reason}`, ok: r.decision === "allow", trace: r.trace });
+  if (r.decision === "unsupported") throw new Unsup(r.reason);
+  return r;
+}
+/* ---------- SQS(JSON プロトコル) ---------- */
+function sqsApi(ctx) {
+  const j = jsonProtocol(ctx, "sqs", "AmazonSQS", "application/x-amz-json-1.0", ["SendMessage", "GetQueueAttributes"]);
+  if (j.error) return j.error;
+  const { op, sig, body } = j;
+  const m = /^https:\/\/sqs\.([a-z0-9-]+)\.amazonaws\.com\/(\d{12})\/(.+)$/.exec(body.QueueUrl || "");
+  if (!m) return json(400, { __type: "com.amazonaws.sqs#InvalidAddress", message: "The address is not valid for this endpoint." });
+  const q = ctx.env.sqs?.queues?.[m[3]];
+  const arn = `arn:aws:sqs:${m[1]}:${m[2]}:${m[3]}`;
+  ctx.call = { kind: "sqs", op, queue: m[3], principal: sig.who };
+  const r = resPolicyAuthz(ctx, sig.principal, `sqs:${op}`, arn, q?.policy ? { name: `${m[3]} のキューポリシー`, doc: q.policy } : null, m[2]);
+  if (r.decision !== "allow") return json(400, { __type: "com.amazonaws.sqs#AccessDenied", message: "Access to the resource " + body.QueueUrl + " is denied." });
+  if (!q) return json(400, { __type: "com.amazonaws.sqs#QueueDoesNotExist", message: "The specified queue does not exist." });
+  if (op === "GetQueueAttributes") return json(200, { Attributes: { ApproximateNumberOfMessages: String((q.messages || []).length), QueueArn: arn } });
+  if (typeof body.MessageBody !== "string" || !body.MessageBody) return json(400, { __type: "com.amazonaws.sqs#MissingParameter", message: "The request must contain the parameter MessageBody." });
+  if (q.fifo && !body.MessageGroupId) { ctx.flow.push({ step: "FIFO キュー", result: "MessageGroupId が必要", ok: false }); return json(400, { __type: "com.amazonaws.sqs#MissingParameter", message: "The request must contain the parameter MessageGroupId." }); }
+  if (q.fifo && !q.contentDedup && !body.MessageDeduplicationId) { ctx.flow.push({ step: "FIFO キュー", result: "重複排除 ID(またはコンテンツに基づく重複排除)が必要", ok: false }); return json(400, { __type: "com.amazonaws.sqs#InvalidParameterValue", message: "The queue should either have ContentBasedDeduplication enabled or MessageDeduplicationId provided explicitly" }); }
+  (q.messages ||= []).push({ body: body.MessageBody, group: body.MessageGroupId });
+  ctx.call.sent = true;
+  ctx.flow.push({ step: "SendMessage", result: `キュー ${m[3]} にメッセージを追加`, ok: true });
+  return json(200, { MD5OfMessageBody: "simulated", MessageId: `0000${q.messages.length}-sim-message` });
+}
+/* ---------- EventBridge(JSON プロトコル) ---------- */
+function eventsApi(ctx) {
+  const j = jsonProtocol(ctx, "events", "AWSEvents", "application/x-amz-json-1.1", ["PutEvents"]);
+  if (j.error) return j.error;
+  const { sig, body } = j;
+  const env = ctx.env;
+  const entries = body.Entries;
+  if (!Array.isArray(entries) || !entries.length) return json(400, { __type: "ValidationException", message: "1 validation error detected: Value null at 'entries' failed to satisfy constraint: Member must not be null" });
+  ctx.call = { kind: "events", op: "PutEvents", principal: sig.who, deliveries: [] };
+  const results = [];
+  entries.forEach((e, i) => {
+    const bus = e.EventBusName || "default";
+    const r = resPolicyAuthz(ctx, sig.principal, "events:PutEvents", `arn:aws:events:${env.region}:${env.account}:event-bus/${bus}`, null, env.account);
+    if (r.decision !== "allow") { results.push({ ErrorCode: "AccessDeniedException", ErrorMessage: "Not authorized" }); return; }
+    if (!e.Source || !e.DetailType || e.Detail === undefined) { results.push({ ErrorCode: "InvalidArgument", ErrorMessage: "Parameter(s) Source, DetailType, Detail must be specified" }); return; }
+    if (typeof e.Detail !== "string") { results.push({ ErrorCode: "MalformedDetail", ErrorMessage: "Detail is malformed." }); ctx.flow.push({ step: `エントリー ${i + 1}`, result: "Detail は JSON を文字列にしたもので指定する", ok: false }); return; }
+    let ev;
+    try { ev = toEvent(e, env, i); } catch { results.push({ ErrorCode: "MalformedDetail", ErrorMessage: "Detail is malformed." }); ctx.flow.push({ step: `エントリー ${i + 1}`, result: "Detail の文字列が JSON として読めない", ok: false }); return; }
+    results.push({ EventId: ev.id });
+    const hit = (env.events?.rules || []).filter((r2) => (r2.bus || "default") === bus && r2.state !== "DISABLED" && r2.pattern && matchPattern(r2.pattern, ev));
+    hit.forEach((r2) => ctx.call.deliveries.push({ rule: r2.name, targets: r2.targets }));
+    ctx.flow.push({ step: `エントリー ${i + 1} のルール照合`, result: hit.length ? `一致: ${hit.map((r2) => `${r2.name} → ${r2.targets.join("、")}`).join(" / ")}` : "一致するルールなし(受け付けられるが、どこにも配信されない)", ok: hit.length > 0 });
+  });
+  const failed = results.filter((r) => r.ErrorCode).length;
+  return json(200, { FailedEntryCount: failed, Entries: results });
+}
+
 /** 模擬署名のヘッダーを作る(UI の「模擬署名を付ける」ボタン用) */
 export function simulatedSignature(who, service, region, date = "20261108") {
   return `Authorization: AWS4-HMAC-SHA256 Credential=SIMULATED-${who}/${date}/${region}/${service}/aws4_request, SignedHeaders=host;x-amz-date, Signature=simulated-not-a-real-signature\nX-Amz-Date: ${date}T060000Z`;
 }
+export { wrap, unwrap };

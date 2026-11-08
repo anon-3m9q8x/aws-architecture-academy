@@ -14,15 +14,19 @@ export class JsonSyntaxError extends Error {
 
 const WS = new Set([" ", "\t", "\n", "\r"]);
 
-/** 構文解析。成功すれば値、失敗すれば JsonSyntaxError を投げる。重複キーは dupKeys に記録する */
+export const pathKey = (path) => path.map(String).join("\u0001");
+/** 構文解析。成功すれば値、失敗すれば JsonSyntaxError を投げる。重複キーは dupKeys に、各値の位置は pos(path) で引ける */
 export function parseJson(src) {
   let i = 0;
   const dupKeys = [];
+  const at = new Map(); // パス → 値(またはキー)の開始位置
+  let path = [];
   const fail = (msg, hint, at = i) => { throw new JsonSyntaxError(msg, Math.min(at, src.length), src, hint); };
   const ws = () => { while (i < src.length && WS.has(src[i])) i++; };
   const ch = () => src[i];
   function value() {
     ws();
+    if (!at.has(pathKey(path))) at.set(pathKey(path), i);
     const c = ch();
     if (c === "{") return object();
     if (c === "[") return array();
@@ -50,7 +54,10 @@ export function parseJson(src) {
       ws();
       if (ch() !== ":") fail(`キー「${k}」の後ろにコロン(:)が必要です`);
       i++;
+      path.push(k);
+      at.set(pathKey(path), keyAt);
       out[k] = value();
+      path.pop();
       ws();
       if (ch() === ",") { i++; continue; }
       if (ch() === "}") { i++; return out; }
@@ -67,7 +74,9 @@ export function parseJson(src) {
     for (;;) {
       ws();
       if (ch() === "]") fail("配列の最後の要素の後ろにカンマ(,)があります", "JSON は末尾のカンマを許しません");
+      path.push(out.length);
       out.push(value());
+      path.pop();
       ws();
       if (ch() === ",") { i++; continue; }
       if (ch() === "]") { i++; return out; }
@@ -108,7 +117,9 @@ export function parseJson(src) {
   const v = value();
   ws();
   if (i < src.length) fail("JSON の終わりの後ろに余分な文字があります", "最上位は 1 つのオブジェクト {...} にします");
-  return { value: v, dupKeys };
+  /** パスの位置(行・列)。見つからなければ、いちばん近い親のパスの位置 */
+  const pos = (p) => { for (let n = p.length; n >= 0; n--) { const x = at.get(pathKey(p.slice(0, n))); if (x !== undefined) return lc(x); } return { line: 1, col: 1 }; };
+  return { value: v, dupKeys, pos };
 }
 
 /** 整形(キー順はそのまま) */
