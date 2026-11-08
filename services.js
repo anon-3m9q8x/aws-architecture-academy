@@ -9,6 +9,7 @@ import { EXTRA_2026 } from "./data/services-2026.js";
 import { LINKS_SAP } from "./data/links-sap.js";
 import { PATTERNS } from "./data/sap-patterns.js";
 import { VARIANTS } from "./data/variants.js";
+import { FEATURES } from "./data/features.js";
 import { COMPARE } from "./data/compare-groups.js";
 const EXTRA_ALL = { ...EXTRA, ...EXTRA_SAP, ...EXTRA_2026 };
 
@@ -60,6 +61,8 @@ SERVICES.forEach((s) => {
   s.abbr = ABBR[s.id] || (s.name.replace(/^(Amazon |AWS )/, "").match(/[A-Z0-9]/g) || [s.name.slice(0, 2)]).join("").slice(0, 3) || s.name.slice(0, 2);
   s.cues = cues[s.id] || null;
   s.variants = VARIANTS[s.id] || [];
+  // 主な機能の詳しい解説(features と同じ順序): [詳しい説明, 使いどころ, 試験・設計のポイント]
+  s.featureDetails = FEATURES[s.id] || [];
 });
 
 // 連携(双方向に引けるようにする)

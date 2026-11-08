@@ -1,6 +1,7 @@
 // AWS Architecture Academy: 画面全体の操作感(ナビのスライド表示・サイドバー開閉・検索候補・通知・続きから)
 import { SERVICES, byId as svcById } from "./services.js";
 import { store } from "./storage.js";
+import { searchClear } from "./ui.js";
 const $ = (id) => document.getElementById(id);
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -119,6 +120,7 @@ box.id = "search-suggest";
 box.setAttribute("role", "listbox");
 box.hidden = true;
 form.append(box);
+searchClear(input);
 input.setAttribute("role", "combobox");
 input.setAttribute("aria-controls", "search-suggest");
 input.setAttribute("aria-autocomplete", "list");

@@ -86,4 +86,34 @@ export function toast(msg) {
   window.dispatchEvent(new CustomEvent("toast", { detail: msg }));
 }
 
+/**
+ * 検索欄の × (クリア)を、入力欄とは別のボタンとして置く。
+ * ブラウザ標準の × は入力欄の一部でカーソルが文字入力用になり押しにくいため、CSS で隠して置き換える。
+ */
+export function searchClear(input) {
+  if (!input || input.dataset.clear) return;
+  input.dataset.clear = "1";
+  const wrap = el("span", "search-wrap");
+  input.replaceWith(wrap);
+  const btn = el("button", "search-clear", "×");
+  btn.type = "button";
+  btn.tabIndex = -1;
+  btn.setAttribute("aria-label", "検索語を消す");
+  wrap.append(input, btn);
+  const sync = () => (btn.hidden = !input.value);
+  btn.addEventListener("mousedown", (e) => e.preventDefault()); // 入力欄のフォーカスを外さない
+  btn.addEventListener("click", () => {
+    input.value = "";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    sync();
+    input.focus();
+  });
+  input.addEventListener("input", sync);
+  new MutationObserver(sync).observe(input, { attributes: true, attributeFilter: ["value"] });
+  // value をスクリプトから書き換えたときも表示を合わせる
+  const desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  Object.defineProperty(input, "value", { get() { return desc.get.call(this); }, set(v) { desc.set.call(this, v); sync(); }, configurable: true });
+  sync();
+}
+
 export { store } from "./storage.js";

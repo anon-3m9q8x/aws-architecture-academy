@@ -4058,3 +4058,23 @@ html.kind-open { overflow: hidden; }
 .kind-legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; margin-right: 10px; }
 .kind-dialog .ex-box p { line-height: 1.85; }
 @media print { .kmark { background: #fff3a8; } .kwarn { text-decoration: underline; } }
+
+/* --- 主な機能: クリックで詳しい解説(種類・発展形と同じダイアログ) --- */
+.ex-feats .feat-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.ex-feats .feat-list li { margin: 0; }
+.feat-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--glass-line, rgba(0,0,0,.1)); border-left: 4px solid #f59e0b; background: var(--glass-strong, #fff); color: inherit; font: inherit; font-size: 13.5px; line-height: 1.6; text-align: left; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.feat-item:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(30, 64, 120, .12); }
+.feat-item:focus-visible { outline: 3px solid var(--ws-accent, #3985ff); outline-offset: 2px; }
+.feat-item .feat-name { flex: 1; min-width: 0; }
+.feat-item .kind-more { flex: none; margin: 0; font-size: 12px; }
+.kind-badge.k-主要 { background: #d97706; }
+
+/* --- 検索欄の × (クリア)ボタン: 入力欄とは別のボタンにして押しやすくする --- */
+input[type="search"]::-webkit-search-cancel-button, input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; appearance: none; display: none; }
+.search-wrap { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; width: 100%; }
+.ex-tools .search-wrap { max-width: 560px; }
+.search-wrap > input { flex: 1; min-width: 0; padding-right: 44px !important; }
+.search-clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 34px; height: 34px; padding: 0; margin: 0; border: 0; border-radius: 50%; background: transparent; color: var(--aaa-muted, #64748b); font: 600 18px/1 system-ui, sans-serif; cursor: pointer; user-select: none; -webkit-user-select: none; }
+.search-clear:hover { background: color-mix(in srgb, var(--ws-accent, #3985ff) 14%, transparent); color: var(--aaa-text, #172033); }
+.search-clear:focus-visible { outline: 2px solid var(--ws-accent, #3985ff); outline-offset: 1px; }
+.search-clear[hidden] { display: none; }

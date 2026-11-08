@@ -4,7 +4,7 @@ import { memo } from "./memo.js";
 import { FlowPlayer, normalizeScene, serviceScene, problemScene } from "./flow.js";
 import { BUILD } from "./data/build.js";
 import { PATTERNS, EXERCISES, patternScene } from "./data/sap-patterns.js";
-import { $, el, slider, store } from "./ui.js";
+import { $, el, slider, store, searchClear } from "./ui.js";
 
 let scenes = [];
 // 上部バーの高さ(スマホでは 2 段になる)を CSS 変数に反映し、固定表示のタブが上部バーの下に隠れないようにする
@@ -61,6 +61,7 @@ const catCount = Object.fromEntries(CATS.map(([c]) => [c, SERVICES.filter((s) =>
   chips.append(b);
 });
 tools.append(search, chips);
+searchClear(search);
 const countLine = el("p", "ex-count muted");
 countLine.setAttribute("role", "status");
 const grid = el("div", "ex-grid");
@@ -498,9 +499,21 @@ function openDetail(s) {
     grid2.append(b);
   }
   if (s.features?.length) {
-    const b = el("div", "ex-box");
-    const ul = el("ul");
-    s.features.forEach((f) => ul.append(el("li", "", f)));
+    const b = el("div", "ex-box ex-feats");
+    const ul = el("ul", "feat-list");
+    s.features.forEach((f, i) => {
+      const li = el("li");
+      if (s.featureDetails[i]) {
+        // 種類・発展形と同じく、クリック(タップ)で詳しい解説を前面に表示する
+        const btn = el("button", "feat-item");
+        btn.type = "button";
+        btn.setAttribute("aria-haspopup", "dialog");
+        btn.append(el("span", "feat-name", f), el("span", "kind-more", "詳しく ›"));
+        btn.addEventListener("click", () => openKind(s, i, "features"));
+        li.append(btn);
+      } else li.textContent = f;
+      ul.append(li);
+    });
     b.append(el("h3", "", "主な機能"), ul);
     grid2.append(b);
   }
@@ -914,7 +927,7 @@ load();
 export { scenes };
 
 // 種類・発展形・関連機能の詳しい解説(画面の前面に表示するダイアログ)
-const KIND_LABEL = { 種類: "種類", 機能: "関連機能", 発展: "発展形" };
+const KIND_LABEL = { 種類: "種類", 機能: "関連機能", 発展: "発展形", 主要: "主な機能" };
 // 解説文の強調記法: ==重要== は黄色のマーカー、!!注意!! はひっかけ・制限の赤下線(data/variants.js 参照)
 function plainMarks(t = "") { return t.replace(/==([^=]+?)==|!!([^!]+?)!!/g, "$1$2"); }
 function richMarks(tag, t = "") {
@@ -937,8 +950,17 @@ function kindDialog() {
   document.body.append(d);
   return (kindDlg = d);
 }
-function openKind(s, i) {
-  const v = s.variants[i];
+// 主な機能を種類・発展形と同じ形 [名前, 区分, 一言, 詳しい説明, 使いどころ, ポイント] にそろえる
+function featureItems(s) {
+  return s.features.map((f, i) => {
+    const d = s.featureDetails[i];
+    if (!d) return null;
+    return [f, "主要", "", d[0], d[1], d[2]]; // 一言は概要と重複するので出さない
+  });
+}
+function openKind(s, i, from = "variants") {
+  const list = from === "features" ? featureItems(s) : s.variants;
+  const v = list[i];
   if (!v) return;
   const [name, kind, short, detail, use, point] = v;
   const d = kindDialog();
@@ -953,7 +975,7 @@ function openKind(s, i) {
   close.type = "button";
   close.setAttribute("aria-label", "閉じる");
   close.addEventListener("click", () => d.close());
-  head.append(crumb, title, el("p", "kind-dlg-lead", plainMarks(short)), close);
+  head.append(crumb, title, ...(short ? [el("p", "kind-dlg-lead", plainMarks(short))] : []), close);
   const legend = el("p", "kind-legend");
   [["mark", "kmark", "重要", "試験で問われる要点"], ["strong", "kwarn", "注意", "ひっかけ・制限・費用"]].forEach(([tag, cls, chip, text]) => {
     const item = el("span", "kind-legend-item");
@@ -973,11 +995,13 @@ function openKind(s, i) {
   const prev = el("button", "button secondary", "‹ 前へ");
   const next = el("button", "button secondary", "次へ ›");
   [prev, next].forEach((b) => (b.type = "button"));
-  prev.disabled = i === 0;
-  next.disabled = i === s.variants.length - 1;
-  prev.addEventListener("click", () => openKind(s, i - 1));
-  next.addEventListener("click", () => openKind(s, i + 1));
-  const pos = el("span", "kind-dlg-pos", `${i + 1} / ${s.variants.length}`);
+  const step = (d) => { let j = i + d; while (j >= 0 && j < list.length && !list[j]) j += d; return list[j] ? j : -1; };
+  const pi = step(-1), ni = step(1);
+  prev.disabled = pi < 0;
+  next.disabled = ni < 0;
+  prev.addEventListener("click", () => openKind(s, pi, from));
+  next.addEventListener("click", () => openKind(s, ni, from));
+  const pos = el("span", "kind-dlg-pos", `${i + 1} / ${list.length}`);
   foot.append(prev, pos, next);
   if (s.doc) {
     const a = el("a", "kind-dlg-doc", "公式ドキュメント ↗");
