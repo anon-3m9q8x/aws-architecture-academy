@@ -81,6 +81,7 @@ function route() {
   // ページ ID と同じハッシュによるブラウザの自動スクロールを打ち消し、先頭から表示する
   if (page !== lastPage) requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
   lastPage = page;
+  document.body.dataset.route = page; // ページごとの表示切り替え(アカウント同期の表示はホームだけ など)
   document.querySelectorAll(".page").forEach((el) => {
     const show = el.id === page;
     if (show && el.hidden) {

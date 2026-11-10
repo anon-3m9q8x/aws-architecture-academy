@@ -6,3 +6,5 @@
 .account-message{min-height:1.5em;white-space:pre-wrap;color:var(--aaa-blue)}.account-message.error{color:#b33030}.account-conflict{border:2px solid #c78125}.account-conflict p{color:var(--aaa-text)}
 #learnerName{display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:600px){.account-bar{padding:13px;gap:10px}.account-actions .btn{min-height:42px;font-size:12px;padding:8px 10px}.account-dialog{padding:20px}}
+/* アカウント同期の表示はホームだけ。別の端末との競合(どちらの内容を使うか選ぶ必要がある)ときは、どのページでも表示する */
+body:not([data-route="home"]) #accountBar:not(:has([data-account="cloud"])){display:none}
