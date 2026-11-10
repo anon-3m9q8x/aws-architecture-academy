@@ -12,8 +12,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&amp;display=swap" />
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="account.css" />
+    <link rel="stylesheet" href="style.css?v=20261110b" />
+    <link rel="stylesheet" href="account.css?v=20261110b" />
     <link rel="stylesheet" href="command-lab.css" />
   </head>
   <body>
@@ -78,8 +78,9 @@
         <div class="breadcrumb">
           Workspace <span>/</span> <span id="page-label">ダッシュボード</span>
         </div>
-        <section id="accountBar" class="account-bar" aria-label="アカウントと同期"><p>学習データを読み込み中…</p></section>
         <section id="home" class="page">
+          <!-- アカウント同期の表示はホームだけ -->
+          <section id="accountBar" class="account-bar" aria-label="アカウントと同期"><p>学習データを読み込み中…</p></section>
           <div class="home-layout">
             <div class="home-primary">
               <div class="hero study-hero">
@@ -367,7 +368,7 @@
     <div id="accountOverlay" class="account-overlay" hidden></div>
     <script src="config.js"></script>
     <script src="vendor/supabase.js"></script>
-    <script src="account.js"></script>
-    <script src="script.js" type="module"></script>
+    <script src="account.js?v=20261110b"></script>
+    <script src="script.js?v=20261110b" type="module"></script>
   </body>
 </html>
