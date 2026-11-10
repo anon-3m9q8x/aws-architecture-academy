@@ -4140,3 +4140,12 @@ a.svc-link:not(.note-chip):hover { text-decoration-style: solid; background: col
 }
 /* 長い ARN・コマンドなどで横にはみ出さない */
 #quiz-prompt, .choice-text, .ev-text, .ev-quote, .ev-why, .fb-explanation, .choice-recap, .weak-q { overflow-wrap: anywhere; }
+/* 演習の種類: 資格試験の問題 / サービス知識(試験外) */
+.kind-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin: 0 0 14px; border-radius: 16px; background: var(--aaa-bg); border: 1px solid var(--aaa-border); }
+.kind-switch button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--aaa-muted); }
+.kind-switch button b { font-size: 14px; }
+.kind-switch button small { font-size: 11px; }
+.kind-switch button[aria-pressed="true"] { background: var(--aaa-panel, #fff); border-color: var(--aaa-border); color: var(--aaa-text); box-shadow: 0 6px 16px -10px rgb(15 35 70 / 0.35); }
+.kind-switch button[aria-pressed="true"] small { color: var(--brand-orange, #e0700f); font-weight: 700; }
+.svc-pill { background: color-mix(in srgb, #8a4dff 12%, transparent); color: #7a3ff0; }
+.practice-filters label[hidden] { display: none; }

@@ -254,6 +254,10 @@
               </div>
               <span class="pill" id="practice-type-pill"></span>
             </div>
+            <div class="kind-switch" id="quiz-kind" role="group" aria-label="演習の種類">
+              <button type="button" data-kind="exam" aria-pressed="true"><b>資格試験の問題</b><small></small></button>
+              <button type="button" data-kind="service" aria-pressed="false"><b>サービス知識(試験外)</b><small></small></button>
+            </div>
             <div class="practice-filters">
               <label
                 >資格(試験)<select id="quiz-cert">
@@ -288,6 +292,7 @@
                 >問題数<select id="quiz-limit">
                   <option value="5">5問・気軽に学習</option>
                   <option value="10" selected>10問・しっかり学習</option>
+                  <option value="real">実試験と同じ問題数</option>
                   <option value="1000">該当するすべて</option>
                 </select></label
               >

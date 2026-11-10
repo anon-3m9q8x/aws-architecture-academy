@@ -1,5 +1,6 @@
 import { store } from "./storage.js";
 import { questions, DIFFICULTY } from "./data/questions.js";
+import { serviceQuestions } from "./data/service-questions.js";
 import { byId as svcById } from "./services.js";
 import { findServices, servicesIn } from "./data/service-terms.js";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
@@ -10,7 +11,12 @@ $("question-count").textContent = questions.length;
 document
   .querySelectorAll("[data-question-count]")
   .forEach((n) => (n.textContent = questions.length));
-const questionMap = new Map(questions.map((q) => [q.id, q]));
+// 資格試験の問題と、サービス知識問題(別枠)。回答履歴は両方まとめて保存する
+const allQuestions = [...questions, ...serviceQuestions];
+const questionMap = new Map(allQuestions.map((q) => [q.id, q]));
+let kind = "exam"; // 演習の種類: exam = 資格試験の問題 / service = サービス知識(試験外)
+const isSvc = (q) => q.kind === "service";
+const bankQ = () => (kind === "service" ? serviceQuestions : questions);
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -98,12 +104,15 @@ function stats() {
     el(
       "p",
       "muted",
-      `${last.size} / ${questions.length} 問に回答 · 回答 ${attempts.length} 回 · 正答率 ${attempts.length ? Math.round((correct / attempts.length) * 100) + "%" : "未回答"} · 復習対象 ${wrong} 問`,
+      `資格試験 ${[...last.keys()].filter((id) => !isSvc(questionMap.get(id))).length} / ${questions.length} 問・サービス知識 ${[...last.keys()].filter((id) => isSvc(questionMap.get(id))).length} / ${serviceQuestions.length} 問に回答 · 回答 ${attempts.length} 回 · 正答率 ${attempts.length ? Math.round((correct / attempts.length) * 100) + "%" : "未回答"} · 復習対象 ${wrong} 問`,
     ),
   );
   const list = el("div", "domain-results");
-  [...new Set(questions.map((q) => q.domain))].forEach((domain) => {
-    const subset = attempts.filter((a) => questionMap.get(a.id).domain === domain);
+  [...new Set(questions.map((q) => q.domain)), "サービス知識(試験外)"].forEach((domain) => {
+    const subset = attempts.filter((a) => {
+      const q = questionMap.get(a.id);
+      return domain === "サービス知識(試験外)" ? isSvc(q) : !isSvc(q) && q.domain === domain;
+    });
     const rate = subset.length ? Math.round((subset.filter((a) => a.correct).length / subset.length) * 100) : null;
     const row = el("div", "domain-row");
     const bar = el("span", "domain-bar");
@@ -177,7 +186,7 @@ function renderWeak() {
       picked.disabled = !weakPicked.size;
       picked.textContent = weakPicked.size ? `選んだ ${weakPicked.size} 問を解く` : "選んだ問題を解く";
     });
-    const code = primaryExam(q);
+    const code = isSvc(q) ? "サービス知識" : primaryExam(q);
     lab.append(
       cb,
       el("span", "weak-n", `×${n}`),
@@ -201,11 +210,13 @@ function pool() {
   const code = $("quiz-cert").value;
   const dom = $("quiz-domain").value;
   const band = $("quiz-prob").value;
-  return questions.filter(
+  const svc = kind === "service";
+  // 苦手問題などの指定出題は、種類をまたいで出す
+  return (presetIds ? allQuestions : bankQ()).filter(
     (q) =>
-      (code === "all" || !!q.exams[code]) &&
-      (dom === "all" || (dom.startsWith("d:") ? q.exams[code]?.[0] === Number(dom.slice(2)) : q.domain === dom)) &&
-      (band === "all" || probBand(probability(q, examFor(q))) === band) &&
+      (presetIds || svc || code === "all" || !!q.exams[code]) &&
+      (presetIds || dom === "all" || (dom.startsWith("d:") ? q.exams[code]?.[0] === Number(dom.slice(2)) : q.domain === dom)) &&
+      (presetIds || svc || band === "all" || probBand(probability(q, examFor(q))) === band) &&
       ($("quiz-difficulty").value === "all" || q.difficulty === Number($("quiz-difficulty").value)) &&
       ($("quiz-mode").value === "all" ||
         ($("quiz-mode").value === "wrong"
@@ -219,8 +230,9 @@ function pool() {
 let presetIds = null;
 function updatePool() {
   const count = pool().length;
+  const real = $("quiz-limit").value === "real" && count ? ` → 実試験と同じ ${Math.min(count, realCount())} 問をランダムに出題` : "";
   $("pool-count").textContent =
-    `${count} 問が対象${count ? "" : " — 条件を変更してください"}`;
+    `${count} 問が対象${count ? "" : " — 条件を変更してください"}${real}`;
   $("quiz-start").disabled = !count;
   const chip = $("preset-chip");
   if (chip) chip.hidden = !presetIds;
@@ -240,6 +252,7 @@ LEVELS.forEach((lv) => {
 });
 /** 表示・確率の計算に使う試験: 選択中の試験があればそれ、なければ問題の主な試験 */
 function examFor(q) {
+  if (isSvc(q)) return null;
   const code = $("quiz-cert").value;
   return code !== "all" && q.exams[code] ? code : primaryExam(q);
 }
@@ -249,7 +262,14 @@ function fillDomains() {
   const sel = $("quiz-domain");
   sel.replaceChildren(el("option", "", "すべての分野"));
   sel.firstChild.value = "all";
-  if (code === "all") {
+  if (kind === "service") {
+    sel.firstChild.textContent = "すべてのカテゴリ";
+    [...new Set(serviceQuestions.map((q) => q.domain))].forEach((cat) => {
+      const o = el("option", "", `${cat} · ${serviceQuestions.filter((q) => q.domain === cat).length}問`);
+      o.value = cat;
+      sel.append(o);
+    });
+  } else if (code === "all") {
     [...new Set(questions.map((q) => q.domain))].forEach((domain) => {
       const o = el("option", "", domain);
       o.value = domain;
@@ -270,6 +290,24 @@ function renderOverview() {
   if (!box) return;
   const code = $("quiz-cert").value;
   box.replaceChildren();
+  if (kind === "service") {
+    const grid = el("div", "exam-chips");
+    [...new Set(serviceQuestions.map((q) => q.domain))].forEach((cat) => {
+      const b = el("button", "exam-chip");
+      b.type = "button";
+      b.append(el("b", "", cat), el("span", "", `${serviceQuestions.filter((q) => q.domain === cat).length}問`));
+      b.addEventListener("click", () => {
+        $("quiz-domain").value = cat;
+        updatePool();
+      });
+      grid.append(b);
+    });
+    box.append(
+      el("p", "exam-ov-h", "サービス知識は資格試験の問題とは別枠です。図鑑の 250 以上のサービスについて、用途・利用シーン・試験のキーワード・種類や機能・紛らわしいサービスとの違いを確認します。カテゴリを選んで絞り込めます。"),
+      grid,
+    );
+    return;
+  }
   if (code === "all") {
     const grid = el("div", "exam-chips");
     EXAMS.forEach((e) => {
@@ -319,15 +357,74 @@ function renderOverview() {
 $("quiz-cert").addEventListener("change", () => {
   fillDomains();
   renderOverview();
-  const code = $("quiz-cert").value;
-  $("practice-exam-pill").textContent = code === "all" ? "全資格対応" : code;
+  syncKind();
 });
+/* ---------- 実試験と同じ問題数 ---------- */
+/** 選択中の試験の実試験の問題数(すべての資格のときは 65 問) */
+function realCount() {
+  return examByCode.get($("quiz-cert").value)?.real?.[0] || 65;
+}
+function syncReal() {
+  const o = $("quiz-limit").querySelector('option[value="real"]');
+  if (!o) return;
+  const ex = examByCode.get($("quiz-cert").value);
+  o.textContent = ex?.real ? `実試験と同じ ${ex.real[0]}問(本番 ${ex.real[1]}分)` : "実試験と同じ 65問(資格を選ぶとその試験の問題数)";
+  o.hidden = o.disabled = kind === "service";
+  if (kind === "service" && $("quiz-limit").value === "real") $("quiz-limit").value = "10";
+}
+/** 実試験の形式: 試験全体なら分野の配点に合わせて各分野から、ほかは範囲内からランダムに選ぶ */
+function pickReal(cands, n) {
+  const code = $("quiz-cert").value;
+  const ex = examByCode.get(code);
+  if (!ex || $("quiz-domain").value !== "all" || presetIds || cands.length <= n) return cands.slice(0, n);
+  const raw = ex.domains.map(([, w], i) => ({ d: i + 1, x: (n * w) / 100 }));
+  const total = ex.domains.reduce((a, [, w]) => a + w, 0);
+  raw.forEach((r) => (r.x = (r.x * 100) / total));
+  raw.forEach((r) => (r.q = Math.floor(r.x)));
+  let left = n - raw.reduce((a, r) => a + r.q, 0);
+  [...raw].sort((a, b) => (b.x % 1) - (a.x % 1)).forEach((r) => left-- > 0 && r.q++);
+  const out = [];
+  raw.forEach(({ d, q }) => out.push(...cands.filter((c) => c.exams[code]?.[0] === d).slice(0, q)));
+  for (const c of cands) if (out.length < n && !out.includes(c)) out.push(c);
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+/* ---------- 演習の種類(資格試験 / サービス知識) ---------- */
+function syncKind() {
+  const svc = kind === "service";
+  document.querySelectorAll("#quiz-kind [data-kind]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
+  $("quiz-cert").closest("label").hidden = svc;
+  $("quiz-prob").closest("label").hidden = svc;
+  $("quiz-domain").closest("label").firstChild.textContent = svc ? "カテゴリ" : "分野";
+  const code = $("quiz-cert").value;
+  $("practice-exam-pill").textContent = svc ? "サービス知識(試験外)" : code === "all" ? "全資格対応" : code;
+  const list = bankQ();
+  const single = list.filter((q) => q.selectCount === 1).length;
+  $("practice-type-pill").textContent = svc ? `サービス知識 ${list.length}問` : `単一${single}問 / 複数${list.length - single}問`;
+  syncReal();
+}
+document.querySelectorAll("#quiz-kind [data-kind]").forEach((b) =>
+  b.addEventListener("click", () => {
+    if (kind === b.dataset.kind) return;
+    kind = b.dataset.kind;
+    presetIds = null;
+    fillDomains();
+    renderOverview();
+    syncKind();
+    updatePool();
+  }),
+);
+{
+  const b = $("quiz-kind");
+  b?.querySelector('[data-kind="exam"] small')?.replaceChildren(`${questions.length}問`);
+  b?.querySelector('[data-kind="service"] small')?.replaceChildren(`${serviceQuestions.length}問`);
+}
 fillDomains();
 renderOverview();
-{
-  const single = questions.filter((q) => q.selectCount === 1).length;
-  $("practice-type-pill").textContent = `単一${single}問 / 複数${questions.length - single}問`;
-}
+syncKind();
 ["quiz-cert", "quiz-domain", "quiz-prob", "quiz-difficulty", "quiz-mode", "quiz-limit"].forEach((id) =>
   $(id).addEventListener("change", updatePool),
 );
@@ -480,6 +577,7 @@ function feedback(q) {
   box.append(exp);
   // 問題に登場したサービス → 図鑑
   const rel = servicesIn(q.prompt, ...q.choices.map((c) => c.text), q.explanation || "");
+  if (q.service && !rel.includes(q.service)) rel.unshift(q.service);
   const foot = el("div", "feedback-links");
   if (rel.length) {
     foot.append(el("span", "muted", "登場したサービスを図鑑で確認:"));
@@ -490,7 +588,7 @@ function feedback(q) {
       foot.append(a);
     });
   }
-  const docId = servicesIn(...q.choices.filter((c) => c.correct).map((c) => c.text), q.explanation || "").find((id) => svcById.get(id)?.doc) || rel.find((id) => svcById.get(id)?.doc);
+  const docId = (q.service && svcById.get(q.service)?.doc && q.service) || servicesIn(...q.choices.filter((c) => c.correct).map((c) => c.text), q.explanation || "").find((id) => svcById.get(id)?.doc) || rel.find((id) => svcById.get(id)?.doc);
   const docUrl = q.source || (docId && svcById.get(docId).doc);
   if (docUrl) {
     const source = el("a", "source-link", `公式ドキュメントで確認${!q.source && docId ? `(${svcById.get(docId).name})` : ""} ↗`);
@@ -534,7 +632,8 @@ function render() {
   const [d, tier] = q.exams[code] || [];
   const p = probability(q, code);
   const others = Object.keys(q.exams).filter((c) => c !== code);
-  $("quiz-domain-label").textContent = `${code} · 分野${d} ${ex?.domains[d - 1]?.[0] || q.domain}${others.length ? ` · ほか ${others.join(" / ")}` : ""}`;
+  if (isSvc(q)) $("quiz-domain-label").textContent = `サービス知識(試験外)· ${q.domain}`;
+  else $("quiz-domain-label").textContent = `${code} · 分野${d} ${ex?.domains[d - 1]?.[0] || q.domain}${others.length ? ` · ほか ${others.join(" / ")}` : ""}`;
   let meta = $("quiz-meta2");
   if (!meta) {
     meta = el("span", "quiz-meta2");
@@ -548,7 +647,11 @@ function render() {
   lv.title = DIFFICULTY[q.difficulty];
   const tp = el("span", "pill topic-pill", q.topic || "");
   tp.hidden = !q.topic;
-  meta.replaceChildren(pr, lv, tp);
+  if (isSvc(q)) {
+    const kp = el("span", "pill svc-pill", "サービス知識 · 試験外");
+    kp.title = "サービス図鑑の内容から作成した知識確認問題です。資格試験の問題とは別枠で記録されます。";
+    meta.replaceChildren(kp, lv, tp);
+  } else meta.replaceChildren(pr, lv, tp);
   $("quiz-type").textContent = q.selectCount === 1 ? "単一選択" : `複数選択・${q.selectCount}つ`;
   $("quiz-prompt").replaceChildren();
   if (s.submitted && q.lines?.length) linedText(q.prompt, q.lines, $("quiz-prompt"), false);
@@ -604,7 +707,7 @@ $("quiz-start").addEventListener("click", () => {
     const j = Math.floor(Math.random() * (i + 1));
     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
   }
-  session = candidates.slice(0, Number($("quiz-limit").value));
+  session = $("quiz-limit").value === "real" ? pickReal(candidates, realCount()) : candidates.slice(0, Number($("quiz-limit").value));
   if (!session.length) return;
   states = session.map(() => ({ sel: new Set(), submitted: false, correct: false, visited: false }));
   position = 0;
@@ -724,7 +827,9 @@ function showResult() {
     btn.append(
       el("span", "mark", s.submitted ? (s.correct ? "✓" : "×") : "—"),
       el("span", "q", `${String(i + 1).padStart(2, "0")}. ${q.prompt}`),
-      el("span", `sum-tag band-${probBand(probability(q, examFor(q)))}`, `${examFor(q)} · ${DIFFICULTY[q.difficulty]} · 約${probability(q, examFor(q))}%`),
+      isSvc(q)
+        ? el("span", "sum-tag", `サービス知識 · ${q.domain} · ${DIFFICULTY[q.difficulty]}`)
+        : el("span", `sum-tag band-${probBand(probability(q, examFor(q)))}`, `${examFor(q)} · ${DIFFICULTY[q.difficulty]} · 約${probability(q, examFor(q))}%`),
       el("span", "go", "見直す →"),
     );
     btn.addEventListener("click", () => {
