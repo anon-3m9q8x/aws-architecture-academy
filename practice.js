@@ -1,7 +1,7 @@
 import { store } from "./storage.js";
-import { questions } from "./data/questions.js";
-import { solve } from "./data/solve.js";
-import { notebook } from "./data/notebook.js";
+import { questions, DIFFICULTY } from "./data/questions.js";
+import { byId as svcById } from "./services.js";
+import { findServices, servicesIn } from "./data/service-terms.js";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
@@ -32,35 +32,42 @@ try {
   $("storage-warning").hidden = false;
 }
 
-/* ---------- 問題文・選択肢からノートを見つける ---------- */
-const ALIASES = [
-  ["Application Load Balancer", "alb"], ["Network Load Balancer", "nlb"], ["Read Replica", "rds"], ["リードレプリカ", "rds"],
-  ["Multi-AZ", "rds"], ["Gateway Endpoint", "vpce"], ["ゲートウェイエンドポイント", "vpce"], ["インターフェースVPCエンドポイント", "vpce"],
-  ["NAT Gateway", "natgw"], ["NATゲートウェイ", "natgw"], ["インターネットゲートウェイ", "igw"], ["SCP", "orgs"],
-  ["Glacier", "glacier"], ["FSx", "fsx"], ["ElastiCache", "elasticache"], ["Kubernetes", "eks"], ["セキュリティグループ", "vpc"],
-  ["ネットワークACL", "vpc"], ["DLQ", "sqs"], ["デッドレターキュー", "sqs"], ["Evaluate Target Health", "route53"],
-];
-const NAMES = notebook.services
-  .filter((s) => !["internet", "user", "onprem"].includes(s.id))
-  .map((s) => [s.name.replace(/^(Amazon |AWS )/, "").replace(/\(.*\)$/, ""), s.id])
-  .concat(ALIASES)
-  .sort((a, b) => b[0].length - a[0].length);
-function relatedNotes(q) {
-  const text = [q.prompt, ...q.choices.filter((c) => c.correct).map((c) => c.text + " " + c.explanation)].join(" ");
-  const found = [];
-  let rest = text;
-  for (const [name, id] of NAMES) {
-    if (name.length < 2) continue;
-    const re = new RegExp(name.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&"), "i");
-    if (re.test(rest)) {
-      if (!found.includes(id)) found.push(id);
-      rest = rest.replace(new RegExp(re.source, "gi"), " ");
-    }
+/* ---------- 解説の文章: 根拠ライン・サービス名のリンク ---------- */
+const NUM = "①②③④⑤⑥⑦⑧⑨";
+/** 文章にサービス名のリンクを付ける(図鑑へ移動し、戻るボタンで演習へ戻れる) */
+function linkify(text, parent) {
+  let p = 0;
+  for (const { start, end, id } of findServices(text)) {
+    if (start < p) continue;
+    parent.append(document.createTextNode(text.slice(p, start)));
+    const a = el("a", "svc-link", text.slice(start, end));
+    a.href = `#services/${id}`;
+    a.dataset.svc = id;
+    a.title = `サービス図鑑で「${svcById.get(id)?.name || id}」を開く`;
+    parent.append(a);
+    p = end;
   }
-  return found.slice(0, 5);
+  parent.append(document.createTextNode(text.slice(p)));
+  return parent;
 }
-export { relatedNotes };
-const noteName = new Map(notebook.services.map((s) => [s.id, s.name]));
+/** 問題文に根拠ライン(下線と番号)を引く。links=true ならサービス名もリンクにする */
+function linedText(text, lines, parent, links) {
+  const put = (t, into) => (links ? linkify(t, into) : into.append(document.createTextNode(t)));
+  let p = 0;
+  (lines || []).forEach(([a, b, kind], i) => {
+    if (a < p) return;
+    put(text.slice(p, a), parent);
+    const m = el("mark", `ev-line ev-${i % 4}`);
+    m.dataset.n = NUM[i] || i + 1;
+    m.title = `根拠${NUM[i] || i + 1}:${kind}`;
+    put(text.slice(a, b), m);
+    parent.append(m);
+    p = b;
+  });
+  put(text.slice(p), parent);
+  return parent;
+}
+const sentencesOf = (t) => (t.match(/[^。]+。?/g) || []).map((x) => x.trim()).filter(Boolean);
 
 /* ---------- 成績 ---------- */
 function latest() {
@@ -68,6 +75,13 @@ function latest() {
   attempts.forEach((a) => map.set(a.id, a));
   return map;
 }
+/** 問題ごとの誤答回数 */
+function wrongCounts() {
+  const m = new Map();
+  attempts.forEach((a) => !a.correct && m.set(a.id, (m.get(a.id) || 0) + 1));
+  return m;
+}
+const REPEAT = 2; // 「複数回間違えた」とみなす誤答回数
 function stats() {
   const last = latest();
   const wrong = [...last.values()].filter((a) => !a.correct).length;
@@ -103,11 +117,87 @@ function stats() {
   const a = el("a", "", "演習・復習を開く →");
   a.href = "#practice";
   history.append(a);
+  renderWeak();
+}
+
+/* ---------- 複数回間違えた問題(個別にピックアップ) ---------- */
+let weakPicked = new Set();
+function weakList() {
+  const last = latest();
+  return [...wrongCounts()]
+    .filter(([, n]) => n >= REPEAT)
+    .map(([id, n]) => ({ q: questionMap.get(id), n, lastOk: !!last.get(id)?.correct, at: last.get(id)?.at || "" }))
+    .sort((a, b) => b.n - a.n || (a.lastOk === b.lastOk ? b.at.localeCompare(a.at) : a.lastOk ? 1 : -1));
+}
+function startWith(ids, label) {
+  window.dispatchEvent(new CustomEvent("practice-preset", { detail: { ids, label } }));
+  $("quiz-start").click();
+}
+function renderWeak() {
+  const box = $("weak-box");
+  if (!box) return;
+  const list = weakList();
+  weakPicked = new Set([...weakPicked].filter((id) => list.some((x) => x.q.id === id)));
+  box.replaceChildren();
+  const head = el("div", "weak-head");
+  const title = el("div");
+  title.append(el("p", "eyebrow orange", "PICK UP · 苦手な問題"), el("h3", "", `${REPEAT} 回以上間違えた問題 · ${list.length} 問`));
+  head.append(title);
+  box.append(head);
+  if (!list.length) {
+    box.append(el("p", "muted weak-empty", `同じ問題を ${REPEAT} 回以上間違えると、ここに表示されます。1 問ずつ選んで解き直せます。`));
+    return;
+  }
+  const tools = el("div", "weak-tools");
+  const all = el("button", "", `すべて解き直す(${list.length}問)`);
+  all.type = "button";
+  all.addEventListener("click", () => startWith(list.map((x) => x.q.id), `${REPEAT} 回以上間違えた問題`));
+  const picked = el("button", "primary", "選んだ問題を解く");
+  picked.type = "button";
+  picked.disabled = !weakPicked.size;
+  picked.addEventListener("click", () => weakPicked.size && startWith([...weakPicked], `選んだ苦手問題(${weakPicked.size}問)`));
+  const open = list.filter((x) => !x.lastOk);
+  const notYet = el("button", "", `まだ正解していない問題(${open.length}問)`);
+  notYet.type = "button";
+  notYet.disabled = !open.length;
+  notYet.addEventListener("click", () => startWith(open.map((x) => x.q.id), "直近も不正解の苦手問題"));
+  tools.append(picked, notYet, all);
+  head.append(tools);
+  const ul = el("ul", "weak-list");
+  list.forEach(({ q, n, lastOk }) => {
+    const li = el("li", lastOk ? "is-ok" : "");
+    const lab = el("label", "weak-pick");
+    const cb = el("input");
+    cb.type = "checkbox";
+    cb.checked = weakPicked.has(q.id);
+    cb.setAttribute("aria-label", `${q.id} を選ぶ`);
+    cb.addEventListener("change", () => {
+      if (cb.checked) weakPicked.add(q.id);
+      else weakPicked.delete(q.id);
+      picked.disabled = !weakPicked.size;
+      picked.textContent = weakPicked.size ? `選んだ ${weakPicked.size} 問を解く` : "選んだ問題を解く";
+    });
+    const code = primaryExam(q);
+    lab.append(
+      cb,
+      el("span", "weak-n", `×${n}`),
+      el("span", "weak-meta", `${code} · ${q.topic}`),
+      el("span", "weak-q", q.prompt),
+      el("span", `weak-last ${lastOk ? "ok" : "ng"}`, lastOk ? "直近は正解" : "直近も不正解"),
+    );
+    const go = el("button", "weak-go", "この問題を解く");
+    go.type = "button";
+    go.addEventListener("click", () => startWith([q.id], `苦手問題 ${q.id}`));
+    li.append(lab, go);
+    ul.append(li);
+  });
+  box.append(ul);
 }
 
 /* ---------- 出題条件 ---------- */
 function pool() {
   const last = latest();
+  const wc = wrongCounts();
   const code = $("quiz-cert").value;
   const dom = $("quiz-domain").value;
   const band = $("quiz-prob").value;
@@ -120,7 +210,9 @@ function pool() {
       ($("quiz-mode").value === "all" ||
         ($("quiz-mode").value === "wrong"
           ? last.has(q.id) && !last.get(q.id).correct
-          : !last.has(q.id))) &&
+          : $("quiz-mode").value === "repeat"
+            ? (wc.get(q.id) || 0) >= REPEAT
+            : !last.has(q.id))) &&
       (!presetIds || presetIds.has(q.id)),
   );
 }
@@ -139,6 +231,7 @@ LEVELS.forEach((lv) => {
   g.label = { Foundational: "基礎", Business: "ビジネス", Associate: "アソシエイト", Professional: "プロフェッショナル", Specialty: "専門知識" }[lv];
   EXAMS.filter((e) => e.level === lv).forEach((e) => {
     const n = questions.filter((q) => q.exams[e.code]).length;
+    if (!n) return; // 問題のない試験(旧版)は出さない
     const o = el("option", "", `${e.code} ${e.name}${e.retire ? `(${e.retire.slice(5).replace("-", "/")} まで)` : ""} · ${n}問`);
     o.value = e.code;
     g.append(o);
@@ -181,6 +274,7 @@ function renderOverview() {
     const grid = el("div", "exam-chips");
     EXAMS.forEach((e) => {
       const n = questions.filter((q) => q.exams[e.code]).length;
+      if (!n) return;
       const b = el("button", "exam-chip");
       b.type = "button";
       b.append(el("b", "", e.code), el("span", "", `${n}問`));
@@ -340,49 +434,71 @@ function feedback(q) {
     ),
   );
   box.append(head);
-  const sv = solve[q.id];
-  if (sv) {
-    const card = el("section", "solve-card");
-    card.append(el("p", "eyebrow", "HOW TO SOLVE · 解き方"));
-    const k = el("p", "solve-key");
-    k.append(el("b", "", "決め手 "), document.createTextNode(sv.key));
-    card.append(k);
-    const ol = el("ol", "solve-steps");
-    sv.steps.forEach((t) => ol.append(el("li", "", t)));
+  // 論点・トピック
+  if (q.concept) {
+    const c = el("p", "fb-concept");
+    c.append(el("b", "", "論点"), document.createTextNode(q.concept), el("span", "muted", ` · ${q.topic}`));
+    box.append(c);
+  }
+  // 根拠ライン: 問題文のどこから正解が導けるか
+  const exS = sentencesOf(q.explanation || "");
+  if (q.lines?.length) {
+    const card = el("section", "evidence-card");
+    card.append(el("p", "eyebrow", "EVIDENCE · 根拠ライン(問題文のこの部分から正解が導けます)"));
+    card.append(linedText(q.prompt, q.lines, el("p", "ev-text"), true));
+    const ol = el("ol", "ev-list");
+    q.lines.forEach(([a, b, kind, ei], i) => {
+      const li = el("li", `ev-${i % 4}`);
+      const top = el("div", "ev-row");
+      top.append(el("span", "ev-num", NUM[i] || String(i + 1)), el("span", "ev-kind", kind), el("q", "ev-quote", q.prompt.slice(a, b)));
+      li.append(top);
+      if (exS[ei]) {
+        const why = el("p", "ev-why");
+        why.append(el("span", "ev-arrow", "→ "));
+        linkify(exS[ei], why);
+        li.append(why);
+      }
+      ol.append(li);
+    });
     card.append(ol);
-    if (sv.trap) {
-      const tp = el("p", "solve-trap");
-      tp.append(el("b", "", "ひっかけ "), document.createTextNode(sv.trap));
-      card.append(tp);
-    }
     box.append(card);
   }
+  // 解説(サービス名は図鑑へのリンク)
   const exp = el("div", "explanations");
-  exp.append(el("p", "eyebrow", "ALL CHOICES · 選択肢ごとの理由"));
+  if (q.explanation) {
+    exp.append(el("p", "eyebrow", "EXPLANATION · 解説"));
+    exp.append(linkify(q.explanation, el("p", "fb-explanation")));
+  }
+  exp.append(el("p", "eyebrow", q.choices.some((c) => c.explanation) ? "ALL CHOICES · 選択肢ごとの理由" : "CHOICES · 選択肢"));
   q.choices.forEach((choice, i) => {
     const row = el("div", choice.correct ? "explanation is-correct" : s.sel.has(i) ? "explanation is-chosen" : "explanation");
-    row.append(
-      el("strong", "", `${LETTERS[i]} · ${choice.correct ? "正解" : "不正解"}${s.sel.has(i) ? " / あなたの回答" : ""}`),
-      el("p", "", choice.explanation),
-    );
+    row.append(el("strong", "", `${LETTERS[i]} · ${choice.correct ? "正解" : "不正解"}${s.sel.has(i) ? " / あなたの回答" : ""}`));
+    row.append(linkify(choice.text, el("p", "choice-recap")));
+    if (choice.explanation) row.append(linkify(choice.explanation, el("p", "")));
     exp.append(row);
   });
   box.append(exp);
-  const rel = relatedNotes(q);
+  // 問題に登場したサービス → 図鑑
+  const rel = servicesIn(q.prompt, ...q.choices.map((c) => c.text), q.explanation || "");
   const foot = el("div", "feedback-links");
   if (rel.length) {
-    foot.append(el("span", "muted", "図鑑で確認:"));
-    rel.forEach((id) => {
-      const a = el("a", "note-chip", noteName.get(id));
+    foot.append(el("span", "muted", "登場したサービスを図鑑で確認:"));
+    rel.slice(0, 10).forEach((id) => {
+      const a = el("a", "note-chip svc-link", svcById.get(id)?.name || id);
       a.href = `#services/${id}`;
+      a.dataset.svc = id;
       foot.append(a);
     });
   }
-  const source = el("a", "source-link", "公式ドキュメントで確認 ↗");
-  source.href = q.source;
-  source.target = "_blank";
-  source.rel = "noopener noreferrer";
-  foot.append(source);
+  const docId = servicesIn(...q.choices.filter((c) => c.correct).map((c) => c.text), q.explanation || "").find((id) => svcById.get(id)?.doc) || rel.find((id) => svcById.get(id)?.doc);
+  const docUrl = q.source || (docId && svcById.get(docId).doc);
+  if (docUrl) {
+    const source = el("a", "source-link", `公式ドキュメントで確認${!q.source && docId ? `(${svcById.get(docId).name})` : ""} ↗`);
+    source.href = docUrl;
+    source.target = "_blank";
+    source.rel = "noopener noreferrer";
+    foot.append(source);
+  }
   box.append(foot);
 }
 function syncButtons() {
@@ -428,11 +544,15 @@ function render() {
   const band = probBand(p);
   const pr = el("span", `pill prob-pill band-${band}`, `出題確率 ${BAND_LABEL[band]} · 約${p}%(推定)`);
   pr.title = `${TIER[tier]?.[0] || ""} · 分野の配点 ${ex?.domains[d - 1]?.[1]}% × 採点 ${ex?.scored} 問から推定。AWS は問題ごとの出題率を公開していません。`;
-  const lv = el("span", `pill diff-pill lv${q.difficulty}`, `難易度 ${"★".repeat(q.difficulty)}${"☆".repeat(4 - q.difficulty)}`);
-  lv.title = ["", "基礎", "標準", "発展", "設計応用"][q.difficulty];
-  meta.replaceChildren(pr, lv);
+  const lv = el("span", `pill diff-pill lv${q.difficulty}`, `難易度 ${"★".repeat(q.difficulty)}${"☆".repeat(3 - q.difficulty)} ${DIFFICULTY[q.difficulty]}`);
+  lv.title = DIFFICULTY[q.difficulty];
+  const tp = el("span", "pill topic-pill", q.topic || "");
+  tp.hidden = !q.topic;
+  meta.replaceChildren(pr, lv, tp);
   $("quiz-type").textContent = q.selectCount === 1 ? "単一選択" : `複数選択・${q.selectCount}つ`;
-  $("quiz-prompt").textContent = q.prompt;
+  $("quiz-prompt").replaceChildren();
+  if (s.submitted && q.lines?.length) linedText(q.prompt, q.lines, $("quiz-prompt"), false);
+  else $("quiz-prompt").textContent = q.prompt;
   $("quiz-choices").replaceChildren();
   $("quiz-choices").append(el("legend", "", q.selectCount === 1 ? "1つ選んでください" : `${q.selectCount}つ選んでください`));
   q.choices.forEach((choice, i) => {
@@ -604,7 +724,7 @@ function showResult() {
     btn.append(
       el("span", "mark", s.submitted ? (s.correct ? "✓" : "×") : "—"),
       el("span", "q", `${String(i + 1).padStart(2, "0")}. ${q.prompt}`),
-      el("span", `sum-tag band-${probBand(probability(q, examFor(q)))}`, `${examFor(q)} · ★${q.difficulty} · 約${probability(q, examFor(q))}%`),
+      el("span", `sum-tag band-${probBand(probability(q, examFor(q)))}`, `${examFor(q)} · ${DIFFICULTY[q.difficulty]} · 約${probability(q, examFor(q))}%`),
       el("span", "go", "見直す →"),
     );
     btn.addEventListener("click", () => {
@@ -680,6 +800,50 @@ function confirmBox(msg, okLabel, noLabel) {
   });
 }
 export { confirmBox };
+
+/* ---------- 解説 ⇄ サービス図鑑の行き来 ---------- */
+// 解説のサービス名から図鑑へ移ったら、図鑑の画面に「演習へ戻る」ボタンを出し、同じ問題・同じ位置に戻す。
+let returnCtx = null;
+const backBar = el("div", "practice-back");
+backBar.hidden = true;
+const backBtn = el("button", "primary", "");
+backBtn.type = "button";
+const backClose = el("button", "practice-back-x", "×");
+backClose.type = "button";
+backClose.setAttribute("aria-label", "戻るボタンを閉じる");
+backBar.append(backBtn, backClose);
+document.body.append(backBar);
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a[data-svc]");
+  if (!a || !a.closest("#practice")) return;
+  const inResult = !$("quiz-result").hidden;
+  returnCtx = { position, scroll: scrollY, inResult, label: inResult ? "結果" : `問${position + 1}の解説` };
+});
+backBtn.addEventListener("click", () => {
+  location.hash = "practice";
+});
+backClose.addEventListener("click", () => {
+  returnCtx = null;
+  backBar.hidden = true;
+});
+window.addEventListener("route-change", (e) => {
+  const page = e.detail?.page;
+  if (page === "services" && returnCtx && session.length) {
+    backBtn.textContent = `← 演習に戻る(${returnCtx.label})`;
+    backBar.hidden = false;
+  } else backBar.hidden = true;
+  if (page === "practice" && returnCtx && session.length) {
+    const ctx = returnCtx;
+    returnCtx = null;
+    // ページ切り替え時の先頭スクロールの後に、元の位置へ戻す
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        if (!ctx.inResult && !$("quiz-workspace").hidden && ctx.position !== position) goTo(ctx.position, false);
+        scrollTo({ top: ctx.scroll, behavior: "auto" });
+      }),
+    );
+  }
+});
 
 /* ---------- キーボード操作 ---------- */
 document.addEventListener("keydown", (e) => {

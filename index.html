@@ -230,7 +230,7 @@
               <p class="eyebrow">PRACTICE WITH PURPOSE</p>
               <h1>知識を、確かな理解へ。</h1>
               <p class="muted">
-                AWS 認定の全 13 資格・15 試験に対応。問題ごとに難易度と出題確率(推定)を表示し、条件で絞って演習できます。
+                AWS 認定の全 13 資格・<span data-question-count>3250</span> 問。問題ごとに難易度と出題確率(推定)を表示し、条件で絞って演習できます。解説では問題文の根拠に線を引き、登場したサービスは図鑑と行き来できます。
               </p>
             </div>
             <span class="pill" id="practice-exam-pill">全資格対応</span>
@@ -275,13 +275,13 @@
                   <option value="all">すべての難易度</option>
                   <option value="1">1 · 基礎</option>
                   <option value="2">2 · 標準</option>
-                  <option value="3">3 · 発展</option>
-                  <option value="4">4 · 設計応用</option>
+                  <option value="3">3 · 応用</option>
                 </select></label
               ><label
                 >出題対象<select id="quiz-mode">
                   <option value="all">すべての問題</option>
                   <option value="wrong">直近の回答が不正解</option>
+                  <option value="repeat">2 回以上間違えた問題</option>
                   <option value="unseen">未回答の問題</option>
                 </select></label
               ><label
@@ -294,6 +294,7 @@
             </div>
             <div id="exam-overview" class="exam-overview"></div>
             <p id="preset-chip" class="preset-chip" hidden>出題中：<b id="preset-label"></b> <button id="preset-clear" type="button">条件を解除</button></p>
+            <div id="weak-box" class="weak-box"></div>
             <div class="setup-actions">
               <span id="pool-count" role="status"></span
               ><button id="quiz-start" class="primary">
@@ -341,7 +342,7 @@
           <div class="study-notice">
             <strong>学習用オリジナル教材</strong>
             <p>
-              実際の試験問題・公式模擬試験ではありません。試験全範囲の網羅や合格を保証しません。公式出典付き・専門家レビュー未実施。静的サイトのため解答データは配信ファイルに含まれます。
+              問題は「AWS 全資格 オリジナル問題集 v2」(2026 年 11 月時点の公式試験ガイドの分野・比重に準拠)です。実際の試験問題・公式模擬試験ではなく、試験全範囲の網羅や合格を保証しません。根拠ラインは問題文と解説の対応から自動で推定した目安です。サービス仕様は変わるため、最新の AWS ドキュメントで確認してください。静的サイトのため解答データは配信ファイルに含まれます。
               <b>出題確率は推定値です。</b>AWS は問題ごとの出題率を公開していません。公式試験ガイドの分野の配点比率と採点対象の問題数に、その論点が分野内で占める重みを掛けて「1 回の受験で同じ論点が少なくとも 1 問出る確率」を計算しています。
             </p>
           </div>
