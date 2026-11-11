@@ -1,12 +1,13 @@
 // AWS Architecture Academy — テーマ・ルーティング・ホーム
+// ページ単位のスクリプトには ?v= を付け、公開更新のたびに index.html の script.js?v= と一緒に上げる(古いキャッシュとの混在で動かなくなるのを防ぐ)
 import { SERVICES, byId, relsOf, serviceCount } from "./services.js";
 import { BUILD } from "./data/build.js";
-import "./practice.js";
-import "./home.js";
-import "./explorer.js";
-import "./command-lab.js";
-import { buildStats, refreshRec } from "./build.js";
-import "./academy.js";
+import "./practice.js?v=20261111j";
+import "./home.js?v=20261111j";
+import "./explorer.js?v=20261111j";
+import "./command-lab.js?v=20261111j";
+import { buildStats, refreshRec } from "./build.js?v=20261111j";
+import "./academy.js?v=20261111j";
 import { store } from "./storage.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
