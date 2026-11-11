@@ -600,8 +600,9 @@ function feedback(q) {
     row.append(choice.correct ? linkify(choice.text, el("p", "choice-recap")) : markedText(choice.text, choice.marks, el("p", "choice-recap"), true));
     if (choice.explanation) {
       const why = el("p", choice.correct ? "" : "why-text");
-      if (!choice.correct) why.append(el("span", "why-label", "なぜ間違い"));
-      row.append(linkify(choice.explanation, why));
+      if (choice.correct) linkify(choice.explanation, why);
+      else why.append(el("span", "why-label", "なぜ間違い"), linkify(choice.explanation, el("span", "why-body")));
+      row.append(why);
     }
     exp.append(row);
   });
