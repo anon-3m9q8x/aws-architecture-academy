@@ -180,14 +180,35 @@ function stats() {
   renderWeak();
 }
 
-/* ---------- 複数回間違えた問題(個別にピックアップ) ---------- */
+/* ---------- 間違えた問題の一覧(誤答回数つき・個別にピックアップ) ---------- */
 let weakPicked = new Set();
-function weakList() {
+// 一覧の絞り込み: min = 誤答回数の下限 / open = 直近も不正解のみ / exam = 資格(all / 試験コード / service)
+const weakFilter = { min: 1, open: false, exam: "all" };
+let weakShown = 40; // 一度に表示する件数(「さらに表示」で増やす)
+const fmtDate = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : `${d.getMonth() + 1}/${d.getDate()}`;
+};
+/** 1 回でも間違えた問題すべて(誤答回数・回答回数・直近の結果つき) */
+function wrongAll() {
   const last = latest();
+  const total = new Map();
+  attempts.forEach((a) => total.set(a.id, (total.get(a.id) || 0) + 1));
   return [...wrongCounts()]
-    .filter(([, n]) => n >= REPEAT)
-    .map(([id, n]) => ({ q: questionMap.get(id), n, lastOk: !!last.get(id)?.correct, at: last.get(id)?.at || "" }))
+    .map(([id, n]) => {
+      const l = last.get(id);
+      return { q: questionMap.get(id), n, total: total.get(id) || n, lastOk: !!l?.correct, at: l?.at || "" };
+    })
+    .filter((x) => x.q)
     .sort((a, b) => b.n - a.n || (a.lastOk === b.lastOk ? b.at.localeCompare(a.at) : a.lastOk ? 1 : -1));
+}
+function weakList() {
+  return wrongAll().filter(
+    (x) =>
+      x.n >= weakFilter.min &&
+      (!weakFilter.open || !x.lastOk) &&
+      (weakFilter.exam === "all" || (weakFilter.exam === "service" ? isSvc(x.q) : !isSvc(x.q) && !!x.q.exams?.[weakFilter.exam])),
+  );
 }
 function startWith(ids, label) {
   window.dispatchEvent(new CustomEvent("practice-preset", { detail: { ids, label } }));
@@ -196,35 +217,88 @@ function startWith(ids, label) {
 function renderWeak() {
   const box = $("weak-box");
   if (!box) return;
+  const everything = wrongAll();
   const list = weakList();
   weakPicked = new Set([...weakPicked].filter((id) => list.some((x) => x.q.id === id)));
   box.replaceChildren();
   const head = el("div", "weak-head");
   const title = el("div");
-  title.append(el("p", "eyebrow orange", "PICK UP · 苦手な問題"), el("h3", "", `${REPEAT} 回以上間違えた問題 · ${list.length} 問`));
+  const wrongTotal = everything.reduce((s, x) => s + x.n, 0);
+  title.append(
+    el("p", "eyebrow orange", "REVIEW · 間違えた問題"),
+    el("h3", "", `不正解だった問題 · ${everything.length} 問(誤答 合計 ${wrongTotal} 回)`),
+  );
   head.append(title);
   box.append(head);
+  if (!everything.length) {
+    box.append(el("p", "muted weak-empty", "不正解だった問題が、間違えた回数つきでここに表示されます。1 問ずつ選んで解き直せます。"));
+    return;
+  }
+
+  // 絞り込み
+  const filters = el("div", "weak-filters");
+  const seg = el("div", "weak-seg");
+  seg.setAttribute("role", "group");
+  seg.setAttribute("aria-label", "表示する問題");
+  const opts = [
+    { label: "すべて", min: 1, open: false },
+    { label: `${REPEAT}回以上`, min: REPEAT, open: false },
+    { label: "直近も不正解", min: 1, open: true },
+  ];
+  opts.forEach((o) => {
+    const b = el("button", "", o.label);
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(weakFilter.min === o.min && weakFilter.open === o.open));
+    b.addEventListener("click", () => {
+      weakFilter.min = o.min;
+      weakFilter.open = o.open;
+      weakShown = 40;
+      renderWeak();
+    });
+    seg.append(b);
+  });
+  const sel = el("select", "weak-exam");
+  sel.setAttribute("aria-label", "資格で絞り込む");
+  const addOpt = (v, t) => {
+    const o = el("option", "", t);
+    o.value = v;
+    sel.append(o);
+  };
+  addOpt("all", `すべての資格(${everything.length})`);
+  EXAMS.forEach((e) => {
+    const c = everything.filter((x) => !isSvc(x.q) && x.q.exams?.[e.code]).length;
+    if (c) addOpt(e.code, `${e.code}(${c})`);
+  });
+  const sc = everything.filter((x) => isSvc(x.q)).length;
+  if (sc) addOpt("service", `サービス知識(${sc})`);
+  if (![...sel.options].some((o) => o.value === weakFilter.exam)) weakFilter.exam = "all";
+  sel.value = weakFilter.exam;
+  sel.addEventListener("change", () => {
+    weakFilter.exam = sel.value;
+    weakShown = 40;
+    renderWeak();
+  });
+  filters.append(seg, sel, el("span", "weak-count", `${list.length} 問を表示`));
+  box.append(filters);
+
   if (!list.length) {
-    box.append(el("p", "muted weak-empty", `同じ問題を ${REPEAT} 回以上間違えると、ここに表示されます。1 問ずつ選んで解き直せます。`));
+    box.append(el("p", "muted weak-empty", "この条件に当てはまる問題はありません。"));
     return;
   }
   const tools = el("div", "weak-tools");
-  const all = el("button", "", `すべて解き直す(${list.length}問)`);
+  const all = el("button", "", `表示中をすべて解き直す(${list.length}問)`);
   all.type = "button";
-  all.addEventListener("click", () => startWith(list.map((x) => x.q.id), `${REPEAT} 回以上間違えた問題`));
+  all.addEventListener("click", () => startWith(list.map((x) => x.q.id), "間違えた問題"));
   const picked = el("button", "primary", "選んだ問題を解く");
   picked.type = "button";
   picked.disabled = !weakPicked.size;
-  picked.addEventListener("click", () => weakPicked.size && startWith([...weakPicked], `選んだ苦手問題(${weakPicked.size}問)`));
-  const open = list.filter((x) => !x.lastOk);
-  const notYet = el("button", "", `まだ正解していない問題(${open.length}問)`);
-  notYet.type = "button";
-  notYet.disabled = !open.length;
-  notYet.addEventListener("click", () => startWith(open.map((x) => x.q.id), "直近も不正解の苦手問題"));
-  tools.append(picked, notYet, all);
-  head.append(tools);
+  if (weakPicked.size) picked.textContent = `選んだ ${weakPicked.size} 問を解く`;
+  picked.addEventListener("click", () => weakPicked.size && startWith([...weakPicked], `選んだ間違えた問題(${weakPicked.size}問)`));
+  tools.append(picked, all);
+  box.append(tools);
+
   const ul = el("ul", "weak-list");
-  list.forEach(({ q, n, lastOk }) => {
+  list.slice(0, weakShown).forEach(({ q, n, total, lastOk, at }) => {
     const li = el("li", lastOk ? "is-ok" : "");
     const lab = el("label", "weak-pick");
     const cb = el("input");
@@ -238,20 +312,33 @@ function renderWeak() {
       picked.textContent = weakPicked.size ? `選んだ ${weakPicked.size} 問を解く` : "選んだ問題を解く";
     });
     const code = isSvc(q) ? "サービス知識" : primaryExam(q);
+    const cnt = el("span", "weak-n");
+    cnt.title = `${total} 回中 ${n} 回 不正解`;
+    cnt.append(el("b", "", `×${n}`), el("small", "", `${total}回中`));
+    const date = fmtDate(at);
     lab.append(
       cb,
-      el("span", "weak-n", `×${n}`),
-      el("span", "weak-meta", `${code} · ${q.topic}`),
+      cnt,
+      el("span", "weak-meta", `${code} · ${q.topic}${date ? ` · 最終 ${date}` : ""}`),
       el("span", "weak-q", q.prompt),
       el("span", `weak-last ${lastOk ? "ok" : "ng"}`, lastOk ? "直近は正解" : "直近も不正解"),
     );
     const go = el("button", "weak-go", "この問題を解く");
     go.type = "button";
-    go.addEventListener("click", () => startWith([q.id], `苦手問題 ${q.id}`));
+    go.addEventListener("click", () => startWith([q.id], `間違えた問題 ${q.id}`));
     li.append(lab, go);
     ul.append(li);
   });
   box.append(ul);
+  if (list.length > weakShown) {
+    const more = el("button", "weak-more", `さらに表示(残り ${list.length - weakShown} 問)`);
+    more.type = "button";
+    more.addEventListener("click", () => {
+      weakShown += 40;
+      renderWeak();
+    });
+    box.append(more);
+  }
 }
 
 /* ---------- 出題条件 ---------- */

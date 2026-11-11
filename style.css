@@ -4136,7 +4136,18 @@ a.svc-link:not(.note-chip):hover { text-decoration-style: solid; background: col
 .weak-list li.is-ok { opacity: 0.78; }
 .weak-pick { display: grid; grid-template-columns: auto auto 1fr auto; grid-template-areas: "cb n meta last" "cb n q q"; align-items: center; gap: 2px 10px; flex: 1; min-width: 0; cursor: pointer; }
 .weak-pick input { grid-area: cb; }
-.weak-n { grid-area: n; font-weight: 800; color: var(--error, #d33); font-size: 15px; min-width: 2.2em; text-align: center; }
+.weak-n { grid-area: n; display: flex; flex-direction: column; align-items: center; line-height: 1.1; color: var(--error, #d33); min-width: 3.2em; text-align: center; }
+.weak-n b { font-weight: 800; font-size: 15px; }
+.weak-n small { font-size: 10px; color: var(--aaa-muted); white-space: nowrap; }
+.weak-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 0; }
+.weak-seg { display: inline-flex; border: 1px solid var(--aaa-border); border-radius: 999px; overflow: hidden; }
+.weak-seg button { font-size: 12px; padding: 5px 12px; border: 0; border-radius: 0; background: transparent; color: inherit; cursor: pointer; }
+.weak-seg button + button { border-left: 1px solid var(--aaa-border); }
+.weak-seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--brand-orange, #ff8a1f) 18%, transparent); font-weight: 700; }
+.weak-exam { font-size: 12px; padding: 4px 8px; }
+.weak-count { font-size: 12px; color: var(--aaa-muted); margin-left: auto; }
+.weak-box > .weak-tools { margin-top: 10px; }
+.weak-more { display: block; margin: 8px auto 0; font-size: 12px; }
 .weak-meta { grid-area: meta; font-size: 11px; color: var(--aaa-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weak-q { grid-area: q; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .weak-last { grid-area: last; font-size: 11px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
