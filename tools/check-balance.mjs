@@ -7,6 +7,8 @@ const patch = readJSON(pf);
 const { BANK, W } = await loadBank();
 const rows = new Map(BANK.flatMap((e) => e.q.map((r) => [r[0], r])));
 const errors = [], warns = [];
+// 正解の選択肢にほとんど出てこない書き方。不正解にだけ書き足すと新しい手掛かりになるので、元の本文に無いものは足さない
+const STYLE = [[/。./, "文の途中の「。」(2 文)"], [/ため、/, "「〜ため、」"], [/よう(に)?、/, "「〜よう、」"], [/うえで/, "「〜うえで」"], [/ことで、/, "「〜ことで、」"]];
 const ids = wf ? readJSON(wf).map((x) => x.id) : Object.keys(patch);
 let longest = 0, n = 0;
 for (const id of Object.keys(patch)) if (!rows.has(id)) errors.push(`${id}: 存在しない問題`);
@@ -26,6 +28,7 @@ for (const id of ids) {
   });
   opts.forEach((o, i) => {
     if (ans.includes(i)) return;
+    if (o !== orig[i]) STYLE.forEach(([re, name]) => re.test(o) && !re.test(orig[i]) && errors.push(`${id}[${i}]: 書き足しに${name}を使っている(正解にはほぼ無い書き方なので手掛かりになる)`));
     (W[id]?.[i]?.[1] || []).forEach((m) => !o.includes(m) && errors.push(`${id}[${i}]: 下線部分「${m}」が本文に残っていない`));
     const len = L(o);
     if (c <= SHORT || termOnly(orig)) return;
