@@ -77,6 +77,12 @@ const topbar = document.querySelector(".topbar");
   setH();
   new ResizeObserver(setH).observe(topbar);
 }
+// スクロールしたら上部バーに薄いガラスを付ける(最上部では透過)
+{
+  const onScroll = () => document.body.classList.toggle("page-scrolled", window.scrollY > 4);
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
+}
 const toggle = el("button", "side-toggle", "☰");
 toggle.type = "button";
 toggle.id = "side-toggle";

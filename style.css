@@ -4188,3 +4188,14 @@ a.svc-link:not(.note-chip):hover { text-decoration-style: solid; background: col
   .shell > .sidebar .side-head { padding-left: 6px; }
   .sidebar nav a { padding-left: 8px; }
 }
+
+/* 上部バー(ロゴ・検索欄): ページ本体と同じく背景を透過させる。スクロールして本文が下に入るときだけ薄いガラスにする */
+.topbar {
+  background: transparent !important; border-bottom-color: transparent;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  transition: background-color 0.25s, border-color 0.25s, backdrop-filter 0.25s;
+}
+body.page-scrolled .topbar {
+  background: color-mix(in srgb, var(--glass) 55%, transparent) !important; border-bottom-color: var(--glass-line);
+  backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2);
+}
