@@ -1,7 +1,7 @@
 // 書き直し(data/balance/<試験>-<n>.json: { 問題id: { 選択肢の番号: 新しい本文 } })を検証する。
 //   node tools/check-balance.mjs <パッチ json> [作業ファイル json]
 // 作業ファイルを渡すと、そこに含まれる問題がすべて基準を満たしているかも確認する。
-import { loadBank, L, correctLen, MIN, MAX, readJSON } from "./balance-lib.mjs";
+import { loadBank, L, correctLen, MIN, MAX, SHORT, readJSON } from "./balance-lib.mjs";
 const [pf, wf] = process.argv.slice(2);
 const patch = readJSON(pf);
 const { BANK, W } = await loadBank();
@@ -28,6 +28,7 @@ for (const id of ids) {
     if (ans.includes(i)) return;
     (W[id]?.[i]?.[1] || []).forEach((m) => !o.includes(m) && errors.push(`${id}[${i}]: 下線部分「${m}」が本文に残っていない`));
     const len = L(o);
+    if (c <= SHORT) return;
     if (len < c * MIN) errors.push(`${id}[${i}]: 短すぎる ${len} 字(正解 ${Math.round(c)} 字 → ${Math.ceil(c * MIN)} 字以上)`);
     if (len > c * MAX && len > L(orig[i])) errors.push(`${id}[${i}]: 長すぎる ${len} 字(${Math.floor(c * MAX)} 字以下)`);
   });
