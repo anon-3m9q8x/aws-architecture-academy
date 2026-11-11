@@ -90,11 +90,14 @@ toggle.title = "メニューの開閉";
 // ☰ はワークスペース(サイドバー)の左上に置く。閉じたときもサイドバーは細い帯として残り、☰ から開ける
 const shell = document.querySelector(".shell");
 const sidebar = shell.querySelector(".sidebar");
+// ☰ の右にサイトのロゴ、その下に「WORKSPACE」の見出しを置く(スマホでは上部バーのロゴを使う)
 const sideHead = el("div", "side-head");
 const sideLabel = sidebar.querySelector(":scope > .eyebrow");
-sideHead.append(toggle);
-if (sideLabel) sideHead.append(sideLabel);
+const sideBrand = topbar.querySelector(".brand").cloneNode(true);
+sideBrand.classList.add("side-brand");
+sideHead.append(toggle, sideBrand);
 sidebar.prepend(sideHead);
+if (sideLabel) sideHead.after(sideLabel);
 // ロゴと検索欄を、ページ本文の左端にそろえる(サイドバーの幅・開閉に合わせて追従)
 {
   const main = document.querySelector("main");
@@ -137,118 +140,6 @@ window.addEventListener("sidebar-auto", (e) => {
     setCollapsed(false, true);
   }
 });
-
-/* ---------- 検索候補(タイプアヘッド) ---------- */
-const form = $("global-search-form"),
-  input = $("global-search");
-const box = el("div", "suggest");
-box.id = "search-suggest";
-box.setAttribute("role", "listbox");
-box.hidden = true;
-form.append(box);
-searchClear(input);
-input.setAttribute("role", "combobox");
-input.setAttribute("aria-controls", "search-suggest");
-input.setAttribute("aria-autocomplete", "list");
-input.setAttribute("aria-expanded", "false");
-let hits = [],
-  active = -1;
-function score(s, q) {
-  const n = s.name.toLowerCase();
-  if (n === q) return 0;
-  if (n.startsWith(q)) return 1;
-  if (n.includes(q) || s.full.toLowerCase().includes(q)) return 2;
-  if (s.cat.toLowerCase().includes(q)) return 3;
-  if ([s.purpose, s.useCases, s.tip, s.summary, ...(s.features || []), ...(s.cues?.words || [])].join(" ").toLowerCase().includes(q)) return 4;
-  return 9;
-}
-function suggest() {
-  const q = input.value.trim().toLowerCase();
-  if (!q) {
-    close();
-    return;
-  }
-  hits = SERVICES
-    .map((s) => [score(s, q), s])
-    .filter(([v]) => v < 9)
-    .sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name))
-    .slice(0, 7)
-    .map(([, s]) => s);
-  active = hits.length ? 0 : -1;
-  draw(q);
-}
-function mark(text, q) {
-  const f = el("span");
-  const i = text.toLowerCase().indexOf(q);
-  if (i < 0) {
-    f.textContent = text;
-    return f;
-  }
-  f.append(document.createTextNode(text.slice(0, i)), el("mark", "", text.slice(i, i + q.length)), document.createTextNode(text.slice(i + q.length)));
-  return f;
-}
-function draw(q) {
-  box.replaceChildren();
-  if (!hits.length) {
-    box.append(el("p", "suggest-empty", "一致するサービスがありません。Enter で図鑑を検索します。"));
-  } else
-    hits.forEach((s, i) => {
-      const a = el("a", "suggest-item");
-      a.href = `#services/${s.id}`;
-      a.id = `sg-${i}`;
-      a.setAttribute("role", "option");
-      a.setAttribute("aria-selected", String(i === active));
-      const t = el("span", "sg-text");
-      const name = mark(s.name, q);
-      name.className = "sg-name";
-      t.append(name, el("small", "", s.purpose || s.summary));
-      a.append(el("span", "sg-cat", s.cat), t);
-      a.addEventListener("mousedown", (e) => e.preventDefault());
-      a.addEventListener("click", () => {
-        close();
-        input.value = "";
-      });
-      box.append(a);
-    });
-  box.append(el("p", "suggest-foot", "↑↓ で選択 · Enter で開く · Esc で閉じる"));
-  box.hidden = false;
-  input.setAttribute("aria-expanded", "true");
-  input.setAttribute("aria-activedescendant", active >= 0 ? `sg-${active}` : "");
-}
-function close() {
-  box.hidden = true;
-  input.setAttribute("aria-expanded", "false");
-  input.removeAttribute("aria-activedescendant");
-}
-input.addEventListener("input", suggest);
-input.addEventListener("focus", () => input.value.trim() && suggest());
-input.addEventListener("blur", () => setTimeout(close, 120));
-input.addEventListener("keydown", (e) => {
-  if (box.hidden) return;
-  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-    e.preventDefault();
-    if (!hits.length) return;
-    active = (active + (e.key === "ArrowDown" ? 1 : -1) + hits.length) % hits.length;
-    draw(input.value.trim().toLowerCase());
-  } else if (e.key === "Escape") {
-    close();
-  } else if (e.key === "Enter" && active >= 0 && hits[active]) {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    location.hash = `services/${hits[active].id}`;
-    input.value = "";
-    close();
-    input.blur();
-  }
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
-    e.preventDefault();
-    input.focus();
-  }
-});
-input.placeholder = "サービス名・用途で検索…(例: Lambda、キュー、DNS)  / キーで移動";
-input.setAttribute("aria-label", "サービスを検索");
 
 /* ---------- ホーム: 前回の続きから ---------- */
 function resume() {

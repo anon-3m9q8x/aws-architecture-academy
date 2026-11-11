@@ -4205,3 +4205,28 @@ body.page-scrolled .topbar {
   .topbar { padding-left: 10px; column-gap: 16px; }
   .topbar > .global-search { max-width: none; width: 100%; }
 }
+
+/* ロゴは ☰ の右(ワークスペースの上端)、「WORKSPACE」はその下。上部の検索欄は廃止 */
+.side-head { gap: 8px; }
+.side-head .side-toggle { flex: none; width: 36px; height: 36px; font-size: 17px; }
+.side-brand { display: flex; align-items: center; gap: 6px; min-width: 0; text-decoration: none; color: inherit; }
+.side-brand .brand-logo { width: 30px; height: 27px; flex: none; }
+.side-brand .brand-main { font-size: 13px; letter-spacing: -0.2px; white-space: nowrap; }
+.side-brand .brand-sub { font-size: 8.5px; letter-spacing: 2.2px; margin-top: 2px; }
+.shell > .sidebar > .eyebrow { margin: 0 0 10px 6px; }
+@media (min-width: 761px) {
+  .topbar > .brand { display: none; }
+  .topbar { grid-template-columns: minmax(0, 1fr) auto; }
+  .shell.side-collapsed .side-brand { display: none; }
+}
+/* 上部バーに表示するものがない幅では上部バー自体を出さない */
+@media (min-width: 761px) and (max-width: 1300px) { .topbar { display: none; } }
+@media (max-width: 760px) { .side-brand { display: none; } }
+/* ロゴがワークスペースの幅に収まるよう調整 */
+@media (min-width: 761px) {
+  .shell > .sidebar .side-head { padding-left: 2px; margin-right: -8px; gap: 6px; }
+  .side-brand { gap: 5px; }
+  .side-brand .brand-logo { width: 26px; height: 24px; }
+  .side-brand .brand-main { font-size: 12px; }
+  .side-brand .brand-sub { font-size: 8px; letter-spacing: 1.9px; }
+}

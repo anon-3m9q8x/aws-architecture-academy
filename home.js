@@ -19,12 +19,6 @@ function noteLink(id, label) {
   a.href = `#services/${id}`;
   return a;
 }
-$("global-search-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const q = $("global-search").value.trim();
-  window.dispatchEvent(new CustomEvent("explorer-search", { detail: q }));
-  location.hash = "services";
-});
 for (const id of ["connection-from", "connection-to"])
   notebook.services.forEach((s) => {
     const o = el("option", "", s.name);
