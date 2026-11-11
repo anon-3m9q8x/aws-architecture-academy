@@ -81,8 +81,25 @@ const toggle = el("button", "side-toggle", "☰");
 toggle.type = "button";
 toggle.id = "side-toggle";
 toggle.title = "メニューの開閉";
-topbar.prepend(toggle);
+// ☰ はワークスペース(サイドバー)の左上に置く。閉じたときもサイドバーは細い帯として残り、☰ から開ける
 const shell = document.querySelector(".shell");
+const sidebar = shell.querySelector(".sidebar");
+const sideHead = el("div", "side-head");
+const sideLabel = sidebar.querySelector(":scope > .eyebrow");
+sideHead.append(toggle);
+if (sideLabel) sideHead.append(sideLabel);
+sidebar.prepend(sideHead);
+// ロゴと検索欄を、ページ本文の左端にそろえる(サイドバーの幅・開閉に合わせて追従)
+{
+  const main = document.querySelector("main");
+  const align = () => {
+    const left = main.getBoundingClientRect().left + parseFloat(getComputedStyle(main).paddingLeft || 0);
+    document.documentElement.style.setProperty("--content-left", Math.round(left) + "px");
+  };
+  align();
+  new ResizeObserver(align).observe(main);
+  window.addEventListener("resize", align);
+}
 function setCollapsed(c, silent) {
   shell.classList.toggle("side-collapsed", c);
   document.body.classList.toggle("side-collapsed", c);
