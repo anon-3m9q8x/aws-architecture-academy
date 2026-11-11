@@ -31,9 +31,9 @@ function glyph(s, big) {
 
 /* ---------- 一覧 ---------- */
 const view = el("div", "ex-view");
-const head = el("div", "page-heading ex-head");
+const head = el("div", "page-heading ex-head ws-head");
 const ht = el("div");
-ht.append(el("p", "eyebrow", "SERVICE EXPLORER"), el("h1", "", "サービス図鑑"), el("p", "muted", `AWS の主要カテゴリを網羅した ${serviceCount} サービス。タップすると、連携アニメーションと詳しい解説へ移動します。`));
+ht.append(el("p", "eyebrow", "SERVICE EXPLORER"), el("h1", "", "サービス図鑑"), el("p", "muted", `${serviceCount} サービス。タップで連携アニメーションと解説へ。`));
 const modeSeg = el("div", "seg ex-mode");
 modeSeg.setAttribute("role", "tablist");
 for (const [v, t] of [["list", "サービス一覧"], ["compare", `類似サービス比較 ${COMPARE.length}`], ["patterns", `設計パターン ${PATTERNS.length}`], ["scenes", "連携シナリオ"]]) {

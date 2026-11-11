@@ -41,9 +41,9 @@ function renderList() {
   player?.destroy();
   player = null;
   const wrap = el("div", "bd-list-view");
-  const head = el("div", "page-heading");
+  const head = el("div", "page-heading ws-head");
   const t = el("div");
-  t.append(el("p", "eyebrow", "BUILD THE ARCHITECTURE"), el("h1", "", "サービス構築問題"), el("p", "muted", "要件を読み、必要なサービスを置いて線でつなぐ。資格試験で問われる「サービス同士の連携」を、手を動かして身につけます。"));
+  t.append(el("p", "eyebrow", "BUILD THE ARCHITECTURE"), el("h1", "", "サービス構築問題"), el("p", "muted", "要件を読み、サービスを置いて線でつなぎます。"));
   const solved = BUILD.filter((pb) => rec[pb.id]?.ok).length;
   const prog = el("div", "bd-prog");
   prog.append(el("b", "", `${solved} / ${BUILD.length}`), el("small", "", "問 正解"));

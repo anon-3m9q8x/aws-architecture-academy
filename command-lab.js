@@ -94,9 +94,9 @@ let filters = { cat: "all", mode: "all", level: "all", tag: "all", status: "all"
 try { const f = store.get(FKEY, null); if (f && typeof f === "object") filters = { ...filters, ...Object.fromEntries(Object.entries(f).filter(([k, v]) => k in filters && typeof v === "string")) }; } catch { /* 既定値を使う */ }
 function renderList() {
   const wrap = el("div", "cl-list");
-  const head = el("div", "page-heading");
+  const head = el("div", "page-heading ws-head");
   const t = el("div");
-  t.append(el("p", "eyebrow", "COMMAND & POLICY LAB"), el("h1", "", "コマンド・ポリシー演習"), el("p", "muted", "AWS CLI・IAM の JSON ポリシー・API リクエストを、読む・書く・実行する・直す。学習用のシミュレーターで、許可・拒否や実行結果を確かめながら身につけます。"));
+  t.append(el("p", "eyebrow", "COMMAND & POLICY LAB"), el("h1", "", "コマンド・ポリシー演習"), el("p", "muted", "CLI・IAM ポリシー・API を、シミュレーターで書いて試します。"));
   const s = labStats();
   const prog = el("div", "bd-prog");
   prog.append(el("b", "", `${s.cleared} / ${s.total}`), el("small", "", "問 クリア"));

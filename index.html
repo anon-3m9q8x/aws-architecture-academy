@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&amp;display=swap" />
-    <link rel="stylesheet" href="style.css?v=20261111c" />
+    <link rel="stylesheet" href="style.css?v=20261111d" />
     <link rel="stylesheet" href="account.css?v=20261110b" />
     <link rel="stylesheet" href="command-lab.css" />
   </head>
@@ -202,11 +202,13 @@
         </section>
         
         <section id="connections" class="page" hidden>
-          <p class="eyebrow">CONNECT THE DOTS</p>
-          <h1>サービスのつながりを知る。</h1>
-          <p class="muted">
-            269件の関連から、2つの項目を結ぶ経路を探します。学習用の関連図であり、通信経路や接続可能性の検証ではありません。
-          </p>
+          <div class="page-heading ws-head">
+            <div>
+              <p class="eyebrow">CONNECT THE DOTS</p>
+              <h1>サービスのつながりを知る。</h1>
+              <p class="muted">269件の関連から、2つの項目を結ぶ経路を探します(学習用の関連図)。</p>
+            </div>
+          </div>
           <div class="panel connection-controls">
             <label>はじまり<select id="connection-from"></select></label
             ><span aria-hidden="true">→</span
@@ -226,12 +228,12 @@
         <section id="command-lab" class="page" hidden></section>
         <section id="build" class="page" hidden></section>
         <section id="practice" class="page" hidden>
-          <div class="page-heading">
+          <div class="page-heading ws-head">
             <div>
               <p class="eyebrow">PRACTICE WITH PURPOSE</p>
               <h1>知識を、確かな理解へ。</h1>
               <p class="muted">
-                AWS 認定の全 13 資格・<span data-question-count>3250</span> 問。問題ごとに難易度と出題確率(推定)を表示し、条件で絞って演習できます。解説では問題文の根拠に線を引き、登場したサービスは図鑑と行き来できます。
+                全 13 資格・<span data-question-count>3250</span> 問。難易度・出題確率で絞って演習できます。
               </p>
             </div>
             <span class="pill" id="practice-exam-pill">全資格対応</span>
@@ -369,6 +371,6 @@
     <script src="config.js"></script>
     <script src="vendor/supabase.js"></script>
     <script src="account.js?v=20261110b"></script>
-    <script src="script.js?v=20261111d" type="module"></script>
+    <script src="script.js?v=20261111e" type="module"></script>
   </body>
 </html>
