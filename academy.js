@@ -93,11 +93,14 @@ sidebar.prepend(sideHead);
 {
   const main = document.querySelector("main");
   const align = () => {
-    const left = main.getBoundingClientRect().left + parseFloat(getComputedStyle(main).paddingLeft || 0);
-    document.documentElement.style.setProperty("--content-left", Math.round(left) + "px");
+    const root = document.documentElement.style;
+    // ワークスペースは画面の最上部まで伸ばし、上部バーはその右から始める
+    root.setProperty("--side-w", Math.round(sidebar.getBoundingClientRect().width) + "px");
+    root.setProperty("--content-left", Math.round(parseFloat(getComputedStyle(main).paddingLeft || 0)) + "px");
   };
   align();
   new ResizeObserver(align).observe(main);
+  new ResizeObserver(align).observe(sidebar);
   window.addEventListener("resize", align);
 }
 function setCollapsed(c, silent) {

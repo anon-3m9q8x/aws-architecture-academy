@@ -3975,9 +3975,13 @@ select, textarea):focus-visible { outline: none; box-shadow: var(--glow); }
 /* ---------- ワークスペース(サイドバー)を固定: ページをスクロールしても常に表示し、内部もスクロールさせない ---------- */
 @media (min-width: 761px) {
   .shell { align-items: start; }
+  /* ワークスペースは画面の最上部から。上部バーはその右側だけに置く */
+  .topbar { margin-left: var(--side-w, 206px); }
+  .shell { margin-top: calc(-1 * var(--topbar-h, 82px)); }
+  .shell > main { margin-top: var(--topbar-h, 82px); }
   .shell > .sidebar {
-    position: sticky; top: var(--topbar-h, 82px); align-self: start;
-    height: calc(100vh - var(--topbar-h, 82px)); height: calc(100dvh - var(--topbar-h, 82px));
+    position: sticky; top: 0; align-self: start;
+    height: 100vh; height: 100dvh; border-radius: 0 18px 18px 0;
     overflow: hidden; display: flex; flex-direction: column; z-index: 20;
   }
   .shell > .sidebar .sidebar-note { margin-top: auto; }
