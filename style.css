@@ -3185,11 +3185,11 @@ html[data-theme="light"] .study-hero {
 .choice-letter { font-weight: 800; }
 .choice.is-right { border-color: var(--ac-ok) !important; background: color-mix(in srgb, var(--ac-ok) 12%, var(--aaa-panel)) !important; }
 .choice.is-wrong { border-color: var(--ac-ng) !important; background: color-mix(in srgb, var(--ac-ng) 10%, var(--aaa-panel)) !important; }
-.choice.is-missed { border-color: var(--ac-ok) !important; border-style: dashed !important; }
+.choice.is-missed { border-color: var(--ac-ok) !important; border-width: 2px !important; background: color-mix(in srgb, var(--ac-ok) 16%, var(--aaa-panel)) !important; box-shadow: 0 0 0 1px var(--ac-ok) inset; }
 .choice.is-right::after, .choice.is-wrong::after, .choice.is-missed::after { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-weight: 800; font-size: 12px; }
 .choice.is-right::after { content: "✓ 正解"; color: var(--ac-ok); }
 .choice.is-wrong::after { content: "✕ あなたの回答"; color: var(--ac-ng); }
-.choice.is-missed::after { content: "選ぶべき正解"; color: var(--ac-ok); }
+.choice.is-missed::after { content: "✓ 正解"; color: var(--ac-ok); }
 .choice .choice-text { padding-right: 96px; }
 .feedback-head { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; padding: 14px 16px; border-radius: 14px; margin: 6px 0 14px; }
 .feedback-head h3 { margin: 0; }
@@ -3208,6 +3208,7 @@ html[data-theme="light"] .study-hero {
 .solve-trap b { background: var(--ac-warn); color: #1a1300; }
 .explanations .eyebrow { margin: 4px 0 8px; }
 .explanation.is-chosen { border-left: 3px solid var(--ac-ng); }
+.explanation.is-correct { border-left: 3px solid var(--ac-ok); background: color-mix(in srgb, var(--ac-ok) 9%, var(--aaa-bg)); }
 .feedback-links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
 .feedback-links .source-link { margin-left: auto; }
 .note-chip { font-size: 12px; padding: 4px 12px; border-radius: 999px; background: var(--selection); color: var(--aaa-blue); }
