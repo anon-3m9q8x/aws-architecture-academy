@@ -2,6 +2,7 @@
 //   node tools/build-questions.mjs <問題集の json フォルダ>
 // 問題文・選択肢・正解・解説・分野・トピック・難易度・論点は資料のまま変更しない。
 // 追加するのは「根拠ライン」(問題文のどの部分から正解が導けるか: [開始, 終了, 種類, 対応する解説の文番号])だけ。
+// 生成後に tools/apply-balance.mjs を実行し、文字数をそろえた不正解の選択肢(data/balance/*.json)を反映する。
 import fs from "node:fs";
 import path from "node:path";
 import { evidenceLines, buildIdf } from "./question-lines.mjs";
@@ -43,3 +44,4 @@ fs.writeFileSync(
   `// 自動生成: tools/build-questions.mjs\n` + index.map((n, i) => `import e${i} from "./${n}.js";`).join("\n") + `\nexport const BANK = [${index.map((_, i) => "e" + i).join(", ")}];\n`,
 );
 console.log(`${index.length} 試験 / ${total} 問 → ${outDir}`);
+await import("./apply-balance.mjs");
