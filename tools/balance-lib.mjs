@@ -11,11 +11,13 @@ export async function loadBank() {
   const W = (await import(path.join(root, "data/why/index.js"))).default;
   return { BANK, W };
 }
+/** 選択肢がすべて用語だけ(空白・読点なしの 30 字以下: API 名やサービス名など)。説明を付け足すと逆に手掛かりになるので対象外 */
+export const termOnly = (opts) => opts.every((o) => !/[\s、。]/.test(o) && L(o) <= 30);
 export const correctLen = (opts, ans) => ans.reduce((s, i) => s + L(opts[i]), 0) / ans.length;
 /** 書き直しが必要か: 不正解の選択肢のどれかが正解の MIN 倍より短い */
 export function needs(opts, ans) {
   const c = correctLen(opts, ans);
-  if (c <= SHORT) return false;
+  if (c <= SHORT || termOnly(opts)) return false;
   return opts.some((o, i) => !ans.includes(i) && L(o) < c * MIN);
 }
 export function readJSON(f) {
