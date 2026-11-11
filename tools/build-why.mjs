@@ -9,7 +9,9 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..")
 const dir = path.join(root, "data/why/parts");
 const out = {};
 let n = 0;
-for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".json")).sort()) {
+// 引数でファイル名を指定したときはそれだけを使う(作成途中のファイルを含めないため)
+const only = process.argv.slice(2);
+for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".json") && (!only.length || only.includes(f))).sort()) {
   const data = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
   for (const [id, entry] of Object.entries(data)) {
     out[id] = {};
