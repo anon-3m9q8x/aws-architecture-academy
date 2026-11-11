@@ -260,10 +260,6 @@
   "0": "API Gateway に関連付けた AWS WAF のログでブロックされたリクエストを確認し、件数を集計する",
   "3": "VPC フローログで Bedrock の VPC エンドポイントへの通信量を確認し、急減した時間帯を調べる"
  },
- "MLA-C02-193": {
-  "0": "CPUCreditBalance（AWS/EC2）",
-  "2": "BucketSizeBytes（AWS/S3）"
- },
  "MLA-C02-194": {
   "0": "Bedrock の VPC エンドポイントがあるサブネットで VPC フローログを有効にする",
   "1": "Bedrock の呼び出し設定の変更履歴を記録し、AWS Config のルールを有効にする",
