@@ -6,7 +6,7 @@ import { findServices, servicesIn } from "./data/service-terms.js";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
-const LETTERS = "ABCDEFGH";
+const LETTERS = "12345678"; // 選択肢の番号(1 から)
 $("question-count").textContent = questions.length;
 document
   .querySelectorAll("[data-question-count]")
@@ -98,6 +98,18 @@ function markedText(text, marks, parent, links) {
 const sentencesOf = (t) => (t.match(/[^。]+。?/g) || []).map((x) => x.trim()).filter(Boolean);
 
 /* ---------- 成績 ---------- */
+/** 資格ごとに、今までに解いた問題数(重複なし)と回答回数 */
+function examProgress(code) {
+  const last = latest();
+  const qs = questions.filter((q) => q.exams[code]);
+  const done = qs.filter((q) => last.has(q.id)).length;
+  const answers = attempts.filter((a) => questionMap.get(a.id)?.exams?.[code]).length;
+  return { total: qs.length, done, answers };
+}
+const progressText = (code) => {
+  const p = examProgress(code);
+  return `実施 ${p.done}/${p.total}問`;
+};
 function latest() {
   const map = new Map();
   attempts.forEach((a) => map.set(a.id, a));
@@ -119,6 +131,9 @@ function stats() {
     ? `${Math.round((correct / attempts.length) * 100)}%`
     : "—";
   $("mistake-count").textContent = wrong;
+  // 資格の選択肢に、各資格で今までに解いた問題数を表示する
+  $("quiz-cert").querySelectorAll("option[data-base]").forEach((o) => (o.textContent = `${o.dataset.base} · ${progressText(o.value)}`));
+  if (typeof renderOverview === "function" && $("exam-overview") && !$("practice-setup").hidden) renderOverview();
   const history = $("practice-history") || document.createElement("div");
   history.replaceChildren(
     el("span", "eyebrow", "PRACTICE INSIGHTS"),
@@ -129,6 +144,20 @@ function stats() {
       `資格試験 ${[...last.keys()].filter((id) => !isSvc(questionMap.get(id))).length} / ${questions.length} 問・サービス知識 ${[...last.keys()].filter((id) => isSvc(questionMap.get(id))).length} / ${serviceQuestions.length} 問に回答 · 回答 ${attempts.length} 回 · 正答率 ${attempts.length ? Math.round((correct / attempts.length) * 100) + "%" : "未回答"} · 復習対象 ${wrong} 問`,
     ),
   );
+  // 資格ごとの実施状況(1 問でも解いた資格のみ)
+  const examRows = el("div", "domain-results exam-progress");
+  EXAMS.forEach((e) => {
+    const p = examProgress(e.code);
+    if (!p.total || !p.done) return;
+    const row = el("div", "domain-row");
+    const bar = el("span", "domain-bar");
+    const fill = el("i");
+    fill.style.width = Math.round((p.done / p.total) * 100) + "%";
+    bar.append(fill);
+    row.append(el("span", "", e.code), bar, el("span", "", `${p.done}/${p.total}問 実施 · ${p.answers}回答`));
+    examRows.append(row);
+  });
+  if (examRows.childElementCount) history.append(el("p", "exam-ov-h", "資格ごとの実施問題数"), examRows, el("p", "exam-ov-h", "分野ごとの正答率"));
   const list = el("div", "domain-results");
   [...new Set(questions.map((q) => q.domain)), "サービス知識(試験外)"].forEach((domain) => {
     const subset = attempts.filter((a) => {
@@ -250,6 +279,8 @@ function pool() {
   );
 }
 let presetIds = null;
+/** 演習を始めた時点の、問題ごとの前回の結果(今回の回答で上書きしない) */
+let prevResults = new Map();
 function updatePool() {
   const count = pool().length;
   const real = $("quiz-limit").value === "real" && count ? ` → 実試験と同じ ${Math.min(count, realCount())} 問をランダムに出題` : "";
@@ -266,8 +297,9 @@ LEVELS.forEach((lv) => {
   EXAMS.filter((e) => e.level === lv).forEach((e) => {
     const n = questions.filter((q) => q.exams[e.code]).length;
     if (!n) return; // 問題のない試験(旧版)は出さない
-    const o = el("option", "", `${e.code} ${e.name}${e.retire ? `(${e.retire.slice(5).replace("-", "/")} まで)` : ""} · ${n}問`);
+    const o = el("option", "", "");
     o.value = e.code;
+    o.dataset.base = `${e.code} ${e.name}${e.retire ? `(${e.retire.slice(5).replace("-", "/")} まで)` : ""}`;
     g.append(o);
   });
   $("quiz-cert").append(g);
@@ -337,7 +369,7 @@ function renderOverview() {
       if (!n) return;
       const b = el("button", "exam-chip");
       b.type = "button";
-      b.append(el("b", "", e.code), el("span", "", `${n}問`));
+      b.append(el("b", "", e.code), el("span", "", `${n}問`), el("span", "exam-chip-done", progressText(e.code).replace(/\/\d+問/, "問")));
       b.title = e.name;
       b.addEventListener("click", () => {
         $("quiz-cert").value = e.code;
@@ -355,7 +387,8 @@ function renderOverview() {
   link.href = ex.guide;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  head.append(el("b", "", `${ex.code} ${ex.name}`), el("span", "muted", `採点対象 ${ex.scored} 問${ex.scoredEstimated ? "(推定)" : ""}${ex.retire ? ` · ${ex.retire} で受験終了` : ""}`), link);
+  const pg = examProgress(code);
+  head.append(el("b", "", `${ex.code} ${ex.name}`), el("span", "exam-ov-done", `今までに ${pg.done} / ${pg.total} 問を実施(回答 ${pg.answers} 回)`), el("span", "muted", `採点対象 ${ex.scored} 問${ex.scoredEstimated ? "(推定)" : ""}${ex.retire ? ` · ${ex.retire} で受験終了` : ""}`), link);
   const table = el("div", "exam-ov-rows");
   ex.domains.forEach(([name, w], i) => {
     const sub = qs.filter((q) => q.exams[code][0] === i + 1);
@@ -647,7 +680,7 @@ function syncButtons() {
     : q.selectCount === 1
       ? selections.size
         ? `${LETTERS[[...selections][0]]} を選択`
-        : "選択肢を選んでください（キー A〜" + LETTERS[q.choices.length - 1] + "）"
+        : "選択肢を選んでください（キー 1〜" + LETTERS[q.choices.length - 1] + "）"
       : `${selections.size} / ${q.selectCount} 選択 · あと ${q.selectCount - selections.size} つ選ぶと採点します`;
 }
 function render() {
@@ -678,12 +711,18 @@ function render() {
   const lv = el("span", `pill diff-pill lv${q.difficulty}`, `難易度 ${"★".repeat(q.difficulty)}${"☆".repeat(3 - q.difficulty)} ${DIFFICULTY[q.difficulty]}`);
   lv.title = DIFFICULTY[q.difficulty];
   const tp = el("span", "pill topic-pill", q.topic || "");
+  const pv = prevResults.get(q.id);
+  const times = attempts.filter((a) => a.id === q.id && (!pv || a.at <= pv.at)).length;
+  const prev = pv
+    ? el("span", `pill prev-pill ${pv.correct ? "ok" : "ng"}`, `前回 ${pv.correct ? "○ 正解" : "✕ 不正解"} · ${new Date(pv.at).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}${pv.chosen?.length ? ` · 選択 ${pv.chosen.map((i) => LETTERS[i]).join("・")}` : ""} · これまで ${times}回`)
+    : el("span", "pill prev-pill new", "初めての問題");
+  if (pv) prev.title = `前回 ${new Date(pv.at).toLocaleString("ja-JP")} に回答。これまでにこの問題を ${times} 回解いています。`;
   tp.hidden = !q.topic;
   if (isSvc(q)) {
     const kp = el("span", "pill svc-pill", "サービス知識 · 試験外");
     kp.title = "サービス図鑑の内容から作成した知識確認問題です。資格試験の問題とは別枠で記録されます。";
-    meta.replaceChildren(kp, lv, tp);
-  } else meta.replaceChildren(pr, lv, tp);
+    meta.replaceChildren(prev, kp, lv, tp);
+  } else meta.replaceChildren(prev, pr, lv, tp);
   $("quiz-type").textContent = q.selectCount === 1 ? "単一選択" : `複数選択・${q.selectCount}つ`;
   $("quiz-prompt").replaceChildren();
   if (s.submitted && q.lines?.length) linedText(q.prompt, q.lines, $("quiz-prompt"), false);
@@ -739,6 +778,9 @@ $("quiz-start").addEventListener("click", () => {
     const j = Math.floor(Math.random() * (i + 1));
     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
   }
+  // まだ解いたことのない問題を先に出す(同じグループ内はランダム)
+  prevResults = latest();
+  candidates.sort((a, b) => Number(prevResults.has(a.id)) - Number(prevResults.has(b.id)));
   session = $("quiz-limit").value === "real" ? pickReal(candidates, realCount()) : candidates.slice(0, Number($("quiz-limit").value));
   if (!session.length) return;
   states = session.map(() => ({ sel: new Set(), submitted: false, correct: false, visited: false }));
@@ -990,9 +1032,7 @@ document.addEventListener("keydown", (e) => {
   if (tag === "TEXTAREA" || (tag === "INPUT" && !["radio", "checkbox"].includes(document.activeElement.type)) || tag === "SELECT") return;
   const q = session[position];
   if (!q) return;
-  const k = e.key.toUpperCase();
-  let idx = LETTERS.indexOf(k);
-  if (idx < 0 && /^[1-8]$/.test(e.key)) idx = Number(e.key) - 1;
+  const idx = /^[1-8]$/.test(e.key) ? Number(e.key) - 1 : -1;
   if (idx >= 0 && idx < q.choices.length && !cur().submitted && !finished) {
     e.preventDefault();
     const input = $("quiz-choices").querySelectorAll("input")[idx];
