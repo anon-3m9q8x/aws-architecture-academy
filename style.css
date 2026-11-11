@@ -4199,3 +4199,9 @@ body.page-scrolled .topbar {
   background: color-mix(in srgb, var(--glass) 55%, transparent) !important; border-bottom-color: var(--glass-line);
   backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2);
 }
+
+/* 上部バー: ロゴを左へ寄せ、検索欄を残りの幅いっぱいに広げる */
+@media (min-width: 761px) {
+  .topbar { padding-left: 10px; column-gap: 16px; }
+  .topbar > .global-search { max-width: none; width: 100%; }
+}
