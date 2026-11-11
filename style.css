@@ -4181,3 +4181,10 @@ a.svc-link:not(.note-chip):hover { text-decoration-style: solid; background: col
 .ws-head .muted { font-size: 12.5px; line-height: 1.5; margin: 0; }
 .ws-head > .pill { padding: 4px 10px; font-size: 11px; }
 @media (max-width: 600px) { .ws-head h1 { font-size: 19px; } .ws-head .muted { font-size: 12px; } }
+
+/* サイドバーのメニュー: アイコンの左の余白を詰める */
+@media (min-width: 761px) {
+  .shell > .sidebar { padding-left: 10px; }
+  .shell > .sidebar .side-head { padding-left: 6px; }
+  .sidebar nav a { padding-left: 8px; }
+}
