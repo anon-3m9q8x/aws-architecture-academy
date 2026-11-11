@@ -12,6 +12,7 @@ export const serviceQuestions = bank.q.map(([id, cat, kind, lv, concept, prompt,
   certification: "SERVICE",
   certifications: [],
   selectCount: answer.length,
-  choices: options.map((text, i) => ({ text, correct: answer.includes(i), explanation: whys[i] || "" })),
+  // サービス名の選択肢は、名前そのものが間違いの決め手なので選択肢全体に下線を引く
+  choices: options.map((text, i) => ({ text, correct: answer.includes(i), explanation: whys[i] || "", marks: answer.includes(i) ? [] : [text] })),
   reviewStatus: "サービス図鑑の内容から作成した知識確認問題(資格試験の問題とは別枠)",
 }));

@@ -73,6 +73,28 @@ function linedText(text, lines, parent, links) {
   put(text.slice(p), parent);
   return parent;
 }
+/** 選択肢の本文の「間違いに直結する部分」に下線を引く(marks は本文の部分文字列) */
+function markedText(text, marks, parent, links) {
+  const put = (t, into) => (links ? linkify(t, into) : into.append(document.createTextNode(t)));
+  const spans = [];
+  (marks || []).forEach((m) => {
+    const a = m ? text.indexOf(m) : -1;
+    if (a >= 0) spans.push([a, a + m.length]);
+  });
+  spans.sort((x, y) => x[0] - y[0]);
+  let p = 0;
+  spans.forEach(([a, b]) => {
+    if (a < p) return;
+    put(text.slice(p, a), parent);
+    const m = el("mark", "why-mark");
+    m.title = "ここが間違いの決め手";
+    put(text.slice(a, b), m);
+    parent.append(m);
+    p = b;
+  });
+  put(text.slice(p), parent);
+  return parent;
+}
 const sentencesOf = (t) => (t.match(/[^。]+。?/g) || []).map((x) => x.trim()).filter(Boolean);
 
 /* ---------- 成績 ---------- */
@@ -508,6 +530,11 @@ function renderChoiceMarks(q) {
   const s = cur();
   $("quiz-choices").querySelectorAll(".choice").forEach((label, i) => {
     label.classList.remove("is-right", "is-wrong", "is-missed");
+    const txt = label.querySelector(".choice-text");
+    const c = q.choices[i];
+    txt.replaceChildren();
+    if (s.submitted && !c.correct && c.marks?.length) markedText(c.text, c.marks, txt);
+    else txt.textContent = c.text;
     if (!s.submitted) return;
     const chosen = s.sel.has(i);
     if (q.choices[i].correct) label.classList.add(chosen ? "is-right" : "is-missed");
@@ -570,8 +597,12 @@ function feedback(q) {
   q.choices.forEach((choice, i) => {
     const row = el("div", choice.correct ? "explanation is-correct" : s.sel.has(i) ? "explanation is-chosen" : "explanation");
     row.append(el("strong", "", `${LETTERS[i]} · ${choice.correct ? "正解" : "不正解"}${s.sel.has(i) ? " / あなたの回答" : ""}`));
-    row.append(linkify(choice.text, el("p", "choice-recap")));
-    if (choice.explanation) row.append(linkify(choice.explanation, el("p", "")));
+    row.append(choice.correct ? linkify(choice.text, el("p", "choice-recap")) : markedText(choice.text, choice.marks, el("p", "choice-recap"), true));
+    if (choice.explanation) {
+      const why = el("p", choice.correct ? "" : "why-text");
+      if (!choice.correct) why.append(el("span", "why-label", "なぜ間違い"));
+      row.append(linkify(choice.explanation, why));
+    }
     exp.append(row);
   });
   box.append(exp);

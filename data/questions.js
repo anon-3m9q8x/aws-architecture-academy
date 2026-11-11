@@ -1,6 +1,7 @@
 // 資格問題演習の問題: AWS 全資格 オリジナル問題集 v2(13 資格・3250 問)。
 // 問題データは data/bank/<試験コード>.js(tools/build-questions.mjs で生成)。ここで演習画面の形式に展開する。
 import { BANK } from "./bank/index.js";
+import WHY from "./why/index.js";
 
 // 成績表示・「すべての資格」での分野の絞り込みに使う学習領域(試験 × トピック → 領域)
 const AREA = {
@@ -61,7 +62,7 @@ export const questions = BANK.flatMap(({ code, topics, q }) =>
       certification: FAMILY(code),
       certifications: [FAMILY(code)],
       selectCount: answer.length,
-      choices: options.map((text, i) => ({ text, correct: answer.includes(i), explanation: "" })),
+      choices: options.map((text, i) => ({ text, correct: answer.includes(i), explanation: WHY[id]?.[i]?.[0] || "", marks: WHY[id]?.[i]?.[1] || [] })),
       reviewStatus: REVIEW,
     };
   }),
