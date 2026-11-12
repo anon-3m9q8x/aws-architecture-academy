@@ -207,12 +207,12 @@
    "モデルを特定のハードウェア向けに最適化する、SageMaker Neo",
    "ノーコードの画面で ML のモデルを作成できる、SageMaker Canvas",
    "学習の途中の問題を検出する、SageMaker Debugger",
-   "エッジのデバイスのモデルを管理する、SageMaker Edge Manager"
+   "学習済みのモデルやソリューションを利用できる、SageMaker JumpStart"
   ],
   "a": [
    1
   ],
-  "e": "Amazon SageMaker Canvas は、コードを書かずに、視覚的なポイントアンドクリックの操作で、ML のモデルを作成し、予測を生成できるノーコードの機能です。表形式のデータを取り込み、予測したい列を選ぶだけで、モデルの構築と評価が自動で行われるため、ビジネスの担当者でも使えます。SageMaker Neo は、モデルを特定のハードウェア向けにコンパイルして最適化する機能です。SageMaker Debugger は、学習の途中の問題の検出の機能です。SageMaker Edge Manager は、エッジのデバイスのモデルの管理の機能で、いずれもノーコードのモデルの作成の機能ではありません。",
+  "e": "Amazon SageMaker Canvas は、コードを書かずに、視覚的なポイントアンドクリックの操作で、ML のモデルを作成し、予測を生成できるノーコードの機能です。表形式のデータを取り込み、予測したい列を選ぶだけで、モデルの構築と評価が自動で行われるため、ビジネスの担当者でも使えます。SageMaker Neo は、モデルを特定のハードウェア向けにコンパイルして最適化する機能です。SageMaker Debugger は、学習の途中の問題の検出の機能です。SageMaker JumpStart は、学習済みのモデルやソリューションの利用の機能で、いずれもノーコードのモデルの作成の機能ではありません。",
   "why": {
    "0": {
     "why": "SageMaker Neo は、モデルのハードウェア向けの最適化の機能です。",
@@ -227,9 +227,9 @@
     ]
    },
    "3": {
-    "why": "SageMaker Edge Manager は、エッジのデバイスのモデルの管理の機能です。",
+    "why": "SageMaker JumpStart は、学習済みのモデルやソリューションの利用の機能です。",
     "mark": [
-     "SageMaker Edge Manager"
+     "SageMaker JumpStart"
     ]
    }
   }
