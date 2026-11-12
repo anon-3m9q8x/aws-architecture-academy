@@ -78,7 +78,7 @@
    0,
    1
   ],
-  "e": "Amazon GuardDuty は、CloudTrail、VPC フローログ、DNS のログなどを継続的に分析し、アカウントの中の脅威を自動で検出します。AWS Security Hub は、GuardDuty などの AWS のサービスや、パートナーのセキュリティの製品の検出結果を集約し、重大度に基づいて優先度を付けて一元的に管理できます。この 2 つを組み合わせれば、検出から一元的な管理までを実現できます。Cost Explorer と Pricing Calculator は、費用の分析と見積もりのツールです。Lightsail は、簡単な仮想サーバーのサービスで、いずれもセキュリティの脅威の検出や管理には使いません。",
+  "e": "Amazon GuardDuty は、CloudTrail、VPC フローログ、DNS のログなどを継続的に分析し、アカウントの中の脅威を自動で検出します。AWS Security Hub は、GuardDuty などの AWS のサービスや、パートナーのセキュリティの製品の検出結果を集約し、重大度に基づいて優先度を付けて一元的に管理できます（パートナーの製品の連携は、Security Hub の一部である Security Hub CSPM が担います）。この 2 つを組み合わせれば、検出から一元的な管理までを実現できます。Cost Explorer と Pricing Calculator は、費用の分析と見積もりのツールです。Lightsail は、簡単な仮想サーバーのサービスで、いずれもセキュリティの脅威の検出や管理には使いません。",
   "why": {
    "2": {
     "why": "Cost Explorer は、費用の分析のツールです。",

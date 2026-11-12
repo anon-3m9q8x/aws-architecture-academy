@@ -210,7 +210,7 @@
   "a": [
    2
   ],
-  "e": "AWS Certificate Manager（ACM）は、SSL/TLS の証明書の発行、管理、デプロイを行うサービスです。ACM で発行するパブリックの証明書は無料で、Application Load Balancer、CloudFront、API Gateway などの ACM と統合されたサービスで使う場合、期限が切れる前に自動で更新されます。手作業での購入と更新の手間がなくなり、期限切れのリスクも減らせます。KMS は、データの暗号化の鍵の管理のサービスです。Cognito は、利用者の認証のサービスです。Secrets Manager は、パスワードなどのシークレットの管理のサービスで、いずれも証明書の発行のサービスではありません。",
+  "e": "AWS Certificate Manager（ACM）は、SSL/TLS の証明書の発行、管理、デプロイを行うサービスです。ACM で発行するパブリックの証明書は、Application Load Balancer、CloudFront、API Gateway などの ACM と統合されたサービスで使う場合、無料で、期限が切れる前に自動で更新されます（エクスポート可能なパブリックの証明書は有料です）。手作業での購入と更新の手間がなくなり、期限切れのリスクも減らせます。KMS は、データの暗号化の鍵の管理のサービスです。Cognito は、利用者の認証のサービスです。Secrets Manager は、パスワードなどのシークレットの管理のサービスで、いずれも証明書の発行のサービスではありません。",
   "why": {
    "0": {
     "why": "KMS は、データの暗号化の鍵の管理のサービスです。",
@@ -276,7 +276,7 @@
   "a": [
    2
   ],
-  "e": "AWS Security Hub は、GuardDuty、Inspector、Macie、IAM Access Analyzer、Firewall Manager などの AWS のサービスや、パートナーの製品のセキュリティの検出結果を、標準化された形式で 1 か所に集約するサービスです。さらに、AWS Foundational Security Best Practices や CIS ベンチマークなどの基準に対して、アカウントの設定を自動でチェックし、準拠の状況をスコアで確認できます。Detective は、調査の支援のサービスです。Trusted Advisor は、改善の推奨事項を示すサービスで、検出結果の集約はしません。Organizations は、複数のアカウントの管理のサービスです。",
+  "e": "AWS Security Hub は、GuardDuty、Inspector、Macie、IAM Access Analyzer、Firewall Manager などの AWS のサービスや、パートナーの製品のセキュリティの検出結果を、標準化された形式で 1 か所に集約するサービスです。さらに、AWS Foundational Security Best Practices や CIS ベンチマークなどの基準に対して、アカウントの設定を自動でチェックし、準拠の状況をスコアで確認できます（基準のチェックとパートナーの製品の連携は、Security Hub の一部である Security Hub CSPM の機能です）。Detective は、調査の支援のサービスです。Trusted Advisor は、改善の推奨事項を示すサービスで、検出結果の集約はしません。Organizations は、複数のアカウントの管理のサービスです。",
   "why": {
    "0": {
     "why": "Detective は、調査の支援のサービスで、検出結果の集約ではありません。",
