@@ -134,17 +134,17 @@
   }
  },
  "SAP-C03-075": {
-  "q": "ある金融機関では、約 200 名の分析担当者が Amazon Quick（旧 QuickSight）のダッシュボードと Amazon Athena のクエリで、AWS Lake Formation で管理されたデータレイクのデータを参照しています。現在は Amazon Quick と Athena が共通のサービスロールを使ってデータにアクセスしているため、AWS CloudTrail には共通のロールしか記録されず、どの担当者がどのデータを参照したのかを追跡できません。また、Lake Formation の列や行の単位の権限も、担当者の単位では付与できていません。社員の ID は、外部の ID プロバイダーから IAM Identity Center に同期されています。担当者ごとのアクセスの制御と監査を実現し、担当者に個別の IAM ロールや IAM ユーザーを配らないようにしたいと考えています。最も適切な方法はどれですか。",
+  "q": "ある金融機関では、約 200 名の分析担当者が AWS Quick（旧 QuickSight）のダッシュボードと Amazon Athena のクエリで、AWS Lake Formation で管理されたデータレイクのデータを参照しています。現在は AWS Quick と Athena が共通のサービスロールを使ってデータにアクセスしているため、AWS CloudTrail には共通のロールしか記録されず、どの担当者がどのデータを参照したのかを追跡できません。また、Lake Formation の列や行の単位の権限も、担当者の単位では付与できていません。社員の ID は、外部の ID プロバイダーから IAM Identity Center に同期されています。担当者ごとのアクセスの制御と監査を実現し、担当者に個別の IAM ロールや IAM ユーザーを配らないようにしたいと考えています。最も適切な方法はどれですか。",
   "o": [
-   "共通のサービスロールはそのままにし、Amazon Quick のアクセスのログと CloudTrail のイベントの時刻を突き合わせて担当者を特定します。Athena のクエリには、SQL のコメントとして担当者のメールアドレスを埋め込ませてCloudTrail の記録と照合します。",
-   "担当者ごとに IAM ユーザーを作成して、Lake Formation の列や行の単位の権限を各 IAM ユーザーに付与します。Amazon Quick と Athena へはそれぞれのユーザーの認証情報でアクセスさせ、CloudTrail ではユーザー名で操作を追跡します。",
-   "担当者ごとに Athena のワークグループを作成してそれぞれに別のサービスロールを割り当て、Lake Formation の権限もロールの単位で付与します。Amazon Quick のデータセットの接続先も、担当者ごとのワークグループに分けて、CloudTrail で担当者を区別します。",
-   "IAM Identity Center の信頼できる ID の伝播を構成し、Amazon Quick と Athena のワークグループを Identity Center と連携させます。Lake Formation では、Identity Center のユーザーやグループに列や行の単位の権限を付与します。"
+   "共通のサービスロールはそのままにし、AWS Quick のアクセスのログと CloudTrail のイベントの時刻を突き合わせて担当者を特定します。Athena のクエリには、SQL のコメントとして担当者のメールアドレスを埋め込ませてCloudTrail の記録と照合します。",
+   "担当者ごとに IAM ユーザーを作成して、Lake Formation の列や行の単位の権限を各 IAM ユーザーに付与します。AWS Quick と Athena へはそれぞれのユーザーの認証情報でアクセスさせ、CloudTrail ではユーザー名で操作を追跡します。",
+   "担当者ごとに Athena のワークグループを作成してそれぞれに別のサービスロールを割り当て、Lake Formation の権限もロールの単位で付与します。AWS Quick のデータセットの接続先も、担当者ごとのワークグループに分けて、CloudTrail で担当者を区別します。",
+   "IAM Identity Center の信頼できる ID の伝播を構成し、AWS Quick と Athena のワークグループを Identity Center と連携させます。Lake Formation では、Identity Center のユーザーやグループに列や行の単位の権限を付与します。"
   ],
   "a": [
    3
   ],
-  "e": "IAM Identity Center の信頼できる ID の伝播（Trusted Identity Propagation）を構成すると、利用者が Identity Center でサインインしたときの ID が、Amazon Quick や Athena から Lake Formation や S3 などの下流のサービスまで引き継がれます。Lake Formation は Identity Center のユーザーやグループにもとづいて列や行の単位の権限を判定し、CloudTrail には共通のロールではなく、操作した担当者の ID が記録されます。担当者に個別の IAM ロールやユーザーを配る必要はなく、外部の ID プロバイダーから同期された ID をそのまま使えます。ログの時刻の突き合わせは推測にすぎず確実な監査にならず、担当者ごとの IAM ユーザーやロールは運用負荷と二重管理を生みます。",
+  "e": "IAM Identity Center の信頼できる ID の伝播（Trusted Identity Propagation）を構成すると、利用者が Identity Center でサインインしたときの ID が、AWS Quick や Athena から Lake Formation や S3 などの下流のサービスまで引き継がれます。Lake Formation は Identity Center のユーザーやグループにもとづいて列や行の単位の権限を判定し、CloudTrail には共通のロールではなく、操作した担当者の ID が記録されます。担当者に個別の IAM ロールやユーザーを配る必要はなく、外部の ID プロバイダーから同期された ID をそのまま使えます。ログの時刻の突き合わせは推測にすぎず確実な監査にならず、担当者ごとの IAM ユーザーやロールは運用負荷と二重管理を生みます。",
   "why": {
    "0": {
     "why": "共通のロールのままでは Lake Formation の権限を担当者の単位で付与できず、ログの時刻を突き合わせる方法も推測にすぎないため、確実な監査になりません。",

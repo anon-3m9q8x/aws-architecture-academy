@@ -137,7 +137,7 @@
    "各アカウントで CloudWatch のダッシュボードを作成し、それぞれのダッシュボードの URL をまとめた社内の Wiki のページを用意して、運用チームに共有します。",
    "CloudWatch のクロスアカウントオブザーバビリティで、組織のアカウントを監視アカウントにリンクし、監視アカウントでダッシュボードを作成し、新しいアカウントも自動でリンクされるようにします。",
    "各アカウントの CloudWatch のメトリクスとアラームの状態を毎日 CSV のファイルでエクスポートし、中央のアカウントの S3 のバケットに集めて、表計算ソフトで集計します。",
-   "各アカウントのメトリクスを CloudWatch Metric Streams で Amazon S3 に出力し、Amazon Athena で集計して、Amazon QuickSight でグラフを作成して確認します。"
+   "各アカウントのメトリクスを CloudWatch Metric Streams で Amazon S3 に出力し、Amazon Athena で集計して、AWS Quick Sight でグラフを作成して確認します。"
   ],
   "a": [
    1
@@ -159,7 +159,7 @@
    "3": {
     "why": "Metric Streams と Athena、QuickSight の組み合わせは構築の手間がかかり、アラームの状態を確認することもできません。",
     "mark": [
-     "Amazon Athena で集計して、Amazon QuickSight でグラフを作成して確認します"
+     "Amazon Athena で集計して、AWS Quick Sight でグラフを作成して確認します"
     ]
    }
   }
