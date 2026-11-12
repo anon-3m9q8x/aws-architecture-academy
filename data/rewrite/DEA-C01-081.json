@@ -177,7 +177,7 @@
   "a": [
    0
   ],
-  "e": "Amazon Timestream for InfluxDB は、オープンソースの InfluxDB のマネージドのサービスで、時系列のデータの高速な書き込みと、時間の範囲での集計のクエリーに最適化されています。InfluxDB の API（書き込みの Line Protocol を含む）と、Flux や InfluxQL のクエリーの言語にそのまま対応しているため、既存の InfluxDB のクライアント、Telegraf、Grafana などのツールを流用でき、インスタンスのプロビジョニング、パッチの適用、バックアップ、マルチ AZ の可用性は AWS が管理します（大規模で長期の保持にはサーバーレスの Timestream for LiveAnalytics もあります）。Neptune はグラフのデータベースで、時系列の集計には向きません。DocumentDB はドキュメントのデータベースで、InfluxDB の API に対応していません。ElastiCache はインメモリのキャッシュで、大量の時系列のデータの永続的な保存と集計のクエリーには向かず、InfluxDB の互換性もありません。",
+  "e": "Amazon Timestream for InfluxDB は、オープンソースの InfluxDB のマネージドのサービスで、時系列のデータの高速な書き込みと、時間の範囲での集計のクエリーに最適化されています。InfluxDB の API（書き込みの Line Protocol を含む）と、Flux や InfluxQL のクエリーの言語にそのまま対応しているため、既存の InfluxDB のクライアント、Telegraf、Grafana などのツールを流用でき、インスタンスのプロビジョニング、パッチの適用、バックアップ、マルチ AZ の可用性は AWS が管理します（サーバーレスの Timestream for LiveAnalytics は、2025 年 6 月 20 日以降は新規の顧客が利用できません）。Neptune はグラフのデータベースで、時系列の集計には向きません。DocumentDB はドキュメントのデータベースで、InfluxDB の API に対応していません。ElastiCache はインメモリのキャッシュで、大量の時系列のデータの永続的な保存と集計のクエリーには向かず、InfluxDB の互換性もありません。",
   "why": {
    "1": {
     "why": "Neptune はグラフのデータベースで、時系列のセンサーの値の時間の範囲での集計には向きません。",

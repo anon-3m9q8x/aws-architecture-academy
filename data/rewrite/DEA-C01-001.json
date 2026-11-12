@@ -142,7 +142,7 @@
   "a": [
    3
   ],
-  "e": "Amazon Data Firehose のレコードの形式の変換（record format conversion）は、受信した JSON のレコードを、Apache Parquet または Apache ORC の列指向の形式に変換して S3 に配信する機能です。変換には、AWS Glue Data Catalog のテーブル（データベース、テーブル、リージョン、バージョン）をスキーマとして指定し、入力の JSON の解析には OpenX JSON SerDe または Apache Hive JSON SerDe を選びます。変換のためのコードは不要で、Parquet の圧縮（Snappy など）も指定できます（JSON 以外の形式の入力は、先に Lambda の関数で JSON に変換する必要があります）。Kinesis Data Streams の保持期間は、形式の変換と無関係です。S3 Object Lambda は取得のときの変換で、保存の形式は JSON のままなので、Athena のスキャン量は減りません。Firehose の圧縮の形式（GZIP、Snappy、ZIP など）に Parquet はなく、圧縮は形式の変換ではありません。",
+  "e": "Amazon Data Firehose のレコードの形式の変換（record format conversion）は、受信した JSON のレコードを、Apache Parquet または Apache ORC の列指向の形式に変換して S3 に配信する機能です。変換には、AWS Glue Data Catalog のテーブル（データベース、テーブル、リージョン、バージョン）をスキーマとして指定し、入力の JSON の解析には OpenX JSON SerDe または Apache Hive JSON SerDe を選びます。変換のためのコードは不要で、Parquet の圧縮（Snappy など）も指定できます（JSON 以外の形式の入力は、先に Lambda の関数で JSON に変換する必要があります）。Kinesis Data Streams の保持期間は、形式の変換と無関係です。S3 Object Lambda は取得のときの変換で（2025 年 11 月 7 日以降は新規の顧客が利用できません）、保存の形式は JSON のままなので、Athena のスキャン量は減りません。Firehose の圧縮の形式（GZIP、Snappy、ZIP など）に Parquet はなく、圧縮は形式の変換ではありません。",
   "why": {
    "0": {
     "why": "Kinesis Data Streams の保持期間は Firehose のレコードの形式の変換とは無関係で、Parquet には変換されません。",
