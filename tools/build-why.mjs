@@ -4,6 +4,7 @@
 // 出力: data/why/index.js({ 問題id: { 選択肢の番号: [理由, [下線を引く部分...]] } })
 import fs from "node:fs";
 import path from "node:path";
+import { loadRewrites } from "./rewrite-lib.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const dir = path.join(root, "data/why/parts");
@@ -16,6 +17,17 @@ for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".json") && (!only.
   for (const [id, entry] of Object.entries(data)) {
     out[id] = {};
     for (const [i, { why, mark }] of Object.entries(entry)) {
+      out[id][i] = [why, mark];
+      n++;
+    }
+  }
+}
+// 本番形式に書き直した問題(data/rewrite/*.json)は、選択肢が変わるので書き直し側の理由で置き換える
+if (!only.length) {
+  for (const [id, w] of Object.entries(loadRewrites())) {
+    for (const i of Object.keys(out[id] || {})) n--;
+    out[id] = {};
+    for (const [i, { why, mark }] of Object.entries(w.why || {})) {
       out[id][i] = [why, mark];
       n++;
     }

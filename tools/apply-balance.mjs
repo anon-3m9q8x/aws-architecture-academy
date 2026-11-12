@@ -4,9 +4,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { root, readJSON } from "./balance-lib.mjs";
+import { loadRewrites } from "./rewrite-lib.mjs";
 const dir = path.join(root, "data/balance");
 const patch = {};
 for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".json")).sort()) Object.assign(patch, readJSON(path.join(dir, f)));
+// 本番形式に書き直した問題(data/rewrite)は選択肢ごと置き換わるので、文字数の書き直しは当てない
+for (const id of Object.keys(loadRewrites())) delete patch[id];
 const bankDir = path.join(root, "data/bank");
 let changed = 0;
 for (const f of fs.readdirSync(bankDir).filter((f) => /^[A-Z]{3}-C\d\d\.js$/.test(f))) {
@@ -23,3 +26,5 @@ for (const f of fs.readdirSync(bankDir).filter((f) => /^[A-Z]{3}-C\d\d\.js$/.tes
   fs.writeFileSync(file, head + `export default ${JSON.stringify(data)};\n`);
 }
 console.log(`書き直し ${Object.keys(patch).length} 問 · 反映した選択肢 ${changed}`);
+// 本番形式の書き直しを最後に反映する
+await import("./apply-rewrite.mjs");
