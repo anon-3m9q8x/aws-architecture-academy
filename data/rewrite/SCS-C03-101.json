@@ -105,13 +105,13 @@
   "o": [
    "同じ種類の検出結果を EventBridge で受けて、Lambda の関数でインスタンスロールのセッションを自動で取り消し、GuardDuty の検出結果を抑制ルールでアーカイブします。",
    "サブネットのネットワーク ACL でインターネット宛ての通信を拒否して盗まれた認証情報の送出の経路を断ち、インスタンスのセキュリティグループのアウトバウンドもすべて削除します。",
-   "AWS のサービス経由の呼び出しを除外したうえで、aws:SourceVpc が aws:EC2InstanceSourceVPC と一致しない要求を拒否するポリシーを、SCP やロールのポリシーで適用します。",
+   "AWS のサービス経由の呼び出しを除外したうえで、aws:SourceVpc が aws:Ec2InstanceSourceVpc と一致しない要求を拒否するポリシーを、SCP やロールのポリシーで適用します。",
    "GuardDuty の検出結果を EventBridge で当番に通知して検出のたびにセッションを取り消し、IAM のコンソールで、インスタンスロールの最大セッション時間を 15 分に短縮します。"
   ],
   "a": [
    2
   ],
-  "e": "EC2 のインスタンスロールの一時的な認証情報で行われるリクエストには、aws:EC2InstanceSourceVPC（認証情報が発行されたインスタンスの VPC の ID）と aws:EC2InstanceSourcePrivateIPv4 の条件キーが含まれます。VPC エンドポイントを経由したリクエストには aws:SourceVpc が含まれるため、SCP（または RCP、ロールのポリシー）で、aws:SourceVpc が aws:EC2InstanceSourceVPC と一致しない場合（StringNotEquals の ${aws:EC2InstanceSourceVPC} のポリシー変数）に拒否し、aws:ViaAWSService が true の場合や、EC2 のインスタンスの認証情報でない場合（aws:EC2InstanceSourceVPC が存在しない場合）は除外すれば、盗まれた認証情報が VPC の外から使われることを予防的に防げます。SCP で組織のすべてのアカウントに適用できます。自動のセッションの取り消しは事後の対応で、検出結果のアーカイブは監視を弱めます。ネットワーク ACL やセキュリティグループは、すでに外部に持ち出された認証情報の使用を防げず、インスタンスロールの認証情報にはロールの最大セッション時間が適用されません。",
+  "e": "EC2 のインスタンスロールの一時的な認証情報で行われるリクエストには、aws:Ec2InstanceSourceVpc（認証情報が発行されたインスタンスの VPC の ID）と aws:Ec2InstanceSourcePrivateIPv4 の条件キーが含まれます。VPC エンドポイントを経由したリクエストには aws:SourceVpc が含まれるため、SCP（または RCP、ロールのポリシー）で、aws:SourceVpc が aws:Ec2InstanceSourceVpc と一致しない場合（StringNotEquals の ${aws:Ec2InstanceSourceVpc} のポリシー変数）に拒否し、aws:ViaAWSService が true の場合や、EC2 のインスタンスの認証情報でない場合（aws:Ec2InstanceSourceVpc が存在しない場合）は除外すれば、盗まれた認証情報が VPC の外から使われることを予防的に防げます。SCP で組織のすべてのアカウントに適用できます。自動のセッションの取り消しは事後の対応で、検出結果のアーカイブは監視を弱めます。ネットワーク ACL やセキュリティグループは、すでに外部に持ち出された認証情報の使用を防げず、インスタンスロールの認証情報にはロールの最大セッション時間が適用されません。",
   "why": {
    "0": {
     "why": "自動のセッションの取り消しは検出の後の事後の対応で、認証情報の外部からの使用を予防できず、検出結果のアーカイブは監視も弱めます。",

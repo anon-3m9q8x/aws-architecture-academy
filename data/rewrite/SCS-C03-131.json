@@ -10,7 +10,7 @@
   "a": [
    0
   ],
-  "e": "AWS Directory Service の AD Connector は、AWS のサービス（WorkSpaces、Amazon WorkDocs、AWS のマネジメントコンソールのシングルサインオンなど）からの認証の要求を、オンプレミスの Active Directory に中継するプロキシ（ディレクトリゲートウェイ）です。ディレクトリの情報やパスワードのハッシュを AWS にキャッシュしたり複製したりせず、ユーザーとグループの管理は引き続きオンプレミスの Active Directory で行えます。オンプレミスの DNS とドメインコントローラーへのネットワークの接続（Direct Connect や VPN）が必要です。AWS Managed Microsoft AD は AWS の上で動作する Active Directory で、オンプレミスとの信頼関係は作れますが、ユーザーやパスワードのハッシュを複製する構成は規制に反します。Simple AD は Samba ベースの独立したディレクトリで、手作業の登録は二重管理になり、パスワードも AWS に保存されます。Cognito のユーザープールは WorkSpaces のディレクトリとして使えません。",
+  "e": "AWS Directory Service の AD Connector は、AWS のサービス（WorkSpaces、AWS のマネジメントコンソールへのシングルサインオンなど）からの認証の要求を、オンプレミスの Active Directory に中継するプロキシ（ディレクトリゲートウェイ）です。ディレクトリの情報やパスワードのハッシュを AWS にキャッシュしたり複製したりせず、ユーザーとグループの管理は引き続きオンプレミスの Active Directory で行えます。オンプレミスの DNS とドメインコントローラーへのネットワークの接続（Direct Connect や VPN）が必要です。AWS Managed Microsoft AD は AWS の上で動作する Active Directory で、オンプレミスとの信頼関係は作れますが、ユーザーやパスワードのハッシュを複製する構成は規制に反します。Simple AD は Samba ベースの独立したディレクトリで、手作業の登録は二重管理になり、パスワードも AWS に保存されます。Cognito のユーザープールは WorkSpaces のディレクトリとして使えません。",
   "why": {
    "1": {
     "why": "ユーザーやパスワードのハッシュを AWS Managed Microsoft AD に複製する構成は、ディレクトリの情報を AWS に複製しないという規制に反します。",
