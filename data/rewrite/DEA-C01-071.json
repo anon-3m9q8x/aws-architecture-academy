@@ -101,7 +101,7 @@
  "DEA-C01-074": {
   "q": "あるサブスクリプションのサービスの企業は、Redshift の購入の履歴のテーブル（customer_id、purchase_date、amount の列）から、顧客ごとの購入の傾向を分析しています。マーケティングのチームは、各購入の行に、その購入の時点までのその顧客の累計の購入額を付けたいと考えています。累計の購入額が一定の額を超えた時点を特定して、会員のランクの昇格の判定に使う予定です。購入の行の数は減らさずに、行ごとに累計を求める必要があります。最も適切な SQL の書き方はどれですか。",
   "o": [
-   "SUM(amount) OVER (PARTITION BY customer_id ORDER BY purchase_date) で、顧客ごとに購入の日付の順の累計を、各行に付けます。",
+   "SUM(amount) OVER (PARTITION BY customer_id ORDER BY purchase_date ROWS UNBOUNDED PRECEDING) で、顧客ごとに購入の日付の順の累計を各行に付けます。",
    "SUM(amount) を GROUP BY customer_id, purchase_date で集計して、ORDER BY purchase_date で並べ、顧客と日付ごとの合計を求めます。",
    "SUM(amount) を GROUP BY customer_id で集計して、HAVING SUM(amount) > 0 で絞り込み、ORDER BY customer_id で顧客の順に並べます。",
    "SUM(amount) OVER (PARTITION BY purchase_date ORDER BY customer_id) で、購入の日付ごとに顧客の ID の順の累計を、各行に付けます。"
@@ -109,7 +109,7 @@
   "a": [
    0
   ],
-  "e": "ウィンドウ関数（分析関数）は、行の数を減らさずに、各行に関連する行の集まり（ウィンドウ）に対する集計の値を計算します。SUM(amount) OVER (PARTITION BY customer_id ORDER BY purchase_date) と書くと、顧客ごとにパーティションを分け、購入の日付の順に並べて、先頭の行から現在の行までの合計（累計）を、各購入の行に付けられます（ORDER BY を指定した場合の既定のフレームは、RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW で、同じ日付の行は同じ累計になります。行ごとに区別するには ROWS を明示します。Redshift では ORDER BY を指定した集計のウィンドウ関数にフレームの句が必要です）。GROUP BY は行をグループにまとめるため、各購入の行が残らず、累計にもなりません。PARTITION BY purchase_date では、日付ごとに顧客の間で累計を取ることになり、顧客ごとの累計になりません。",
+  "e": "ウィンドウ関数（分析関数）は、行の数を減らさずに、各行に関連する行の集まり（ウィンドウ）に対する集計の値を計算します。SUM(amount) OVER (PARTITION BY customer_id ORDER BY purchase_date ROWS UNBOUNDED PRECEDING) と書くと、顧客ごとにパーティションを分け、購入の日付の順に並べて、先頭の行から現在の行までの合計（累計）を、各購入の行に付けられます（Redshift では、ORDER BY を指定した集計のウィンドウ関数には、ROWS UNBOUNDED PRECEDING（ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW と同じ）などの ROWS のフレームの句を明示する必要があります）。GROUP BY は行をグループにまとめるため、各購入の行が残らず、累計にもなりません。PARTITION BY purchase_date では、日付ごとに顧客の間で累計を取ることになり、顧客ごとの累計になりません。",
   "why": {
    "1": {
     "why": "GROUP BY は行をグループにまとめるため、各購入の行が残らず、顧客ごとの累計にもなりません。",

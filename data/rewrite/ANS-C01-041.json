@@ -266,7 +266,7 @@
  "ANS-C01-049": {
   "q": "ある企業は、コーポレートサイトを Amazon CloudFront で配信することになり、ドメインの頂点（example.com）と www.example.com の両方を CloudFront のディストリビューションに向けたいと考えています。DNS は Amazon Route 53 のパブリックホストゾーンで管理しています。DNS の仕様により、CNAME レコードはゾーンの頂点に作成できません。また、CloudFront のエッジの IP アドレスは変わる可能性があり、IPv6 でのアクセスにも対応する必要があります。example.com を CloudFront に向ける方法として最も適切なものはどれですか。",
   "o": [
-   "Route 53 で、example.com に CloudFront のディストリビューションを指すエイリアスレコード（A と AAAA）を作成します、www.example.com も同様にエイリアスレコードで CloudFront のディストリビューションに向けます。",
+   "Route 53 で、example.com に CloudFront のディストリビューションを指すエイリアスレコード（A と AAAA）を作成し、www.example.com も同様にエイリアスレコードで CloudFront のディストリビューションに向けます。",
    "AWS Global Accelerator で CloudFront のディストリビューションを固定の IP アドレスで公開し、example.com の A レコードに Global Accelerator の静的な IP アドレスを登録します。",
    "www.example.com を CloudFront のディストリビューションのドメイン名への CNAME レコードにし、example.com を www.example.com への CNAME レコードにして、名前解決をつなぎます。",
    "ディストリビューションのドメイン名を名前解決して返ってきた CloudFront のエッジの IP アドレスを調べ、example.com の A レコードにそれらの IP アドレスを登録します。"
