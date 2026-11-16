@@ -39,9 +39,11 @@
     }
     return result;
   }
-  function writeCache() {
+  function writeCache(onlyKey) {
     try {
       if (user) localStorage.setItem(cacheKey(), JSON.stringify({data, revision, dirty}));
+      // ゲストは変更したキーだけを書き込む(回答のたびに全データを書き直さない)
+      else if (onlyKey) localStorage.setItem(onlyKey, JSON.stringify(data.records[onlyKey]));
       else for (const [key, value] of Object.entries(data.records)) localStorage.setItem(key, JSON.stringify(value));
       storageFailed = false;
     } catch {
@@ -125,12 +127,13 @@
       status = '未同期：通信・ログイン状態を確認し「同期する」を押してください。端末の変更は保持しています。';
     } finally { syncing = false; draw(); }
   }
-  function save(value) {
+  function save(value, onlyKey) {
     if (changingAccount) throw new Error('アカウント切り替え中です。');
-    data = clean(value);
+    // onlyKey: 呼び出し側で 1 つのキーだけを差し替えた検証済みのデータ(全体の複製を省く)
+    data = onlyKey ? value : clean(value);
     sequence++;
     if (user) dirty = true;
-    writeCache();
+    writeCache(onlyKey);
     if (storageFailed && !user) throw new Error(status);
     if (user) {
       if (!conflict && !storageFailed) status = '変更を端末に保存・同期待ち';
@@ -300,9 +303,12 @@
     },
     set(key, value) {
       if (!isLearningKey(key)) throw new Error('Unknown learning data key');
-      const next = copy(data || empty());
-      if (JSON.stringify(next.records[key]) === JSON.stringify(value)) return;
-      next.records[key] = copy(value); save(next);
+      const json = JSON.stringify(value);
+      const base = data || empty();
+      if (JSON.stringify(base.records[key]) === json) return;
+      // 変更したキーだけを複製し、ほかの記録はそのまま引き継ぐ(記録は直接書き換えないため共有して安全)
+      const next = {format: base.format, records: {...base.records}};
+      next.records[key] = json === undefined ? null : JSON.parse(json); save(next, key);
     },
     isSignedIn:() => !!user
   };

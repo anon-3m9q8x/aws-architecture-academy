@@ -38,6 +38,30 @@ try {
   $("storage-warning").hidden = false;
 }
 
+/* ---------- 回答履歴の集計(回答のたびに全件を数え直さないよう、追加分だけ反映する) ---------- */
+// 資格ごとの問題(examProgress・概要表示で何度も使う)
+const examQs = new Map();
+questions.forEach((q) => Object.keys(q.exams).forEach((c) => (examQs.get(c) || examQs.set(c, []).get(c)).push(q)));
+const lastMap = new Map(), // 問題 → 直近の回答
+  wrongMap = new Map(), // 問題 → 誤答回数
+  totalMap = new Map(), // 問題 → 回答回数
+  examDone = new Map(), // 資格 → 解いた問題数(重複なし)
+  examAnswers = new Map(); // 資格 → 回答回数
+let correctTotal = 0;
+function indexAttempt(a) {
+  const q = questionMap.get(a.id);
+  const first = !lastMap.has(a.id);
+  lastMap.set(a.id, a);
+  totalMap.set(a.id, (totalMap.get(a.id) || 0) + 1);
+  if (a.correct) correctTotal++;
+  else wrongMap.set(a.id, (wrongMap.get(a.id) || 0) + 1);
+  for (const c of Object.keys(q?.exams || {})) {
+    examAnswers.set(c, (examAnswers.get(c) || 0) + 1);
+    if (first) examDone.set(c, (examDone.get(c) || 0) + 1);
+  }
+}
+attempts.forEach(indexAttempt);
+
 /* ---------- 解説の文章: 根拠ライン・サービス名のリンク ---------- */
 const NUM = "①②③④⑤⑥⑦⑧⑨";
 /** 文章にサービス名のリンクを付ける(図鑑へ移動し、戻るボタンで演習へ戻れる) */
@@ -100,32 +124,31 @@ const sentencesOf = (t) => (t.match(/[^。]+。?/g) || []).map((x) => x.trim()).
 /* ---------- 成績 ---------- */
 /** 資格ごとに、今までに解いた問題数(重複なし)と回答回数 */
 function examProgress(code) {
-  const last = latest();
-  const qs = questions.filter((q) => q.exams[code]);
-  const done = qs.filter((q) => last.has(q.id)).length;
-  const answers = attempts.filter((a) => questionMap.get(a.id)?.exams?.[code]).length;
-  return { total: qs.length, done, answers };
+  return { total: examQs.get(code)?.length || 0, done: examDone.get(code) || 0, answers: examAnswers.get(code) || 0 };
 }
 const progressText = (code) => {
   const p = examProgress(code);
   return `実施 ${p.done}/${p.total}問`;
 };
+/** 問題ごとの直近の回答(集計済みの Map。書き換えないこと) */
 function latest() {
-  const map = new Map();
-  attempts.forEach((a) => map.set(a.id, a));
-  return map;
+  return lastMap;
 }
 /** 問題ごとの誤答回数 */
 function wrongCounts() {
-  const m = new Map();
-  attempts.forEach((a) => !a.correct && m.set(a.id, (m.get(a.id) || 0) + 1));
-  return m;
+  return wrongMap;
 }
 const REPEAT = 2; // 「複数回間違えた」とみなす誤答回数
+const DOMAINS = [...new Set(questions.map((q) => q.domain)), "サービス知識(試験外)"];
 function stats() {
   const last = latest();
-  const wrong = [...last.values()].filter((a) => !a.correct).length;
-  const correct = attempts.filter((a) => a.correct).length;
+  let wrong = 0, examAnswered = 0, svcAnswered = 0;
+  for (const [id, a] of last) {
+    if (!a.correct) wrong++;
+    if (isSvc(questionMap.get(id))) svcAnswered++;
+    else examAnswered++;
+  }
+  const correct = correctTotal;
   // 資格の選択肢に、各資格で今までに解いた問題数を表示する
   $("quiz-cert").querySelectorAll("option[data-base]").forEach((o) => (o.textContent = `${o.dataset.base} · ${progressText(o.value)}`));
   if (typeof renderOverview === "function" && $("exam-overview") && !$("practice-setup").hidden) renderOverview();
@@ -136,7 +159,7 @@ function stats() {
     el(
       "p",
       "muted",
-      `資格試験 ${[...last.keys()].filter((id) => !isSvc(questionMap.get(id))).length} / ${questions.length} 問・サービス知識 ${[...last.keys()].filter((id) => isSvc(questionMap.get(id))).length} / ${serviceQuestions.length} 問に回答 · 回答 ${attempts.length} 回 · 正答率 ${attempts.length ? Math.round((correct / attempts.length) * 100) + "%" : "未回答"} · 復習対象 ${wrong} 問`,
+      `資格試験 ${examAnswered} / ${questions.length} 問・サービス知識 ${svcAnswered} / ${serviceQuestions.length} 問に回答 · 回答 ${attempts.length} 回 · 正答率 ${attempts.length ? Math.round((correct / attempts.length) * 100) + "%" : "未回答"} · 復習対象 ${wrong} 問`,
     ),
   );
   // 資格ごとの実施状況(1 問でも解いた資格のみ)
@@ -154,12 +177,19 @@ function stats() {
   });
   if (examRows.childElementCount) history.append(el("p", "exam-ov-h", "資格ごとの実施問題数"), examRows, el("p", "exam-ov-h", "分野ごとの正答率"));
   const list = el("div", "domain-results");
-  [...new Set(questions.map((q) => q.domain)), "サービス知識(試験外)"].forEach((domain) => {
-    const subset = attempts.filter((a) => {
-      const q = questionMap.get(a.id);
-      return domain === "サービス知識(試験外)" ? isSvc(q) : !isSvc(q) && q.domain === domain;
-    });
-    const rate = subset.length ? Math.round((subset.filter((a) => a.correct).length / subset.length) * 100) : null;
+  // 分野ごとの回答数・正解数を 1 回の走査で集計する
+  const agg = new Map();
+  for (const a of attempts) {
+    const q = questionMap.get(a.id);
+    const d = isSvc(q) ? "サービス知識(試験外)" : q.domain;
+    const r = agg.get(d) || agg.set(d, [0, 0]).get(d);
+    r[0]++;
+    if (a.correct) r[1]++;
+  }
+  DOMAINS.forEach((domain) => {
+    const [n, ok] = agg.get(domain) || [0, 0];
+    const subset = { length: n };
+    const rate = n ? Math.round((ok / n) * 100) : null;
     const row = el("div", "domain-row");
     const bar = el("span", "domain-bar");
     const fill = el("i");
@@ -187,8 +217,7 @@ const fmtDate = (iso) => {
 /** 1 回でも間違えた問題すべて(誤答回数・回答回数・直近の結果つき) */
 function wrongAll() {
   const last = latest();
-  const total = new Map();
-  attempts.forEach((a) => total.set(a.id, (total.get(a.id) || 0) + 1));
+  const total = totalMap;
   return [...wrongCounts()]
     .map(([id, n]) => {
       const l = last.get(id);
@@ -345,16 +374,18 @@ function pool() {
   const band = $("quiz-prob").value;
   const svc = kind === "service";
   // 苦手問題などの指定出題は、種類をまたいで出す
-  return (presetIds ? allQuestions : bankQ()).filter(
+  const base = presetIds ? allQuestions.filter((q) => presetIds.has(q.id)) : !svc && code !== "all" ? examQs.get(code) || [] : bankQ();
+  const diff = $("quiz-difficulty").value, mode = $("quiz-mode").value;
+  return base.filter(
     (q) =>
       (presetIds || svc || code === "all" || !!q.exams[code]) &&
       (presetIds || dom === "all" || (dom.startsWith("d:") ? q.exams[code]?.[0] === Number(dom.slice(2)) : q.domain === dom)) &&
       (presetIds || svc || band === "all" || probBand(probability(q, examFor(q))) === band) &&
-      ($("quiz-difficulty").value === "all" || q.difficulty === Number($("quiz-difficulty").value)) &&
-      ($("quiz-mode").value === "all" ||
-        ($("quiz-mode").value === "wrong"
+      (diff === "all" || q.difficulty === Number(diff)) &&
+      (mode === "all" ||
+        (mode === "wrong"
           ? last.has(q.id) && !last.get(q.id).correct
-          : $("quiz-mode").value === "repeat"
+          : mode === "repeat"
             ? (wc.get(q.id) || 0) >= REPEAT
             : !last.has(q.id))) &&
       (!presetIds || presetIds.has(q.id)),
@@ -377,7 +408,7 @@ LEVELS.forEach((lv) => {
   const g = el("optgroup");
   g.label = { Foundational: "基礎", Business: "ビジネス", Associate: "アソシエイト", Professional: "プロフェッショナル", Specialty: "専門知識" }[lv];
   EXAMS.filter((e) => e.level === lv).forEach((e) => {
-    const n = questions.filter((q) => q.exams[e.code]).length;
+    const n = examQs.get(e.code)?.length || 0;
     if (!n) return; // 問題のない試験(旧版)は出さない
     const o = el("option", "", "");
     o.value = e.code;
@@ -413,7 +444,7 @@ function fillDomains() {
     });
   } else {
     examByCode.get(code).domains.forEach(([name, w], i) => {
-      const n = questions.filter((q) => q.exams[code]?.[0] === i + 1).length;
+      const n = (examQs.get(code) || []).filter((q) => q.exams[code][0] === i + 1).length;
       const o = el("option", "", `分野${i + 1} ${name}(配点 ${w}%)· ${n}問`);
       o.value = "d:" + (i + 1);
       sel.append(o);
@@ -447,7 +478,7 @@ function renderOverview() {
   if (code === "all") {
     const grid = el("div", "exam-chips");
     EXAMS.forEach((e) => {
-      const n = questions.filter((q) => q.exams[e.code]).length;
+      const n = examQs.get(e.code)?.length || 0;
       if (!n) return;
       const b = el("button", "exam-chip");
       b.type = "button";
@@ -463,7 +494,7 @@ function renderOverview() {
     return;
   }
   const ex = examByCode.get(code);
-  const qs = questions.filter((q) => q.exams[code]);
+  const qs = examQs.get(code) || [];
   const head = el("div", "exam-ov-top");
   const link = el("a", "", "公式試験ガイド ↗");
   link.href = ex.guide;
@@ -585,6 +616,8 @@ $("preset-clear")?.addEventListener("click", () => {
 let session = [], // 問題
   states = [], // { sel:Set, submitted, correct, visited }
   position = 0,
+  maxVisited = -1, // 表示したことのある最も後ろの問題
+  sessionId = 0, // 演習を始めるたびに増やす(番号ボタンの作り直しの判定)
   selections = new Set(),
   submitted = false,
   results = [],
@@ -596,7 +629,6 @@ function statusOf(i) {
   const s = states[i];
   if (s.submitted) return s.correct ? "ok" : "ng";
   if (i === position) return "todo";
-  const maxVisited = states.reduce((m, x, j) => (x.visited ? j : m), -1);
   return s.visited || i < maxVisited ? "miss" : "todo";
 }
 function counts() {
@@ -617,19 +649,31 @@ function renderMap() {
   const two = n > (matchMedia("(max-width:760px)").matches ? 10 : 20);
   map.classList.toggle("two", two);
   map.style.setProperty("--cols", two ? Math.ceil(n / 2) : n);
-  map.replaceChildren(
-    ...session.map((q, i) => {
-      const st = statusOf(i);
-      const b = el("button", `qm ${st}${i === position ? " current" : ""}`);
-      b.type = "button";
-      b.dataset.jump = i;
-      const label = { ok: "正解", ng: "不正解", miss: "未回答", todo: "これから" }[st];
-      b.setAttribute("aria-label", `問${i + 1} ${label}${i === position ? "（表示中）" : ""}`);
-      b.title = `問${i + 1}：${label}`;
-      b.append(el("span", "", String(i + 1)));
-      return b;
-    }),
-  );
+  // 問題数が同じなら番号ボタンを作り直さず、状態だけ更新する
+  const reuse = map.childElementCount === n && map.dataset.session === String(sessionId);
+  if (!reuse) {
+    map.dataset.session = String(sessionId);
+    map.replaceChildren(
+      ...session.map((q, i) => {
+        const b = el("button");
+        b.type = "button";
+        b.dataset.jump = i;
+        b.append(el("span", "", String(i + 1)));
+        return b;
+      }),
+    );
+  }
+  const buttons = map.children;
+  for (let i = 0; i < n; i++) {
+    const st = statusOf(i);
+    const b = buttons[i];
+    const cls = `qm ${st}${i === position ? " current" : ""}`;
+    if (b.className === cls) continue;
+    b.className = cls;
+    const label = { ok: "正解", ng: "不正解", miss: "未回答", todo: "これから" }[st];
+    b.setAttribute("aria-label", `問${i + 1} ${label}${i === position ? "（表示中）" : ""}`);
+    b.title = `問${i + 1}：${label}`;
+  }
   const c = counts();
   $("quiz-tally").replaceChildren(
     el("span", "t ok", `正解 ${c.ok}`),
@@ -769,6 +813,7 @@ function render() {
   const q = session[position];
   const s = cur();
   s.visited = true;
+  if (position > maxVisited) maxVisited = position;
   selections = new Set(s.sel);
   submitted = s.submitted;
   $("quiz-position").textContent = `QUESTION ${String(position + 1).padStart(2, "0")} / ${session.length}`;
@@ -794,7 +839,8 @@ function render() {
   lv.title = DIFFICULTY[q.difficulty];
   const tp = el("span", "pill topic-pill", q.topic || "");
   const pv = prevResults.get(q.id);
-  const times = attempts.filter((a) => a.id === q.id && (!pv || a.at <= pv.at)).length;
+  let times = 0;
+  if (pv) for (const a of attempts) if (a.id === q.id && a.at <= pv.at) times++;
   const prev = pv
     ? el("span", `pill prev-pill ${pv.correct ? "ok" : "ng"}`, `前回 ${pv.correct ? "○ 正解" : "✕ 不正解"} · ${new Date(pv.at).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}${pv.chosen?.length ? ` · 選択 ${pv.chosen.map((i) => LETTERS[i]).join("・")}` : ""} · これまで ${times}回`)
     : el("span", "pill prev-pill new", "初めての問題");
@@ -861,12 +907,14 @@ $("quiz-start").addEventListener("click", () => {
     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
   }
   // まだ解いたことのない問題を先に出す(同じグループ内はランダム)
-  prevResults = latest();
+  prevResults = new Map(latest());
   candidates.sort((a, b) => Number(prevResults.has(a.id)) - Number(prevResults.has(b.id)));
   session = $("quiz-limit").value === "real" ? pickReal(candidates, realCount()) : candidates.slice(0, Number($("quiz-limit").value));
   if (!session.length) return;
   states = session.map(() => ({ sel: new Set(), submitted: false, correct: false, visited: false }));
   position = 0;
+  maxVisited = -1;
+  sessionId++;
   results = [];
   finished = false;
   lastJump = -1;
@@ -892,6 +940,8 @@ $("answer-form").addEventListener("submit", (event) => {
   s.correct = correct;
   const attempt = { id: q.id, correct, chosen: [...selections], at: new Date().toISOString() };
   attempts.push(attempt);
+  indexAttempt(attempt);
+  setupDirty = true;
   results.push(attempt);
   try {
     store.set(key, attempts);
@@ -902,9 +952,9 @@ $("answer-form").addEventListener("submit", (event) => {
   render();
   $("quiz-feedback").scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   $("quiz-next").focus({ preventScroll: true });
-  stats();
-  updatePool();
+  // 成績・間違えた問題の一覧・出題数は設定画面に戻ったときにまとめて更新する(回答ごとの再描画をしない)
 });
+let setupDirty = false;
 function settings() {
   $("quiz-workspace").hidden = true;
   $("quiz-result").hidden = true;
@@ -914,6 +964,10 @@ function settings() {
   states = [];
   results = [];
   finished = false;
+  if (setupDirty) {
+    setupDirty = false;
+    stats();
+  }
   updatePool();
 }
 $("quiz-exit").addEventListener("click", () => {

@@ -14,6 +14,22 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&amp;display=swap" />
     <link rel="stylesheet" href="style.css?v=20261111m" />
     <link rel="stylesheet" href="account.css?v=20261110b" />
+    <!-- 資格問題演習の大きな問題データを先に並行して読み込む(import の連鎖を待たずに取得し、表示までの時間を短くする) -->
+    <link rel="modulepreload" href="data/bank/AIB-C01.js" />
+    <link rel="modulepreload" href="data/bank/AIF-C01.js" />
+    <link rel="modulepreload" href="data/bank/AIP-C01.js" />
+    <link rel="modulepreload" href="data/bank/ANS-C01.js" />
+    <link rel="modulepreload" href="data/bank/CLF-C02.js" />
+    <link rel="modulepreload" href="data/bank/DEA-C01.js" />
+    <link rel="modulepreload" href="data/bank/DOP-C02.js" />
+    <link rel="modulepreload" href="data/bank/DVA-C03.js" />
+    <link rel="modulepreload" href="data/bank/MLA-C02.js" />
+    <link rel="modulepreload" href="data/bank/SAA-C03.js" />
+    <link rel="modulepreload" href="data/bank/SAP-C03.js" />
+    <link rel="modulepreload" href="data/bank/SCS-C03.js" />
+    <link rel="modulepreload" href="data/bank/SOA-C03.js" />
+    <link rel="modulepreload" href="data/bank/SERVICE.js" />
+    <link rel="modulepreload" href="data/why/index.js" />
     <link rel="stylesheet" href="command-lab.css" />
   </head>
   <body>
@@ -350,7 +366,7 @@
     <div id="accountOverlay" class="account-overlay" hidden></div>
     <script src="config.js"></script>
     <script src="vendor/supabase.js"></script>
-    <script src="account.js?v=20261110b"></script>
-    <script src="script.js?v=20261111j" type="module"></script>
+    <script src="account.js?v=20261116a"></script>
+    <script src="script.js?v=20261116a" type="module"></script>
   </body>
 </html>

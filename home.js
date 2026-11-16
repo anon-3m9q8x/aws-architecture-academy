@@ -151,6 +151,8 @@ function updateDashboard() {
   chart.replaceChildren();
   let total = 0;
   const today = new Date();
+  // 回答日時は 1 回だけ数値にして、7 日分の集計に使う
+  const times = attempts.map((a) => Date.parse(a.at));
   for (let i = 6; i >= 0; i--) {
     const date = new Date(
       today.getFullYear(),
@@ -162,10 +164,9 @@ function updateDashboard() {
       date.getMonth(),
       date.getDate() + 1,
     );
-    const n = attempts.filter((a) => {
-      const d = new Date(a.at);
-      return d >= date && d < next;
-    }).length;
+    const from = date.getTime(), to = next.getTime();
+    let n = 0;
+    for (const t of times) if (t >= from && t < to) n++;
     total += n;
     const col = el("div", "chart-column");
     col.append(el("span", "chart-value", n));
@@ -219,7 +220,18 @@ function route() {
   }
 }
 window.addEventListener("hashchange", route);
-window.addEventListener("learning-update", updateDashboard);
+// ホームが表示されていないときは集計・再描画を後回しにし、ホームを開いたときにまとめて更新する
+let dashboardDirty = false;
+window.addEventListener("learning-update", () => {
+  if ($("home")?.hidden) dashboardDirty = true;
+  else updateDashboard();
+});
+window.addEventListener("route-change", (e) => {
+  if (e.detail?.page === "home" && dashboardDirty) {
+    dashboardDirty = false;
+    updateDashboard();
+  }
+});
 renderConnection();
 updateDashboard();
 route();
