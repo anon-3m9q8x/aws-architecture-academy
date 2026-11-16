@@ -1069,18 +1069,6 @@ footer {
   padding-top: 24px;
   font-size: 10px;
 }
-.practice-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 22px;
-}
-.practice-stats .stat {
-  box-shadow: none;
-}
-.practice-stats .stat strong {
-  font-size: 29px;
-}
 .practice-setup {
   padding: 26px;
 }
@@ -1543,18 +1531,6 @@ progress::-webkit-progress-value {
   }
   .development .button {
     margin-top: 18px;
-  }
-  .practice-stats {
-    gap: 8px;
-  }
-  .practice-stats .stat {
-    padding: 13px 10px;
-  }
-  .practice-stats .stat > span {
-    font-size: 10px;
-  }
-  .practice-stats .stat strong {
-    font-size: 25px;
   }
   .practice-setup {
     padding: 20px 17px;

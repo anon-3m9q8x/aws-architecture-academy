@@ -126,11 +126,6 @@ function stats() {
   const last = latest();
   const wrong = [...last.values()].filter((a) => !a.correct).length;
   const correct = attempts.filter((a) => a.correct).length;
-  $("attempt-count").textContent = attempts.length;
-  $("accuracy-rate").textContent = attempts.length
-    ? `${Math.round((correct / attempts.length) * 100)}%`
-    : "—";
-  $("mistake-count").textContent = wrong;
   // 資格の選択肢に、各資格で今までに解いた問題数を表示する
   $("quiz-cert").querySelectorAll("option[data-base]").forEach((o) => (o.textContent = `${o.dataset.base} · ${progressText(o.value)}`));
   if (typeof renderOverview === "function" && $("exam-overview") && !$("practice-setup").hidden) renderOverview();

@@ -18,6 +18,7 @@ function session(email) {
   return {access_token:token, refresh_token:'test-refresh-'+email, token_type:'bearer', expires_in:3600, expires_at:now+3600, user:{id, email, aud:'authenticated', role:'authenticated', app_metadata:{provider:'email'}, user_metadata:{}, created_at:new Date().toISOString()}};
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const attemptCount = pg => pg.evaluate(()=>{try{return (window.AcademyAccount.get('aaa.practice.attempts.v1',[])||[]).length}catch(_){return -1}});
 async function eventually(fn) {
   for(let i=0;i<100;i++){if(await fn())return;await sleep(50);}
   assert.fail('Expected condition was not reached');
@@ -95,7 +96,7 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
       return q.choices.flatMap((c,i)=>c.correct?[i]:[]);
     });
     for(const i of good)await page.locator('#quiz-choices input').nth(i).check();
-    await eventually(async()=>await page.locator('#attempt-count').textContent()==='1');
+    await eventually(async()=>await attemptCount(page)===1);
     await page.locator('#quiz-exit').click();
     await home(page);
   }
@@ -126,14 +127,14 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
     await home(a.page);
     await login(a.page);
     assert.equal(rows.size,0);
-    assert.equal(await a.page.locator('#attempt-count').textContent(),'0');
+    assert.equal(await attemptCount(a.page),0);
     a.page.once('dialog',d=>d.accept());
     await Promise.all([a.page.waitForEvent('load'),a.page.locator('[data-account="import"]').click()]);
     const alice=accounts['alice@example.test'],bob=accounts['bob@example.test'];
     await eventually(()=>rows.get(alice)?.data.records['aaa.practice.attempts.v1']?.length===1);
     await a.page.waitForFunction(()=>Number(document.getElementById('svc-total')?.textContent)>0);
     await login(b.page);
-    assert.equal(await b.page.locator('#attempt-count').textContent(),'1');
+    assert.equal(await attemptCount(b.page),1);
     await openService(b.page);
     assert.equal(await b.page.locator('.memo-text').inputValue(),'EC2 の復習 <script>literal</script>');
     assert.equal(await b.page.locator('.ex-done-btn').getAttribute('aria-pressed'),'true');
@@ -178,7 +179,7 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
     await eventually(async()=> (await b.page.locator('.account-email').textContent())==='この端末だけで利用中');
     assert.equal(await b.page.evaluate(()=>Object.keys(localStorage).some(k=>k.startsWith('aaa.account.'))),false);
     await login(b.page,'bob@example.test');
-    assert.equal(await b.page.locator('#attempt-count').textContent(),'0');
+    assert.equal(await attemptCount(b.page),0);
     await openService(b.page);
     assert.equal(await b.page.locator('.memo-text').inputValue(),'');
     await b.page.locator('.memo-text').fill('Bob only');
