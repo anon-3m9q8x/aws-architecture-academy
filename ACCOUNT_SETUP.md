@@ -24,6 +24,7 @@ NutriPath用のテーブル・関数は変更しません。初期設定は繰�
 
 ```text
 https://anon-3m9q8x.github.io/aws-architecture-academy/
+https://aws-architecture-academy.onrender.com/
 ```
 
 NutriPathのRedirect URLは残してください。Site URLもNutriPathの設定のままで構いません。

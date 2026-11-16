@@ -2,7 +2,11 @@
 
 日本語の AWS 資格学習ワークスペース。HTML / CSS / JavaScript と、同梱した公式Supabase SDKで動作します。
 
-公開サイト: https://anon-3m9q8x.github.io/aws-architecture-academy/
+公開サイト:
+- GitHub Pages: https://anon-3m9q8x.github.io/aws-architecture-academy/
+- Render: https://aws-architecture-academy.onrender.com/ （リポジトリ直下の `render.yaml` で静的サイトとして公開。main への push で自動更新）
+
+どちらも同じコードですが、学習データの保存先はブラウザごとに分かれます。アカウントでログインすると、Supabase 経由で同じ内容を共有できます。
 
 ## アカウントログイン・学習同期
 

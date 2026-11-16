@@ -1,0 +1,16 @@
+# Render Blueprint — AWS Architecture Academy を静的サイトとして公開する設定
+# Render ダッシュボード → New → Blueprint → このリポジトリを選ぶとサイトが作成されます。
+# main に push すると自動で再デプロイされます。
+services:
+  - type: web
+    name: aws-architecture-academy
+    runtime: static
+    staticPublishPath: .
+    buildCommand: echo "static site (vendor/supabase.js はリポジトリに含まれているためビルド不要)"
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=604800
