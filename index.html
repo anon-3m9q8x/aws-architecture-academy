@@ -31,6 +31,7 @@
     <link rel="modulepreload" href="data/bank/SERVICE.js" />
     <link rel="modulepreload" href="data/why/index.js" />
     <link rel="stylesheet" href="command-lab.css" />
+    <link rel="stylesheet" href="memopad.css?v=20261117a" />
   </head>
   <body>
     <div id="siteShell">
@@ -73,6 +74,10 @@
           >
           <a href="#connections" data-page="connections"
             ><span aria-hidden="true">◇</span> 連携を調べる</a
+          >
+          <a href="#memo" data-page="memo"
+            ><span aria-hidden="true">✎</span> メモ
+            <span class="nav-badge" data-memo-count hidden>0</span></a
           >
         </nav>
         <div class="sidebar-note">
@@ -228,6 +233,7 @@
         <section id="services" class="page" hidden></section>
         <section id="command-lab" class="page" hidden></section>
         <section id="build" class="page" hidden></section>
+        <section id="memo" class="page" hidden></section>
         <section id="practice" class="page" hidden>
           <h1 class="sr-only">資格問題演習</h1>
           <span class="pill" id="practice-exam-pill" hidden>全資格対応</span>
@@ -352,7 +358,7 @@
     <div id="accountOverlay" class="account-overlay" hidden></div>
     <script src="config.js"></script>
     <script src="vendor/supabase.js"></script>
-    <script src="account.js?v=20261116a"></script>
-    <script src="script.js?v=20261116a" type="module"></script>
+    <script src="account.js?v=20261117a"></script>
+    <script src="script.js?v=20261117a" type="module"></script>
   </body>
 </html>
