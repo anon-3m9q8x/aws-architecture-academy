@@ -4,6 +4,7 @@ import { serviceQuestions } from "./data/service-questions.js";
 import { byId as svcById } from "./services.js";
 import { findServices, servicesIn } from "./data/service-terms.js";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
+import { goalCodes, goalDate, daysLeft, focusOn, setFocus, openGoalDialog } from "./goal.js?v=20261117b";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
 const LETTERS = "12345678"; // 選択肢の番号(1 から)
@@ -374,11 +375,12 @@ function pool() {
   const band = $("quiz-prob").value;
   const svc = kind === "service";
   // 苦手問題などの指定出題は、種類をまたいで出す
-  const base = presetIds ? allQuestions.filter((q) => presetIds.has(q.id)) : !svc && code !== "all" ? examQs.get(code) || [] : bankQ();
+  const goalSel = code === "goal";
+  const base = presetIds ? allQuestions.filter((q) => presetIds.has(q.id)) : !svc && goalSel ? goalQuestions() : !svc && code !== "all" ? examQs.get(code) || [] : bankQ();
   const diff = $("quiz-difficulty").value, mode = $("quiz-mode").value;
   return base.filter(
     (q) =>
-      (presetIds || svc || code === "all" || !!q.exams[code]) &&
+      (presetIds || svc || code === "all" || goalSel || !!q.exams[code]) &&
       (presetIds || dom === "all" || (dom.startsWith("d:") ? q.exams[code]?.[0] === Number(dom.slice(2)) : q.domain === dom)) &&
       (presetIds || svc || band === "all" || probBand(probability(q, examFor(q))) === band) &&
       (diff === "all" || q.difficulty === Number(diff)) &&
@@ -403,24 +405,152 @@ function updatePool() {
   const chip = $("preset-chip");
   if (chip) chip.hidden = !presetIds;
 }
-/* 資格(試験)の選択肢: レベルごとにまとめ、試験コードを値にする */
-LEVELS.forEach((lv) => {
-  const g = el("optgroup");
-  g.label = { Foundational: "基礎", Business: "ビジネス", Associate: "アソシエイト", Professional: "プロフェッショナル", Specialty: "専門知識" }[lv];
-  EXAMS.filter((e) => e.level === lv).forEach((e) => {
-    const n = examQs.get(e.code)?.length || 0;
-    if (!n) return; // 問題のない試験(旧版)は出さない
-    const o = el("option", "", "");
-    o.value = e.code;
-    o.dataset.base = `${e.code} ${e.name}${e.retire ? `(${e.retire.slice(5).replace("-", "/")} まで)` : ""}`;
-    g.append(o);
+/* ---------- 取得目標の資格 ---------- */
+/** 目標の資格のうち、問題がある試験（一覧の順） */
+const goalsWithQs = () => goalCodes().filter((c) => examQs.get(c)?.length);
+let goalQsCache = { key: "", list: [] };
+/** 目標の資格すべての問題（重複なし） */
+function goalQuestions() {
+  const codes = goalsWithQs();
+  const key = codes.join(",");
+  if (goalQsCache.key !== key) {
+    const seen = new Set(), list = [];
+    codes.forEach((c) => (examQs.get(c) || []).forEach((q) => !seen.has(q.id) && (seen.add(q.id), list.push(q))));
+    goalQsCache = { key, list };
+  }
+  return goalQsCache.list;
+}
+const focusing = () => focusOn() && goalsWithQs().length > 0;
+/** 資格の選択の既定値：目標に集中しているなら目標（複数なら「目標の資格すべて」）、ほかは すべて */
+const defaultCert = () => (focusing() ? (goalsWithQs().length > 1 ? "goal" : goalsWithQs()[0]) : "all");
+/* 資格(試験)の選択肢: 目標に集中しているときは目標の資格だけ。ほかはレベルごとにまとめ、目標の資格に ★ を付ける */
+function buildCert() {
+  const sel = $("quiz-cert");
+  const keep = sel.value;
+  sel.replaceChildren();
+  const goals = goalsWithQs();
+  if (focusing()) {
+    if (goals.length > 1) {
+      const o = el("option", "", `🎯 目標の資格すべて(${goals.join("・")})· ${goalQuestions().length}問`);
+      o.value = "goal";
+      sel.append(o);
+    }
+    goals.forEach((c) => {
+      const e = examByCode.get(c);
+      const o = el("option", "", "");
+      o.value = c;
+      o.dataset.base = `🎯 ${e.code} ${e.name}`;
+      sel.append(o);
+    });
+  } else {
+    const all = el("option", "", "すべての資格");
+    all.value = "all";
+    sel.append(all);
+    LEVELS.forEach((lv) => {
+      const g = el("optgroup");
+      g.label = { Foundational: "基礎", Business: "ビジネス", Associate: "アソシエイト", Professional: "プロフェッショナル", Specialty: "専門知識" }[lv];
+      EXAMS.filter((e) => e.level === lv).forEach((e) => {
+        const n = examQs.get(e.code)?.length || 0;
+        if (!n) return; // 問題のない試験(旧版)は出さない
+        const o = el("option", "", "");
+        o.value = e.code;
+        o.dataset.base = `${goals.includes(e.code) ? "🎯 " : ""}${e.code} ${e.name}${e.retire ? `(${e.retire.slice(5).replace("-", "/")} まで)` : ""}`;
+        g.append(o);
+      });
+      if (g.children.length) sel.append(g);
+    });
+  }
+  sel.querySelectorAll("option[data-base]").forEach((o) => (o.textContent = `${o.dataset.base} · ${progressText(o.value)}`));
+  sel.value = [...sel.options].some((o) => o.value === keep) ? keep : defaultCert();
+}
+/* 演習の設定画面の上：目標の資格と「目標の資格に集中」 */
+function renderGoalBar() {
+  const bar = $("goal-bar");
+  if (!bar) return;
+  bar.replaceChildren();
+  const goals = goalsWithQs();
+  if (!goals.length) {
+    bar.className = "goal-bar empty";
+    const b = el("button", "goal-btn", "目標を設定する");
+    b.type = "button";
+    b.addEventListener("click", openGoalDialog);
+    bar.append(el("span", "goal-ic", "🎯"), el("span", "goal-txt", "取得目標の資格を設定すると、その資格の問題に集中して演習できます。"), b);
+    return;
+  }
+  bar.className = "goal-bar";
+  const names = el("span", "goal-txt");
+  names.append(el("b", "", "目標："), ...goals.map((c) => el("span", "goal-chip", c)));
+  const d = daysLeft();
+  if (d != null) names.append(el("span", "goal-days", d > 0 ? `受験まで あと ${d} 日` : d === 0 ? "今日が受験日" : "受験予定日を過ぎています"));
+  const sw = el("label", "goal-sw");
+  const cb = el("input");
+  cb.type = "checkbox";
+  cb.checked = focusOn();
+  cb.addEventListener("change", () => setFocus(cb.checked));
+  sw.append(cb, el("span", "", "目標の資格に集中"));
+  const b = el("button", "goal-btn", "変更");
+  b.type = "button";
+  b.addEventListener("click", openGoalDialog);
+  bar.append(el("span", "goal-ic", "🎯"), names, sw, b);
+}
+/* ホームの「取得目標の資格」カード：目標ごとの実施状況と受験までの日数 */
+function renderGoalCard() {
+  const card = $("goal-card");
+  if (!card) return;
+  card.replaceChildren();
+  const goals = goalsWithQs();
+  const head = el("div", "goal-card-h");
+  head.append(el("h2", "", "🎯 取得目標の資格"));
+  const edit = el("button", "goal-btn", goals.length ? "変更" : "目標を設定する");
+  edit.type = "button";
+  edit.addEventListener("click", openGoalDialog);
+  head.append(edit);
+  card.append(head);
+  if (!goals.length) {
+    card.append(el("p", "goal-card-empty", "目指している資格を選ぶと、資格問題演習がその資格の問題に絞られ、ここに進み具合が表示されます。"));
+    return;
+  }
+  const d = daysLeft();
+  if (d != null) card.append(el("p", "goal-card-days", `${goalDate().replaceAll("-", "/")} 受験予定 · ${d > 0 ? `あと ${d} 日` : d === 0 ? "今日が受験日" : "受験予定日を過ぎています"}`));
+  const list = el("div", "goal-card-list");
+  goals.forEach((c) => {
+    const e = examByCode.get(c), pg = examProgress(c);
+    const a = el("a", "goal-card-item");
+    a.href = "#practice";
+    a.dataset.goal = c;
+    const bar = el("span", "goal-card-bar");
+    const fill = el("i");
+    fill.style.width = (pg.total ? Math.round((pg.done / pg.total) * 100) : 0) + "%";
+    bar.append(fill);
+    a.append(el("b", "", e.code), el("span", "goal-card-name", e.name), bar, el("small", "", `${pg.done} / ${pg.total} 問を実施 · 演習する →`));
+    list.append(a);
   });
-  $("quiz-cert").append(g);
+  card.append(list);
+}
+$("goal-card")?.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-goal]");
+  if (!a) return;
+  setFocus(true);
+  $("quiz-cert").value = a.dataset.goal;
+  $("quiz-cert").dispatchEvent(new Event("change"));
 });
+window.addEventListener("goal-change", () => {
+  buildCert();
+  $("quiz-cert").value = defaultCert();
+  fillDomains();
+  renderOverview();
+  syncKind();
+  updatePool();
+  renderGoalBar();
+  renderGoalCard();
+});
+window.addEventListener("route-change", (e) => e.detail?.page === "home" && renderGoalCard());
+buildCert();
 /** 表示・確率の計算に使う試験: 選択中の試験があればそれ、なければ問題の主な試験 */
 function examFor(q) {
   if (isSvc(q)) return null;
   const code = $("quiz-cert").value;
+  if (code === "goal") return goalsWithQs().find((c) => q.exams[c]) || primaryExam(q);
   return code !== "all" && q.exams[code] ? code : primaryExam(q);
 }
 /* 分野の選択肢: 資格を選ぶと試験ガイドの分野、すべてのときは問題の領域 */
@@ -436,8 +566,8 @@ function fillDomains() {
       o.value = cat;
       sel.append(o);
     });
-  } else if (code === "all") {
-    [...new Set(questions.map((q) => q.domain))].forEach((domain) => {
+  } else if (code === "all" || code === "goal") {
+    [...new Set((code === "goal" ? goalQuestions() : questions).map((q) => q.domain))].forEach((domain) => {
       const o = el("option", "", domain);
       o.value = domain;
       sel.append(o);
@@ -475,11 +605,12 @@ function renderOverview() {
     );
     return;
   }
-  if (code === "all") {
+  if (code === "all" || code === "goal") {
     const grid = el("div", "exam-chips");
+    const only = code === "goal" ? goalsWithQs() : null;
     EXAMS.forEach((e) => {
       const n = examQs.get(e.code)?.length || 0;
-      if (!n) return;
+      if (!n || (only && !only.includes(e.code))) return;
       const b = el("button", "exam-chip");
       b.type = "button";
       b.append(el("b", "", e.code), el("span", "", `${n}問`), el("span", "exam-chip-done", progressText(e.code).replace(/\/\d+問/, "問")));
@@ -490,7 +621,7 @@ function renderOverview() {
       });
       grid.append(b);
     });
-    box.append(el("p", "exam-ov-h", "資格を選ぶと、試験ガイドの分野ごとに演習できます"), grid);
+    box.append(el("p", "exam-ov-h", only ? "目標の資格の問題をまとめて出題します。資格を選ぶと、試験ガイドの分野ごとに演習できます" : "資格を選ぶと、試験ガイドの分野ごとに演習できます"), grid);
     return;
   }
   const ex = examByCode.get(code);
@@ -530,7 +661,8 @@ $("quiz-cert").addEventListener("change", () => {
 /* ---------- 実試験と同じ問題数 ---------- */
 /** 選択中の試験の実試験の問題数(すべての資格のときは 65 問) */
 function realCount() {
-  return examByCode.get($("quiz-cert").value)?.real?.[0] || 65;
+  const code = $("quiz-cert").value;
+  return examByCode.get(code === "goal" ? goalsWithQs()[0] : code)?.real?.[0] || 65;
 }
 function syncReal() {
   const o = $("quiz-limit").querySelector('option[value="real"]');
@@ -568,7 +700,7 @@ function syncKind() {
   $("quiz-prob").closest("label").hidden = svc;
   $("quiz-domain").closest("label").firstChild.textContent = svc ? "カテゴリ" : "分野";
   const code = $("quiz-cert").value;
-  $("practice-exam-pill").textContent = svc ? "サービス知識(試験外)" : code === "all" ? "全資格対応" : code;
+  $("practice-exam-pill").textContent = svc ? "サービス知識(試験外)" : code === "all" ? "全資格対応" : code === "goal" ? "目標の資格" : code;
   const list = bankQ();
   const single = list.filter((q) => q.selectCount === 1).length;
   $("practice-type-pill").textContent = svc ? `サービス知識 ${list.length}問` : `単一${single}問 / 複数${list.length - single}問`;
@@ -602,6 +734,7 @@ window.addEventListener("practice-preset", (e) => {
   presetIds = ids.length ? new Set(ids) : null;
   $("preset-label").textContent = e.detail?.label || "";
   ["quiz-cert", "quiz-prob", "quiz-difficulty", "quiz-mode"].forEach((id) => ($(id).value = "all"));
+  if (!$("quiz-cert").value) $("quiz-cert").value = defaultCert(); // 目標に集中しているときは「すべて」が無い
   fillDomains();
   renderOverview();
   $("quiz-limit").value = "1000";
