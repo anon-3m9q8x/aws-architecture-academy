@@ -3211,6 +3211,26 @@ html[data-theme="light"] .study-hero {
 .summary-row .q { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 .summary-row .go { flex: none; font-size: 12px; color: var(--aaa-blue); }
 .result-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+/* 結果一覧：長い問題文で行が枠の外へ伸びないようにする（グリッド列を 0 まで縮められるようにし、問題文は2行で省略） */
+.quiz-result { min-width: 0; overflow-wrap: anywhere; }
+.quiz-result .session-summary { grid-template-columns: minmax(0, 1fr); margin: 16px 0 0; }
+.quiz-result .session-summary li { min-width: 0; margin: 0; }
+.quiz-result .summary-row {
+  margin: 0; min-width: 0; max-width: 100%;
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 6px;
+  grid-template-areas: "mark q go" ". tag go";
+}
+.quiz-result .summary-row .mark { grid-area: mark; }
+.quiz-result .summary-row .q {
+  grid-area: q; white-space: normal; line-height: 1.6;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+}
+.quiz-result .summary-row .sum-tag { grid-area: tag; justify-self: start; max-width: 100%; white-space: normal; }
+.quiz-result .summary-row .go { grid-area: go; align-self: center; white-space: nowrap; }
+@media (max-width: 560px) {
+  .quiz-result .summary-row { grid-template-areas: "mark q q" ". tag go"; }
+  .quiz-result .summary-row .q { -webkit-line-clamp: 3; line-clamp: 3; }
+}
 .domain-row { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(80px, 2fr) auto; gap: 10px; align-items: center; }
 .domain-bar { height: 8px; border-radius: 99px; background: var(--aaa-border); overflow: hidden; }
 .domain-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22d3ee, var(--study-blue), #a855f7); transition: width 0.6s var(--ac-ease); }
