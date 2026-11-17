@@ -37,3 +37,21 @@
 .goal-acts .goal-save{background:var(--aaa-orange);border-color:var(--aaa-orange);color:#1a1108}
 .goal-acts .goal-clear{color:#e5484d}
 @media (max-width:600px){.goal-sw{order:3}.goal-bar .goal-btn{order:4}}
+/* 取得済み */
+.goal-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;padding:7px 8px;border-radius:9px;grid-column:1/-1}
+.goal-row[data-st="goal"]{background:color-mix(in srgb,var(--aaa-orange) 14%,transparent)}
+.goal-row[data-st="have"]{background:color-mix(in srgb,#2fb67c 14%,transparent)}
+.goal-row-n{display:grid;font-size:.85rem;line-height:1.45;min-width:180px}.goal-row-n b{font-size:.9rem}.goal-row-n small{color:var(--aaa-muted);font-size:.72rem}
+.goal-seg{display:inline-flex;border:1px solid var(--aaa-border);border-radius:9px;overflow:hidden}
+.goal-st{position:relative;cursor:pointer}
+.goal-st input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.goal-st span{display:block;padding:5px 10px;font-size:.8rem;font-weight:700;white-space:nowrap;color:var(--aaa-muted)}
+.goal-st+.goal-st span{border-left:1px solid var(--aaa-border)}
+.goal-st-goal input:checked+span{background:var(--aaa-orange);color:#1a1108}
+.goal-st-have input:checked+span{background:#2fb67c;color:#06200f}
+.goal-st-none input:checked+span{background:var(--aaa-panel-hover);color:var(--aaa-text)}
+.goal-st input:disabled+span{opacity:.35;cursor:not-allowed}
+.goal-st input:focus-visible+span{outline:2px solid var(--aaa-blue);outline-offset:-2px}
+.goal-levels fieldset{display:grid;grid-template-columns:1fr;gap:4px}
+.goal-have{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:.85rem}
+.goal-have-chip{display:inline-block;padding:2px 9px;border-radius:999px;background:#2fb67c;color:#06200f;font-weight:800;font-size:.8rem}

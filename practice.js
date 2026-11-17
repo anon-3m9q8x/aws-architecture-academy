@@ -4,7 +4,7 @@ import { serviceQuestions } from "./data/service-questions.js";
 import { byId as svcById } from "./services.js";
 import { findServices, servicesIn } from "./data/service-terms.js";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
-import { goalCodes, goalDate, daysLeft, focusOn, setFocus, openGoalDialog } from "./goal.js?v=20261117b";
+import { goalCodes, goalDate, haveCodes, daysLeft, focusOn, setFocus, openGoalDialog } from "./goal.js?v=20261117c";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
 const LETTERS = "12345678"; // 選択肢の番号(1 から)
@@ -454,7 +454,7 @@ function buildCert() {
         if (!n) return; // 問題のない試験(旧版)は出さない
         const o = el("option", "", "");
         o.value = e.code;
-        o.dataset.base = `${goals.includes(e.code) ? "🎯 " : ""}${e.code} ${e.name}${e.retire ? `(${e.retire.slice(5).replace("-", "/")} まで)` : ""}`;
+        o.dataset.base = `${goals.includes(e.code) ? "🎯 " : haveCodes().includes(e.code) ? "✅ " : ""}${e.code} ${e.name}${e.retire ? `(${e.retire.slice(5).replace("-", "/")} まで)` : ""}`;
         g.append(o);
       });
       if (g.children.length) sel.append(g);
@@ -500,14 +500,26 @@ function renderGoalCard() {
   card.replaceChildren();
   const goals = goalsWithQs();
   const head = el("div", "goal-card-h");
-  head.append(el("h2", "", "🎯 取得目標の資格"));
-  const edit = el("button", "goal-btn", goals.length ? "変更" : "目標を設定する");
+  head.append(el("h2", "", "🎯 取得目標と取得済みの資格"));
+  const have = haveCodes();
+  const edit = el("button", "goal-btn", goals.length || have.length ? "変更" : "目標を設定する");
   edit.type = "button";
   edit.addEventListener("click", openGoalDialog);
   head.append(edit);
   card.append(head);
+  const haveRow = () => {
+    if (!have.length) return;
+    const row = el("p", "goal-have");
+    row.append(el("b", "", "✅ 取得済み"), ...have.map((c) => {
+      const x = el("span", "goal-have-chip", c);
+      x.title = examByCode.get(c)?.name || c;
+      return x;
+    }));
+    card.append(row);
+  };
   if (!goals.length) {
-    card.append(el("p", "goal-card-empty", "目指している資格を選ぶと、資格問題演習がその資格の問題に絞られ、ここに進み具合が表示されます。"));
+    card.append(el("p", "goal-card-empty", "目指している資格を選ぶと、資格問題演習がその資格の問題に絞られ、ここに進み具合が表示されます。取得済みの資格も登録できます。"));
+    haveRow();
     return;
   }
   const d = daysLeft();
@@ -526,6 +538,7 @@ function renderGoalCard() {
     list.append(a);
   });
   card.append(list);
+  haveRow();
 }
 $("goal-card")?.addEventListener("click", (e) => {
   const a = e.target.closest("[data-goal]");
@@ -546,6 +559,8 @@ window.addEventListener("goal-change", () => {
 });
 window.addEventListener("route-change", (e) => e.detail?.page === "home" && renderGoalCard());
 buildCert();
+renderGoalBar();
+renderGoalCard();
 /** 表示・確率の計算に使う試験: 選択中の試験があればそれ、なければ問題の主な試験 */
 function examFor(q) {
   if (isSvc(q)) return null;
