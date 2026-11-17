@@ -96,7 +96,7 @@ function renderList() {
   const wrap = el("div", "cl-list");
   const head = el("div", "page-heading ws-head");
   const t = el("div");
-  t.append(el("p", "eyebrow", "COMMAND & POLICY LAB"), el("h1", "", "コマンド・ポリシー演習"), el("p", "muted", "CLI・IAM ポリシー・API を、シミュレーターで書いて試します。"));
+  t.append(el("h1", "sr-only", "コマンド・ポリシー演習"));
   const s = labStats();
   const prog = el("div", "bd-prog");
   prog.append(el("b", "", `${s.cleared} / ${s.total}`), el("small", "", "問 クリア"));

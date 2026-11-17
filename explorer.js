@@ -33,7 +33,7 @@ function glyph(s, big) {
 const view = el("div", "ex-view");
 const head = el("div", "page-heading ex-head ws-head");
 const ht = el("div");
-ht.append(el("p", "eyebrow", "SERVICE EXPLORER"), el("h1", "", "サービス図鑑"), el("p", "muted", `${serviceCount} サービス。タップで連携アニメーションと解説へ。`));
+ht.append(el("h1", "sr-only", "サービス図鑑"));
 const modeSeg = el("div", "seg ex-mode");
 modeSeg.setAttribute("role", "tablist");
 for (const [v, t] of [["list", "サービス一覧"], ["compare", `類似サービス比較 ${COMPARE.length}`], ["patterns", `設計パターン ${PATTERNS.length}`], ["scenes", "連携シナリオ"]]) {

@@ -888,7 +888,7 @@ function goTo(i, focus = true) {
   if (i < 0 || i >= session.length) return;
   position = i;
   render();
-  const top = $("quiz-workspace").getBoundingClientRect().top + scrollY - 8;
+  const top = $("quiz-workspace").getBoundingClientRect().top + scrollY - 8 - dockOffset();
   if (scrollY > top) scrollTo({ top, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   if (focus) $("quiz-prompt").focus({ preventScroll: true });
 }
@@ -1199,5 +1199,32 @@ document.addEventListener("keydown", (e) => {
   }
 });
 window.addEventListener("resize", () => session.length && renderMap());
+// 演習中の上部(問題番号・正誤の集計・問題マップ)を、画面上部に固定されたヘッダーの真下に固定する。
+// ヘッダーの高さは画面幅で変わるため実測して CSS 変数に入れる(横長のバーだけを数え、PC の縦型サイドバーは除く)
+function dockOffset() {
+  let bottom = 0;
+  for (const sel of [".topbar", ".sidebar"]) {
+    const n = document.querySelector(sel);
+    if (!n) continue;
+    const cs = getComputedStyle(n);
+    if (cs.position !== "sticky" && cs.position !== "fixed") continue;
+    const r = n.getBoundingClientRect();
+    if (r.width < innerWidth * 0.6 || r.height <= 0) continue;
+    bottom = Math.max(bottom, (parseFloat(cs.top) || 0) + r.height);
+  }
+  return Math.round(bottom);
+}
+function syncDockTop() {
+  const root = document.documentElement.style;
+  root.setProperty("--quiz-dock-top", dockOffset() + "px");
+  const dock = $("quiz-dock");
+  if (dock && dock.offsetHeight) root.setProperty("--quiz-dock-h", dock.offsetHeight + "px");
+}
+window.addEventListener("resize", syncDockTop);
+if ("ResizeObserver" in window) {
+  const ro = new ResizeObserver(syncDockTop);
+  for (const sel of [".topbar", ".sidebar", "#quiz-dock"]) { const n = document.querySelector(sel); if (n) ro.observe(n); }
+}
+syncDockTop();
 stats();
 updatePool();

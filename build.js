@@ -43,7 +43,7 @@ function renderList() {
   const wrap = el("div", "bd-list-view");
   const head = el("div", "page-heading ws-head");
   const t = el("div");
-  t.append(el("p", "eyebrow", "BUILD THE ARCHITECTURE"), el("h1", "", "サービス構築問題"), el("p", "muted", "要件を読み、サービスを置いて線でつなぎます。"));
+  t.append(el("h1", "sr-only", "サービス構築問題"));
   const solved = BUILD.filter((pb) => rec[pb.id]?.ok).length;
   const prog = el("div", "bd-prog");
   prog.append(el("b", "", `${solved} / ${BUILD.length}`), el("small", "", "問 正解"));
