@@ -235,7 +235,7 @@ fab.setAttribute("aria-expanded", "false");
 const panel = el("aside", "mp-panel");
 panel.hidden = true;
 panel.setAttribute("aria-label", "メモ");
-panel.innerHTML = `<div class="mp-ph"><b>✎ メモ</b><select class="mp-pick" aria-label="編集するメモを選ぶ"></select><button type="button" class="mp-pnew" title="新しいメモ">＋ 新規</button><button type="button" class="mp-x" aria-label="メモを閉じる">×</button></div>
+panel.innerHTML = `<div class="mp-ph" title="ドラッグで移動・ダブルクリックで元の位置へ"><span class="mp-grip" aria-hidden="true">⠿</span><b>✎ メモ</b><select class="mp-pick" aria-label="編集するメモを選ぶ"></select><button type="button" class="mp-pnew" title="新しいメモ">＋ 新規</button><button type="button" class="mp-x" aria-label="メモを閉じる">×</button></div>
   <div class="mp-ped"></div>
   <div class="mp-pf"><span class="mp-status" data-memo-status></span><a href="#memo" class="mp-all">メモ一覧を開く →</a></div>`;
 document.body.append(fab, panel);
@@ -252,10 +252,87 @@ function drawPick() {
   }
   pick.value = find(panelId) ? panelId : "";
 }
+/* ---------- メモを画面内で移動する ----------
+ * 「メモ」ボタンはそのままドラッグ、パネルは見出し部分をドラッグして動かせる。位置は端末ごとに保存し(aaa.memo.ui の fab / pos)、
+ * 画面の外にはみ出さないように収める。見出しをダブルクリックすると元の位置(右下)に戻る。
+ */
+const clampXY = (x, y, w, h) => [Math.min(Math.max(8, x), Math.max(8, innerWidth - w - 8)), Math.min(Math.max(8, y), Math.max(8, innerHeight - h - 8))];
+function place(elm, pos) {
+  if (!pos) {
+    elm.style.left = elm.style.top = elm.style.right = elm.style.bottom = "";
+    return;
+  }
+  const r = elm.getBoundingClientRect();
+  const [x, y] = clampXY(pos.x, pos.y, r.width, r.height);
+  Object.assign(elm.style, { left: x + "px", top: y + "px", right: "auto", bottom: "auto" });
+}
+/** パネルの位置: 移動していなければ、ボタンの近く(上、入らなければ下)に出す */
+function placePanel() {
+  const pos = uiGet().pos;
+  if (pos) return place(panel, pos);
+  const fp = uiGet().fab;
+  if (!fp) return place(panel, null);
+  const f = fab.getBoundingClientRect(), r = panel.getBoundingClientRect();
+  const y = f.top - r.height - 10 >= 8 ? f.top - r.height - 10 : f.bottom + 10;
+  place(panel, { x: f.right - r.width, y });
+}
+function draggable(handle, target, key, { onTap } = {}) {
+  let start = null, moved = false;
+  handle.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    if (handle !== target && e.target.closest("select,button,input,textarea,a")) return; // 見出しの中の操作部品はドラッグしない
+    const r = target.getBoundingClientRect();
+    start = { px: e.clientX, py: e.clientY, x: r.left, y: r.top, w: r.width, h: r.height };
+    moved = false;
+    handle.setPointerCapture(e.pointerId);
+  });
+  handle.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    const dx = e.clientX - start.px, dy = e.clientY - start.py;
+    if (!moved && Math.hypot(dx, dy) < 5) return;
+    moved = true;
+    document.body.classList.add("mp-dragging");
+    const [x, y] = clampXY(start.x + dx, start.y + dy, start.w, start.h);
+    Object.assign(target.style, { left: x + "px", top: y + "px", right: "auto", bottom: "auto" });
+    if (target === fab && !panel.hidden && !uiGet().pos) placePanel();
+  });
+  const end = (e) => {
+    if (!start) return;
+    start = null;
+    document.body.classList.remove("mp-dragging");
+    if (moved) {
+      const r = target.getBoundingClientRect();
+      uiSet({ [key]: { x: Math.round(r.left), y: Math.round(r.top) } });
+      if (target === fab) handle.dataset.dragged = "1"; // 直後の click を開閉にしない
+    } else onTap?.(e);
+  };
+  handle.addEventListener("pointerup", end);
+  handle.addEventListener("pointercancel", end);
+}
+draggable(fab, fab, "fab");
+draggable(panel.querySelector(".mp-ph"), panel, "pos");
+fab.addEventListener("click", (e) => {
+  if (fab.dataset.dragged) {
+    delete fab.dataset.dragged;
+    e.stopImmediatePropagation();
+  }
+}, true);
+panel.querySelector(".mp-ph").addEventListener("dblclick", (e) => {
+  if (e.target.closest("select,button")) return;
+  uiSet({ pos: null, fab: null });
+  place(fab, null);
+  place(panel, null);
+});
+place(fab, uiGet().fab);
+addEventListener("resize", () => {
+  place(fab, uiGet().fab);
+  if (!panel.hidden) placePanel();
+});
 function openPanel() {
   const last = uiGet().last;
   panelId = find(panelId) ? panelId : find(last) ? last : null;
   panel.hidden = false;
+  placePanel();
   fab.setAttribute("aria-expanded", "true");
   document.body.classList.add("memo-open");
   drawPick();

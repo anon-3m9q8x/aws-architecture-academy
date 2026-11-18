@@ -59,3 +59,11 @@ body.memo-open .mp-fab{background:var(--aaa-panel);color:var(--aaa-text)}
 }
 /* 演習中の「戻る」ボタン（画面下の中央）と重ならないよう、資格問題演習では少し上げる */
 body[data-route="practice"] .mp-fab{bottom:calc(max(18px,env(safe-area-inset-bottom)) + 4px)}
+/* メモの移動(ドラッグ) */
+.mp-ph{cursor:move;user-select:none;touch-action:none}
+.mp-ph select,.mp-ph button{cursor:pointer}
+.mp-grip{color:var(--aaa-muted);font-size:.95rem;letter-spacing:-1px}
+.mp-fab{touch-action:none}
+body.mp-dragging{user-select:none;cursor:move}
+body.mp-dragging .mp-fab,body.mp-dragging .mp-panel{transition:none}
+@media (max-width:760px){.mp-panel{width:calc(100vw - 16px)}}
