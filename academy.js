@@ -121,25 +121,9 @@ function setCollapsed(c, silent) {
   setTimeout(() => movePill(true), 300);
 }
 setCollapsed(store.get("aaa.ui.sidebar", "open") === "closed", true);
-// 手動の開閉は保存し、自動で閉じた状態を解除する(利用者の操作を優先)
-let autoClosed = false;
-toggle.addEventListener("click", () => {
-  autoClosed = false;
-  setCollapsed(!shell.classList.contains("side-collapsed"));
-});
-// サービス図鑑の解説ページでは横幅を確保するためにワークスペース(サイドバー)を自動で閉じ、
-// 図鑑の一覧や他のページへ戻ったら元に戻す。保存している開閉の設定は変えない。
-window.addEventListener("sidebar-auto", (e) => {
-  const want = !!e.detail?.collapse;
-  const isClosed = shell.classList.contains("side-collapsed");
-  if (want && !isClosed) {
-    autoClosed = true;
-    setCollapsed(true, true);
-  } else if (!want && autoClosed) {
-    autoClosed = false;
-    setCollapsed(false, true);
-  }
-});
+toggle.addEventListener("click", () => setCollapsed(!shell.classList.contains("side-collapsed")));
+// 以前はサービス図鑑の解説ページでワークスペースを自動で閉じていたが、利用者の要望で廃止した。
+// 開閉は利用者が「≡」で切り替えたときだけ変わる(explorer.js が送る sidebar-auto は無視する)。
 
 /* ---------- ホーム: 前回の続きから ---------- */
 function resume() {

@@ -7,7 +7,7 @@ import "./home.js?v=20261117b";
 import "./explorer.js?v=20261118d";
 import "./command-lab.js?v=20261117b";
 import { buildStats, refreshRec } from "./build.js?v=20261118d";
-import "./academy.js?v=20261117b";
+import "./academy.js?v=20261118l";
 import "./memopad.js?v=20261117b";
 import "./plan.js?v=20261118i";
 import { store } from "./storage.js";
