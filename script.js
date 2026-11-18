@@ -4,7 +4,7 @@ import { SERVICES, byId, relsOf, serviceCount } from "./services.js";
 import { BUILD } from "./data/build.js";
 import "./practice.js?v=20261118p";
 import "./home.js?v=20261117b";
-import "./explorer.js?v=20261118q";
+import "./explorer.js?v=20261118r";
 import "./command-lab.js?v=20261117b";
 import { buildStats, refreshRec } from "./build.js?v=20261118d";
 import "./academy.js?v=20261118l";

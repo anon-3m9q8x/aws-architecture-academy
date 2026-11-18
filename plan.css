@@ -205,3 +205,8 @@
 #quiz-kind [data-kind="expert"][aria-pressed="true"]{border-color:#7c3aed;box-shadow:inset 0 0 0 1px #7c3aed}
 .expert-chip b{color:#6d28d9}
 .kind-switch{grid-template-columns:repeat(3,1fr)}@media (max-width:600px){.kind-switch{grid-template-columns:1fr}}
+/* 図鑑: 類似サービスの比較(共通点・違い・選び方)と AWS 以外の類似サービス */
+.ex-cmp-dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:6px 0 0;font-size:.88rem;line-height:1.7}
+.ex-cmp-dl dt{font-weight:800;color:var(--aaa-muted);white-space:nowrap}
+.ex-cmp-dl dd{margin:0}
+.ex-ext-h{margin:0 0 2px}.ex-cmp-ext p{margin:0;line-height:1.7}

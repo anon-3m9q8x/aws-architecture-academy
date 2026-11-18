@@ -1,5 +1,6 @@
 // 図鑑の全サービス = 学習ノート107項目 + 追加サービス(services-extra / services-sap / services-2026)。説明・連携・比較・キーワードを統合する。
 import { notebook } from "./data/notebook.js";
+import { SIMILAR_PAIRS, SIMILAR_EXT } from "./data/similar.js";
 import { META } from "./data/services-meta.js";
 import { EXTRA } from "./data/services-extra.js";
 import { LINKS } from "./data/links.js";
@@ -97,7 +98,10 @@ for (const p of PATTERNS)
 // 詳細解説のある連携を先頭に
 rel.forEach((list) => list.sort((p, q) => (q.detail ? 1 : 0) - (p.detail ? 1 : 0)));
 export const relsOf = (id) => rel.get(id) || [];
-export const compsOf = (id) => notebook.comparisons.filter((c) => c.a === id || c.b === id);
+const ALL_COMPS = [...notebook.comparisons, ...SIMILAR_PAIRS];
+export const compsOf = (id) => ALL_COMPS.filter((c) => c.a === id || c.b === id);
+/** AWS 以外のよく比較されるサービス */
+export const extOf = (id) => SIMILAR_EXT[id] || [];
 export const metaOf = (id) => {
   const s = byId.get(id);
   return s ? { name: s.name, color: s.color, abbr: s.abbr } : id === "user" ? { name: "ユーザー", color: "gray", abbr: "◎" } : null;

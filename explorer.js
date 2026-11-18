@@ -1,5 +1,5 @@
 // サービス図鑑: 一覧 → タップでサービスの解説ページへ。連携アニメーション・解説・連携・SAP 設計パターンを 1 ページに統合。
-import { SERVICES, CATS, byId, relsOf, compsOf, metaOf, serviceCount, patternsOf, groupsOf, COMPARE } from "./services.js";
+import { SERVICES, CATS, byId, relsOf, compsOf, extOf, metaOf, serviceCount, patternsOf, groupsOf, COMPARE } from "./services.js";
 import { memo } from "./memo.js";
 import { FlowPlayer, normalizeScene, serviceScene, problemScene } from "./flow.js";
 import { BUILD } from "./data/build.js";
@@ -413,7 +413,8 @@ function openDetail(s) {
   const pats = patternsOf(s.id);
   const groups = groupsOf(s.id);
   const comps = compsOf(s.id);
-  const secs = [["anim", "アニメーション"], ["about", "解説"], ...(s.variants.length ? [["kinds", "種類・発展形"]] : []), ...(groups.length || comps.length ? [["similar", "類似サービス"]] : []), ["links", "連携"], ["design", "設計パターン"], ["memo", "メモ"]];
+  const exts = extOf(s.id);
+  const secs = [["anim", "アニメーション"], ["about", "解説"], ...(s.variants.length ? [["kinds", "種類・発展形"]] : []), ...(groups.length || comps.length || exts.length ? [["similar", "類似サービス"]] : []), ["links", "連携"], ["design", "設計パターン"], ["memo", "メモ"]];
   secs.forEach(([k, t]) => {
     const a = el("a", "ex-tab", t);
     a.href = `#sec-${k}`;
@@ -566,7 +567,7 @@ function openDetail(s) {
 
   // 2-3. 類似サービスとの違い(用途ごと)
   let secS = null;
-  if (groups.length || comps.length) {
+  if (groups.length || comps.length || exts.length) {
     secS = section("similar", "類似サービスとの違い・用途ごとの選び方", "COMPARE");
     groups.forEach((g) => secS.append(compareBlock(g, s.id, true)));
     if (comps.length) {
@@ -579,9 +580,28 @@ function openDetail(s) {
         const a = el("a", "ex-rel-name");
         a.href = `#services/${other.id}`;
         a.append(glyph(other), el("b", "", `${s.name} vs ${other.name}`));
-        row.append(a, el("p", "", c.text));
+        row.append(a);
+        if (c.same || c.diff) {
+          // 補充分の比較: 共通点・違い・選び方
+          const dl = el("dl", "ex-cmp-dl");
+          for (const [k2, t] of [["same", "共通点"], ["diff", "違い"], ["choose", "選び方"]]) if (c[k2]) dl.append(el("dt", "", t), el("dd", "", c[k2]));
+          row.append(dl);
+        } else row.append(el("p", "", c.text));
         b.append(row);
       });
+      secS.append(b);
+    }
+    if (exts.length) {
+      const b = el("div", "ex-box wide");
+      b.append(el("h3", "", "AWS 以外の類似サービス(他社クラウド・OSS)"));
+      exts.forEach(([name, vendor, text]) => {
+        const row = el("div", "ex-cmp ex-cmp-ext");
+        const h = el("p", "ex-ext-h");
+        h.append(el("b", "", name), el("span", "muted", ` · ${vendor}`));
+        row.append(h, el("p", "", text));
+        b.append(row);
+      });
+      b.append(el("p", "muted ex-anim-note", "AWS 以外のサービスは、学習の参考としての位置づけです。機能や提供形態は各社の情報を確認してください。"));
       secS.append(b);
     }
   }
