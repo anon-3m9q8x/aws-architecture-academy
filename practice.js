@@ -4,6 +4,7 @@ import { serviceQuestions } from "./data/service-questions.js";
 import { expertQuestions } from "./data/expert-questions.js?v=20261118p";
 import { byId as svcById } from "./services.js";
 import { findServices, servicesIn } from "./data/service-terms.js";
+import { findTerms, termButton, termify } from "./glossary.js?v=20261118s";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
 import { rateTag, rateSummary, chosenAlert } from "./choice-rate.js?v=20261118e";
 import { goalCodes, goalDate, haveCodes, daysLeft, focusOn, setFocus, openGoalDialog } from "./goal.js?v=20261117c";
@@ -75,16 +76,26 @@ attempts.forEach(indexAttempt);
 /* ---------- 解説の文章: 根拠ライン・サービス名のリンク ---------- */
 const NUM = "①②③④⑤⑥⑦⑧⑨";
 /** 文章にサービス名のリンクを付ける(図鑑へ移動し、戻るボタンで演習へ戻れる) */
+// 1 問の表示の中で、用語のボタンは各用語の最初の 1 回だけにする(問題を表示するたびに空にする)
+let termSeen = new Set();
 function linkify(text, parent) {
   let p = 0;
-  for (const { start, end, id } of findServices(text)) {
+  // サービス名(図鑑へのリンク)と用語(解説のボタン)を、重ならないように順に置く
+  const spans = [...findServices(text).map((x) => ({ ...x, k: "svc" })), ...findTerms(text).map((x) => ({ ...x, k: "term" }))].sort((a, b) => a.start - b.start || (a.k === "svc" ? -1 : 1));
+  for (const { start, end, id, k } of spans) {
     if (start < p) continue;
+    if (k === "term" && termSeen.has(id)) continue;
     parent.append(document.createTextNode(text.slice(p, start)));
-    const a = el("a", "svc-link", text.slice(start, end));
-    a.href = `#services/${id}`;
-    a.dataset.svc = id;
-    a.title = `サービス図鑑で「${svcById.get(id)?.name || id}」を開く`;
-    parent.append(a);
+    if (k === "term") {
+      termSeen.add(id);
+      parent.append(termButton(id, text.slice(start, end)));
+    } else {
+      const a = el("a", "svc-link", text.slice(start, end));
+      a.href = `#services/${id}`;
+      a.dataset.svc = id;
+      a.title = `サービス図鑑で「${svcById.get(id)?.name || id}」を開く`;
+      parent.append(a);
+    }
     p = end;
   }
   parent.append(document.createTextNode(text.slice(p)));
@@ -92,7 +103,7 @@ function linkify(text, parent) {
 }
 /** 問題文に根拠ライン(下線と番号)を引く。links=true ならサービス名もリンクにする */
 function linedText(text, lines, parent, links) {
-  const put = (t, into) => (links ? linkify(t, into) : into.append(document.createTextNode(t)));
+  const put = (t, into) => (links ? linkify(t, into) : termify(t, into, termSeen));
   let p = 0;
   (lines || []).forEach(([a, b, kind], i) => {
     if (a < p) return;
@@ -892,6 +903,7 @@ function renderChoiceMarks(q) {
   });
 }
 function feedback(q) {
+  termSeen = new Set(); // 解説では、用語をあらためて最初の 1 回だけボタンにする
   const s = cur();
   const box = $("quiz-feedback");
   box.replaceChildren();
@@ -1055,8 +1067,9 @@ function render() {
   } else meta.replaceChildren(prev, pr, lv, tp);
   $("quiz-type").textContent = q.selectCount === 1 ? "単一選択" : `複数選択・${q.selectCount}つ`;
   $("quiz-prompt").replaceChildren();
+  termSeen = new Set();
   if (s.submitted && q.lines?.length) linedText(q.prompt, q.lines, $("quiz-prompt"), false);
-  else $("quiz-prompt").textContent = q.prompt;
+  else termify(q.prompt, $("quiz-prompt"), termSeen); // 問題文の専門用語はクリックで解説を開ける
   $("quiz-choices").replaceChildren();
   $("quiz-choices").append(el("legend", "", q.selectCount === 1 ? "1つ選んでください" : `${q.selectCount}つ選んでください`));
   q.choices.forEach((choice, i) => {

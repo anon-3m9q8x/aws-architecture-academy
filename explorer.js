@@ -1,4 +1,5 @@
 // サービス図鑑: 一覧 → タップでサービスの解説ページへ。連携アニメーション・解説・連携・SAP 設計パターンを 1 ページに統合。
+import { TERMS, renderGlossary, openTerm, termById } from "./glossary.js?v=20261118s";
 import { SERVICES, CATS, byId, relsOf, compsOf, extOf, metaOf, serviceCount, patternsOf, groupsOf, COMPARE } from "./services.js";
 import { memo } from "./memo.js";
 import { FlowPlayer, normalizeScene, serviceScene, problemScene } from "./flow.js";
@@ -36,7 +37,7 @@ const ht = el("div");
 ht.append(el("h1", "sr-only", "サービス図鑑"));
 const modeSeg = el("div", "seg ex-mode");
 modeSeg.setAttribute("role", "tablist");
-for (const [v, t] of [["list", "サービス一覧"], ["compare", `類似サービス比較 ${COMPARE.length}`], ["patterns", `設計パターン ${PATTERNS.length}`], ["scenes", "連携シナリオ"]]) {
+for (const [v, t] of [["list", "サービス一覧"], ["compare", `類似サービス比較 ${COMPARE.length}`], ["patterns", `設計パターン ${PATTERNS.length}`], ["scenes", "連携シナリオ"], ["terms", `用語集 ${TERMS.length}`]]) {
   const b = el("button", "seg-btn", t);
   b.type = "button";
   b.dataset.v = v;
@@ -69,6 +70,7 @@ const grid = el("div", "ex-grid");
 const sceneGrid = el("div", "ex-scenes");
 const patGrid = el("div", "ex-patterns");
 const cmpGrid = el("div", "cmp-grid");
+const glossGrid = el("div", "gl-view");
 // メモのバックアップ(旧・学習ノートの機能)
 const backup = el("details", "panel memo-backup");
 {
@@ -100,7 +102,7 @@ const backup = el("details", "panel memo-backup");
   row.append(exp, lab, st);
   backup.append(row, el("p", "muted", "メモはこのブラウザにだけ保存されます。旧・学習ノートのメモもそのまま引き継いでいます。"));
 }
-view.append(head, tools, countLine, grid, cmpGrid, patGrid, sceneGrid, backup);
+view.append(head, tools, countLine, grid, cmpGrid, patGrid, sceneGrid, glossGrid, backup);
 const detail = el("div", "ex-detail");
 host.replaceChildren(view, detail);
 
@@ -128,6 +130,12 @@ function renderList() {
   sceneGrid.hidden = mode !== "scenes";
   patGrid.hidden = mode !== "patterns";
   cmpGrid.hidden = mode !== "compare";
+  glossGrid.hidden = mode !== "terms";
+  if (mode === "terms") {
+    countLine.textContent = `問題文や解説に出てくる専門用語 ${TERMS.length} 語。クリックすると、詳しい解説・構成する用語・関係するサービスを表示します。演習中も、点線の付いた用語をクリックすると同じ解説が開きます。`;
+    if (!glossGrid.childElementCount) renderGlossary(glossGrid);
+    return;
+  }
   if (mode === "compare") {
     countLine.textContent = `似ているサービスを ${COMPARE.length} のグループで比較。用途ごとにどれを選ぶか、得意なこと・選ばないときを整理しています(AWS Decision Guides を基に作成)。`;
     return;
@@ -168,7 +176,7 @@ search.addEventListener("input", () => {
   query = search.value;
   renderList();
 });
-mode = ["scenes", "patterns", "compare"].includes(store.get("aaa.ex.mode", "list")) ? store.get("aaa.ex.mode", "list") : "list";
+mode = ["scenes", "patterns", "compare", "terms"].includes(store.get("aaa.ex.mode", "list")) ? store.get("aaa.ex.mode", "list") : "list";
 window.addEventListener("explorer-search", (e) => {
   mode = "list";
   cat = "all";
@@ -905,6 +913,13 @@ function route(id) {
     view.hidden = false;
     renderList();
     requestAnimationFrame(() => { modeSlide(true); catSlide(true); });
+    return;
+  }
+  if (id.startsWith("term:")) {
+    // 用語集を開いて、その用語の解説を表示する
+    mode = "terms";
+    route("");
+    if (termById.has(id.slice(5))) openTerm(id.slice(5));
     return;
   }
   if (id.startsWith("compare:")) {

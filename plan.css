@@ -210,3 +210,25 @@
 .ex-cmp-dl dt{font-weight:800;color:var(--aaa-muted);white-space:nowrap}
 .ex-cmp-dl dd{margin:0}
 .ex-ext-h{margin:0 0 2px}.ex-cmp-ext p{margin:0;line-height:1.7}
+/* 用語集: 用語のボタン(点線)・解説のダイアログ・図鑑の用語集タブ */
+.term-link{all:unset;cursor:help;border-bottom:1.5px dotted color-mix(in srgb,#7c3aed 70%,transparent);color:inherit}
+.term-link:hover,.term-link:focus-visible{background:color-mix(in srgb,#7c3aed 10%,transparent);border-bottom-style:solid;outline:none}
+.term-dialog{max-width:min(640px,calc(100vw - 24px));width:100%;max-height:min(80vh,760px);padding:18px 22px;border-radius:16px;border:1px solid var(--aaa-border);background:var(--aaa-panel);color:var(--aaa-text);box-shadow:0 30px 80px -20px rgb(10 25 50 / .6);overflow:auto}
+.term-dialog::backdrop{background:rgb(10 20 40 / .35)}
+.term-head{display:flex;align-items:center;gap:8px}
+.term-cat{font-size:.74rem;font-weight:800;padding:2px 10px;border-radius:999px;background:#f5f3ff;color:#5b21b6;border:1px solid #c4b5fd}
+.term-x{margin-left:auto;border:1px solid var(--aaa-border);background:transparent;color:var(--aaa-text);border-radius:8px;padding:4px 10px;font-size:1.05rem;cursor:pointer}
+.term-back{border:0;background:none;color:var(--aaa-blue);font:inherit;font-weight:700;cursor:pointer;padding:0}
+.term-title{margin:10px 0 2px;font-size:1.35rem}
+.term-alias{margin:0;font-size:.78rem;color:var(--aaa-muted)}
+.term-short{margin:8px 0 4px;font-weight:700;line-height:1.7}
+.term-sec{margin-top:12px}.term-sec h3{margin:0 0 4px;font-size:.82rem;color:var(--aaa-muted)}.term-sec p{margin:0;line-height:1.85;font-size:.92rem}
+.term-parts{padding:10px 12px;border-radius:10px;background:color-mix(in srgb,#7c3aed 6%,transparent)}
+.term-part{font-size:.9rem;line-height:1.8}.term-part .term-link{font-weight:800}
+.term-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.term-svc{font-size:.8rem;padding:3px 10px;border-radius:999px;border:1px solid var(--aaa-border);text-decoration:none;color:var(--aaa-blue)}
+.term-chips .term-link{font-size:.8rem;padding:3px 10px;border-radius:999px;border:1px solid #c4b5fd}
+.gl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:12px}
+.gl-card.term-link{display:grid;gap:4px;padding:12px 14px;border-radius:12px;border:1px solid var(--aaa-border);background:var(--aaa-panel);cursor:pointer;text-align:left}
+.gl-card.term-link:hover{border-color:#a78bfa;background:var(--aaa-panel-hover)}
+.gl-cat{font-size:.68rem;font-weight:800;color:#6d28d9}.gl-card b{font-size:1rem}.gl-short{font-size:.8rem;color:var(--aaa-muted);line-height:1.6}
