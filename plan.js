@@ -6,6 +6,7 @@
 import { store } from "./storage.js";
 import { questions } from "./data/questions.js";
 import { EXAMS, examByCode } from "./data/exams.js";
+import { reviewCard, recordList } from "./review.js?v=20261118b";
 import { goalCodes, goalDate, haveCodes, setGoal, openGoalDialog, MAX_GOALS } from "./goal.js?v=20261117c";
 
 const KEY = "aaa.plan.v1";
@@ -490,6 +491,7 @@ function dayPanel(st) {
   }
   wrap.append(h);
   if (day.ph >= 1 && day.ph <= 4) wrap.append(el("p", "plan-day-lead", PHASE[day.ph][1]));
+  if (isToday) wrap.append(reviewCard("in-plan"));
   // 課題
   const list = el("ul", "plan-tasks");
   if (!day.tasks.length) list.append(el("li", "plan-task muted", "計画の期間外です。"));
@@ -680,7 +682,7 @@ function render() {
       g.addEventListener("click", openGoalDialog);
       intro.append(g);
     }
-    page.append(intro, settingsForm());
+    page.append(intro, settingsForm(), recordList(today()));
     return;
   }
   const st = analyze(plan.exam);
@@ -689,7 +691,7 @@ function render() {
   if (draftOpen) page.append(settingsForm());
   const grid = el("div", "plan-grid");
   const main = el("div", "plan-main"), side = el("div", "plan-side");
-  main.append(dayPanel(st), domains(st));
+  main.append(dayPanel(st), recordList(selected), domains(st));
   side.append(calendar(st));
   grid.append(main, side);
   page.append(grid);
@@ -706,7 +708,7 @@ function renderHome() {
   const open = el("a", "goal-btn", valid ? "学習計画を開く →" : "最短合格プランを作る →");
   open.href = "#plan";
   h.append(open);
-  box.append(h);
+  box.append(h, reviewCard("in-home"));
   if (!valid) {
     box.append(el("p", "goal-card-empty", "資格と 1 日の学習時間から、合格までの日別の計画を作ります。毎日の演習は自動で記録されます。"));
     return;

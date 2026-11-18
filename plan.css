@@ -110,3 +110,30 @@
 /* ホーム */
 .plan-home-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .plan-home .goal-card-bar i{background:#16a34a}
+
+/* 前日の復習 */
+.review-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb,#7c3aed 45%,var(--aaa-border));background:color-mix(in srgb,#7c3aed 7%,transparent)}
+#review-box .review-card{margin:0 0 14px}
+.review-card.empty{border-style:dashed}
+.review-ic{font-size:1.1rem}
+.review-txt{flex:1;display:grid;gap:4px;min-width:0;margin:0;line-height:1.6}
+.review-card.empty .review-txt{font-size:.85rem;color:var(--aaa-muted)}
+.review-h{margin:0;font-size:.9rem}.review-h b{margin-right:4px}
+.review-txt small{font-size:.76rem;color:var(--aaa-muted)}
+.review-bar{height:7px;border-radius:99px;background:var(--aaa-border);overflow:hidden}.review-bar i{display:block;height:100%;background:#7c3aed}
+.review-card .button,.review-card .goal-btn{white-space:nowrap;padding:8px 14px}
+@media (max-width:600px){.review-card{flex-wrap:wrap}.review-card .button,.review-card .goal-btn{width:100%}}
+/* 日ごとに解いた問題 */
+.record-list{padding:18px 20px;display:grid;gap:8px}
+.record-day{border:1px solid var(--aaa-border);border-radius:10px;background:var(--aaa-bg)}
+.record-day summary{display:flex;gap:12px;align-items:center;padding:9px 12px;cursor:pointer;font-size:.88rem;flex-wrap:wrap}
+.record-day summary b{min-width:84px}.rec-good{color:#15803d;font-weight:700}.rec-bad{color:#c2410c;font-weight:700}
+.record-acts{display:flex;gap:8px;flex-wrap:wrap;padding:0 12px 8px}
+.record-qs{list-style:none;margin:0;padding:0 12px 12px;display:grid;gap:4px;max-height:420px;overflow:auto}
+.record-qs li{display:flex;align-items:center;gap:8px;font-size:.84rem}
+.rec-mark{font-weight:800;width:1.2em;text-align:center}.record-qs li.ok .rec-mark{color:#15803d}.record-qs li.ng .rec-mark{color:#dc2626}
+.rec-code{font-size:.7rem;font-weight:700;padding:1px 6px;border-radius:6px;background:var(--aaa-panel-hover);white-space:nowrap}
+.rec-q{flex:1;text-align:left;border:0;background:none;color:var(--aaa-blue);font:inherit;cursor:pointer;padding:2px 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-q:hover{text-decoration:underline}
+.record-qs small{color:var(--aaa-muted);font-size:.72rem;white-space:nowrap}
+.plan-home .review-card{margin:0}
