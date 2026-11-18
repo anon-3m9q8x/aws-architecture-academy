@@ -67,3 +67,10 @@ body[data-route="practice"] .mp-fab{bottom:calc(max(18px,env(safe-area-inset-bot
 body.mp-dragging{user-select:none;cursor:move}
 body.mp-dragging .mp-fab,body.mp-dragging .mp-panel{transition:none}
 @media (max-width:760px){.mp-panel{width:calc(100vw - 16px)}}
+/* メモの大きさ(⤢ ボタンで段階切り替え・右下の角をドラッグ) */
+.mp-size{border:1px solid var(--aaa-border);background:transparent;color:var(--aaa-text);border-radius:8px;padding:5px 9px;font:inherit;font-size:.95rem;line-height:1;cursor:pointer}
+.mp-size:hover,.mp-pnew:hover,.mp-x:hover{background:var(--aaa-panel-hover)}
+.mp-panel{min-width:280px;min-height:260px}
+.mp-resize{position:absolute;right:2px;bottom:2px;width:18px;height:18px;cursor:nwse-resize;touch-action:none;border-radius:0 0 14px 0;background:linear-gradient(135deg,transparent 50%,color-mix(in srgb,var(--aaa-muted) 55%,transparent) 50%,color-mix(in srgb,var(--aaa-muted) 55%,transparent) 60%,transparent 60%,transparent 72%,color-mix(in srgb,var(--aaa-muted) 55%,transparent) 72%,color-mix(in srgb,var(--aaa-muted) 55%,transparent) 82%,transparent 82%)}
+body.mp-resizing{user-select:none;cursor:nwse-resize}
+@media (max-width:760px){.mp-resize{display:none}}

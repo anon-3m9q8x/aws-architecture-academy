@@ -235,9 +235,10 @@ fab.setAttribute("aria-expanded", "false");
 const panel = el("aside", "mp-panel");
 panel.hidden = true;
 panel.setAttribute("aria-label", "メモ");
-panel.innerHTML = `<div class="mp-ph" title="ドラッグで移動・ダブルクリックで元の位置へ"><span class="mp-grip" aria-hidden="true">⠿</span><b>✎ メモ</b><select class="mp-pick" aria-label="編集するメモを選ぶ"></select><button type="button" class="mp-pnew" title="新しいメモ">＋ 新規</button><button type="button" class="mp-x" aria-label="メモを閉じる">×</button></div>
+panel.innerHTML = `<div class="mp-ph" title="ドラッグで移動・ダブルクリックで元の位置と大きさへ"><span class="mp-grip" aria-hidden="true">⠿</span><b>✎ メモ</b><select class="mp-pick" aria-label="編集するメモを選ぶ"></select><button type="button" class="mp-pnew" title="新しいメモ">＋ 新規</button><button type="button" class="mp-size" title="大きさを切り替え（小→中→大→特大）">⤢</button><button type="button" class="mp-x" aria-label="メモを閉じる">×</button></div>
   <div class="mp-ped"></div>
-  <div class="mp-pf"><span class="mp-status" data-memo-status></span><a href="#memo" class="mp-all">メモ一覧を開く →</a></div>`;
+  <div class="mp-pf"><span class="mp-status" data-memo-status></span><a href="#memo" class="mp-all">メモ一覧を開く →</a></div>
+  <span class="mp-resize" title="ドラッグで大きさを変更" aria-hidden="true"></span>`;
 document.body.append(fab, panel);
 let panelId = null;
 const ped = editor(panel.querySelector(".mp-ped"), { getId: () => panelId, setId: (id) => { panelId = id; uiSet({ last: id }); drawPick(); }, ctx: ctxNow });
@@ -309,6 +310,68 @@ function draggable(handle, target, key, { onTap } = {}) {
   handle.addEventListener("pointerup", end);
   handle.addEventListener("pointercancel", end);
 }
+/* ---------- メモの大きさ ----------
+ * 見出しの「⤢」をクリックするたびに 小 → 中 → 大 → 特大 の順に切り替える。右下の角をドラッグすると自由な大きさにできる。
+ * 大きさは端末ごとに保存(aaa.memo.ui の size = { w, h, step })。画面に入りきらないときは収まる大きさに縮める。
+ */
+const SIZES = [
+  ["小", 320, 400],
+  ["中", 380, 560],
+  ["大", 520, 680],
+  ["特大", 760, 820],
+];
+function applySize() {
+  const sz = uiGet().size;
+  const btn = panel.querySelector(".mp-size");
+  if (!sz) {
+    panel.style.width = panel.style.height = panel.style.maxHeight = "";
+    btn.title = "大きさを切り替え（いまは標準。小→中→大→特大）";
+    return;
+  }
+  // 右下の定位置(ボタンの上)に出すときは、ボタンの分だけ高さを控える
+  const w = Math.min(sz.w, innerWidth - 16), h = Math.min(sz.h, innerHeight - (uiGet().pos || uiGet().fab ? 16 : 92));
+  Object.assign(panel.style, { width: w + "px", height: h + "px", maxHeight: "none" });
+  btn.title = `大きさを切り替え（いまは${sz.step != null ? SIZES[sz.step][0] : "自由な大きさ"}。小→中→大→特大）`;
+}
+panel.querySelector(".mp-size").addEventListener("click", () => {
+  const cur = uiGet().size;
+  const step = cur?.step != null ? (cur.step + 1) % SIZES.length : 2; // 標準・自由な大きさからは「大」へ
+  const [, w, h] = SIZES[step];
+  uiSet({ size: { w, h, step } });
+  applySize();
+  placePanel();
+});
+{
+  const grip = panel.querySelector(".mp-resize");
+  let st = null;
+  grip.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const r = panel.getBoundingClientRect();
+    // 左上を固定して右下へ広げる(位置を左上基準にそろえる)
+    Object.assign(panel.style, { left: r.left + "px", top: r.top + "px", right: "auto", bottom: "auto" });
+    uiSet({ pos: { x: Math.round(r.left), y: Math.round(r.top) } });
+    st = { px: e.clientX, py: e.clientY, w: r.width, h: r.height, x: r.left, y: r.top };
+    grip.setPointerCapture(e.pointerId);
+    document.body.classList.add("mp-resizing");
+  });
+  grip.addEventListener("pointermove", (e) => {
+    if (!st) return;
+    const w = Math.max(280, Math.min(innerWidth - st.x - 8, st.w + e.clientX - st.px));
+    const h = Math.max(260, Math.min(innerHeight - st.y - 8, st.h + e.clientY - st.py));
+    Object.assign(panel.style, { width: w + "px", height: h + "px", maxHeight: "none" });
+  });
+  const end = () => {
+    if (!st) return;
+    st = null;
+    document.body.classList.remove("mp-resizing");
+    const r = panel.getBoundingClientRect();
+    uiSet({ size: { w: Math.round(r.width), h: Math.round(r.height), step: null } });
+    applySize();
+  };
+  grip.addEventListener("pointerup", end);
+  grip.addEventListener("pointercancel", end);
+}
 draggable(fab, fab, "fab");
 draggable(panel.querySelector(".mp-ph"), panel, "pos");
 fab.addEventListener("click", (e) => {
@@ -319,19 +382,24 @@ fab.addEventListener("click", (e) => {
 }, true);
 panel.querySelector(".mp-ph").addEventListener("dblclick", (e) => {
   if (e.target.closest("select,button")) return;
-  uiSet({ pos: null, fab: null });
+  uiSet({ pos: null, fab: null, size: null });
   place(fab, null);
+  applySize();
   place(panel, null);
 });
 place(fab, uiGet().fab);
 addEventListener("resize", () => {
   place(fab, uiGet().fab);
-  if (!panel.hidden) placePanel();
+  if (!panel.hidden) {
+    applySize();
+    placePanel();
+  }
 });
 function openPanel() {
   const last = uiGet().last;
   panelId = find(panelId) ? panelId : find(last) ? last : null;
   panel.hidden = false;
+  applySize();
   placePanel();
   fab.setAttribute("aria-expanded", "true");
   document.body.classList.add("memo-open");
