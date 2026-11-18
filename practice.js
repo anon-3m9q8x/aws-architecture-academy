@@ -1,6 +1,7 @@
 import { store } from "./storage.js";
 import { questions, DIFFICULTY } from "./data/questions.js";
 import { serviceQuestions } from "./data/service-questions.js";
+import { expertQuestions } from "./data/expert-questions.js?v=20261118p";
 import { byId as svcById } from "./services.js";
 import { findServices, servicesIn } from "./data/service-terms.js";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
@@ -14,11 +15,17 @@ document
   .querySelectorAll("[data-question-count]")
   .forEach((n) => (n.textContent = questions.length));
 // 資格試験の問題と、サービス知識問題(別枠)。回答履歴は両方まとめて保存する
-const allQuestions = [...questions, ...serviceQuestions];
+// 上級チャレンジ(試験より難しい問題)も別枠として同じ仕組みで出題する
+const allQuestions = [...questions, ...serviceQuestions, ...expertQuestions];
 const questionMap = new Map(allQuestions.map((q) => [q.id, q]));
-let kind = "exam"; // 演習の種類: exam = 資格試験の問題 / service = サービス知識(試験外)
+let kind = "exam"; // 演習の種類: exam = 資格試験の問題 / service = サービス知識(試験外) / expert = 上級チャレンジ(試験より難しい)
 const isSvc = (q) => q.kind === "service";
-const bankQ = () => (kind === "service" ? serviceQuestions : questions);
+const isExpert = (q) => q?.kind === "expert";
+const bankQ = () => (kind === "service" ? serviceQuestions : kind === "expert" ? expertQuestions : questions);
+const expertQs = new Map();
+expertQuestions.forEach((q) => Object.keys(q.exams).forEach((c) => (expertQs.get(c) || expertQs.set(c, []).get(c)).push(q)));
+/** 選択中の種類での、資格ごとの問題(通常の問題 / 上級チャレンジ) */
+const qsOf = (code) => (kind === "expert" ? expertQs : examQs).get(code) || [];
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -57,6 +64,7 @@ function indexAttempt(a) {
   totalMap.set(a.id, (totalMap.get(a.id) || 0) + 1);
   if (a.correct) correctTotal++;
   else wrongMap.set(a.id, (wrongMap.get(a.id) || 0) + 1);
+  if (isExpert(q)) return; // 上級チャレンジは資格ごとの実施数に含めない(別枠)
   for (const c of Object.keys(q?.exams || {})) {
     examAnswers.set(c, (examAnswers.get(c) || 0) + 1);
     if (first) examDone.set(c, (examDone.get(c) || 0) + 1);
@@ -183,7 +191,7 @@ function stats() {
   const agg = new Map();
   for (const a of attempts) {
     const q = questionMap.get(a.id);
-    const d = isSvc(q) ? "サービス知識(試験外)" : q.domain;
+    const d = isSvc(q) ? "サービス知識(試験外)" : isExpert(q) ? "上級チャレンジ" : q.domain;
     const r = agg.get(d) || agg.set(d, [0, 0]).get(d);
     r[0]++;
     if (a.correct) r[1]++;
@@ -377,13 +385,21 @@ function pool() {
   const svc = kind === "service";
   // 苦手問題などの指定出題は、種類をまたいで出す
   const goalSel = code === "goal";
-  const base = presetIds ? allQuestions.filter((q) => presetIds.has(q.id)) : !svc && goalSel ? goalQuestions() : !svc && code !== "all" ? examQs.get(code) || [] : bankQ();
+  const base = presetIds
+    ? allQuestions.filter((q) => presetIds.has(q.id))
+    : !svc && goalSel
+      ? kind === "expert"
+        ? expertQuestions.filter((q) => goalCodes().some((c) => q.exams[c]))
+        : goalQuestions()
+      : !svc && code !== "all"
+        ? qsOf(code)
+        : bankQ();
   const diff = $("quiz-difficulty").value, mode = $("quiz-mode").value;
   return base.filter(
     (q) =>
       (presetIds || svc || code === "all" || goalSel || !!q.exams[code]) &&
       (presetIds || dom === "all" || (dom.startsWith("d:") ? q.exams[code]?.[0] === Number(dom.slice(2)) : q.domain === dom)) &&
-      (presetIds || svc || band === "all" || probBand(probability(q, examFor(q))) === band) &&
+      (presetIds || svc || kind === "expert" || band === "all" || probBand(probability(q, examFor(q))) === band) &&
       (diff === "all" || q.difficulty === Number(diff)) &&
       (mode === "all" ||
         (mode === "wrong"
@@ -583,14 +599,14 @@ function fillDomains() {
       sel.append(o);
     });
   } else if (code === "all" || code === "goal") {
-    [...new Set((code === "goal" ? goalQuestions() : questions).map((q) => q.domain))].forEach((domain) => {
+    [...new Set((code === "goal" && kind !== "expert" ? goalQuestions() : bankQ()).map((q) => q.domain))].forEach((domain) => {
       const o = el("option", "", domain);
       o.value = domain;
       sel.append(o);
     });
   } else {
     examByCode.get(code).domains.forEach(([name, w], i) => {
-      const n = (examQs.get(code) || []).filter((q) => q.exams[code][0] === i + 1).length;
+      const n = qsOf(code).filter((q) => q.exams[code][0] === i + 1).length;
       const o = el("option", "", `分野${i + 1} ${name}(配点 ${w}%)· ${n}問`);
       o.value = "d:" + (i + 1);
       sel.append(o);
@@ -617,6 +633,31 @@ function renderOverview() {
     });
     box.append(
       el("p", "exam-ov-h", "サービス知識は資格試験の問題とは別枠です。図鑑の 250 以上のサービスについて、用途・利用シーン・試験のキーワード・種類や機能・紛らわしいサービスとの違いを確認します。カテゴリを選んで絞り込めます。"),
+      grid,
+    );
+    return;
+  }
+  if (kind === "expert") {
+    // 上級チャレンジ: 資格ごとの問題数と、解いた数・正答率
+    const grid = el("div", "exam-chips");
+    const only = code === "goal" ? goalCodes() : code !== "all" ? [code] : null;
+    EXAMS.forEach((e) => {
+      const list = expertQs.get(e.code) || [];
+      if (!list.length || (only && !only.includes(e.code))) return;
+      const done = list.filter((q) => lastMap.has(q.id));
+      const ok = done.filter((q) => lastMap.get(q.id).correct).length;
+      const b = el("button", "exam-chip expert-chip");
+      b.type = "button";
+      b.append(el("b", "", e.code), el("span", "", `${list.length}問`), el("span", "exam-chip-done", done.length ? `実施 ${done.length} · 正解 ${ok}` : "未実施"));
+      b.title = e.name;
+      b.addEventListener("click", () => {
+        $("quiz-cert").value = e.code;
+        $("quiz-cert").dispatchEvent(new Event("change"));
+      });
+      grid.append(b);
+    });
+    box.append(
+      el("p", "exam-ov-h", "上級チャレンジは、試験の想定レベルより一段難しい専門的な問題です。複数のサービスの制約が絡む設計、拮抗するトレードオフ、障害の根本原因の特定などを扱います。通常の資格問題演習・学習計画・成績の集計とは別枠で記録されます。"),
       grid,
     );
     return;
@@ -685,8 +726,8 @@ function syncReal() {
   if (!o) return;
   const ex = examByCode.get($("quiz-cert").value);
   o.textContent = ex?.real ? `実試験と同じ ${ex.real[0]}問(本番 ${ex.real[1]}分)` : "実試験と同じ 65問(資格を選ぶとその試験の問題数)";
-  o.hidden = o.disabled = kind === "service";
-  if (kind === "service" && $("quiz-limit").value === "real") $("quiz-limit").value = "10";
+  o.hidden = o.disabled = kind !== "exam";
+  if (kind !== "exam" && $("quiz-limit").value === "real") $("quiz-limit").value = "10";
 }
 /** 実試験の形式: 試験全体なら分野の配点に合わせて各分野から、ほかは範囲内からランダムに選ぶ */
 function pickReal(cands, n) {
@@ -713,13 +754,13 @@ function syncKind() {
   const svc = kind === "service";
   document.querySelectorAll("#quiz-kind [data-kind]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
   $("quiz-cert").closest("label").hidden = svc;
-  $("quiz-prob").closest("label").hidden = svc;
+  $("quiz-prob").closest("label").hidden = svc || kind === "expert";
   $("quiz-domain").closest("label").firstChild.textContent = svc ? "カテゴリ" : "分野";
   const code = $("quiz-cert").value;
   $("practice-exam-pill").textContent = svc ? "サービス知識(試験外)" : code === "all" ? "全資格対応" : code === "goal" ? "目標の資格" : code;
   const list = bankQ();
   const single = list.filter((q) => q.selectCount === 1).length;
-  $("practice-type-pill").textContent = svc ? `サービス知識 ${list.length}問` : `単一${single}問 / 複数${list.length - single}問`;
+  $("practice-type-pill").textContent = svc ? `サービス知識 ${list.length}問` : kind === "expert" ? `上級チャレンジ ${list.length}問` : `単一${single}問 / 複数${list.length - single}問`;
   syncReal();
 }
 document.querySelectorAll("#quiz-kind [data-kind]").forEach((b) =>
@@ -737,6 +778,7 @@ document.querySelectorAll("#quiz-kind [data-kind]").forEach((b) =>
   const b = $("quiz-kind");
   b?.querySelector('[data-kind="exam"] small')?.replaceChildren(`${questions.length}問`);
   b?.querySelector('[data-kind="service"] small')?.replaceChildren(`${serviceQuestions.length}問`);
+  b?.querySelector('[data-kind="expert"] small')?.replaceChildren(`${expertQuestions.length}問`);
 }
 fillDomains();
 renderOverview();
@@ -1003,6 +1045,13 @@ function render() {
     const kp = el("span", "pill svc-pill", "サービス知識 · 試験外");
     kp.title = "サービス図鑑の内容から作成した知識確認問題です。資格試験の問題とは別枠で記録されます。";
     meta.replaceChildren(prev, kp, lv, tp);
+  } else if (isExpert(q)) {
+    const xp = el("span", "pill expert-pill", "上級チャレンジ · 試験より難しい");
+    xp.title = q.why ? `難しいポイント：${q.why}` : "試験の想定レベルを超える専門的な問題です。";
+    const xl = el("span", "pill diff-pill lvx", "難易度 ★★★★ 上級");
+    const why = el("span", "pill why-pill", q.why ? `ポイント：${q.why}` : "");
+    why.hidden = !q.why;
+    meta.replaceChildren(prev, xp, xl, tp, why);
   } else meta.replaceChildren(prev, pr, lv, tp);
   $("quiz-type").textContent = q.selectCount === 1 ? "単一選択" : `複数選択・${q.selectCount}つ`;
   $("quiz-prompt").replaceChildren();

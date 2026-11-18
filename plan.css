@@ -198,3 +198,10 @@
 .last-q:hover{text-decoration:underline}
 .last-nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:0 14px 12px}
 .last-nav button{font-size:.76rem;padding:3px 10px}.last-nav button.on{border-color:var(--aaa-blue);color:var(--aaa-blue);font-weight:700}
+/* 上級チャレンジ */
+.expert-pill{background:#f5f3ff;border-color:#c4b5fd;color:#5b21b6;font-weight:800}
+.diff-pill.lvx{background:#faf5ff;border-color:#d8b4fe;color:#6b21a8}
+.why-pill{background:var(--aaa-bg);color:var(--aaa-muted);white-space:normal}
+#quiz-kind [data-kind="expert"][aria-pressed="true"]{border-color:#7c3aed;box-shadow:inset 0 0 0 1px #7c3aed}
+.expert-chip b{color:#6d28d9}
+.kind-switch{grid-template-columns:repeat(3,1fr)}@media (max-width:600px){.kind-switch{grid-template-columns:1fr}}
