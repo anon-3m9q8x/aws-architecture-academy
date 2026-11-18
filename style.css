@@ -4256,9 +4256,11 @@ body.page-scrolled .topbar {
 .page > h1.sr-only:first-child + * { margin-top: 0; }
 
 /* 連携アニメーション: 少し小さく表示し、段階的に登場するノード・「設定を追加」のチップ */
-.fp-stage { width: 100%; max-width: 760px; margin-inline: auto; }
-.ex-player.fp > .fp-stage { max-width: 680px; }
-.fp-cap, .fp-bar { width: 100%; max-width: 760px; margin-inline: auto; }
+/* 左右の余白を前の半分にする幅: 前の最大幅 + (表示幅 - 前の最大幅) / 2 = 50% + 前の最大幅 / 2。高さは図の縦横比のまま追従する */
+.fp-stage { width: 100%; max-width: calc(50% + 380px); margin-inline: auto; }
+.ex-player.fp > .fp-stage { max-width: calc(50% + 340px); }
+.fp-cap, .fp-bar { width: 100%; max-width: calc(50% + 380px); margin-inline: auto; }
+.ex-player.fp > .fp-cap, .ex-player.fp > .fp-bar { max-width: calc(50% + 340px); }
 .fp-node, .fp-edge, .fp-elab, .fp-chip { transition: opacity 0.45s ease; }
 .fp-node.is-hidden, .fp-edge.is-hidden, .fp-elab.is-hidden, .fp-chip.is-hidden { opacity: 0; pointer-events: none; }
 .fp-node.is-new .fp-in { animation: fp-add 0.7s var(--spring, cubic-bezier(.34,1.56,.64,1)); transform-box: fill-box; transform-origin: center; }
