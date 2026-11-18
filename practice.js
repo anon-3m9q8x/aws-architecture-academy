@@ -995,7 +995,7 @@ function render() {
   let times = 0;
   if (pv) for (const a of attempts) if (a.id === q.id && a.at <= pv.at) times++;
   const prev = pv
-    ? el("span", `pill prev-pill ${pv.correct ? "ok" : "ng"}`, `前回 ${pv.correct ? "○ 正解" : "✕ 不正解"} · ${new Date(pv.at).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}${pv.chosen?.length ? ` · 選択 ${pv.chosen.map((i) => LETTERS[i]).join("・")}` : ""} · これまで ${times}回`)
+    ? el("span", `pill prev-pill ${pv.correct ? "ok" : "ng"}`, `前回 ${pv.correct ? "○ 正解" : "✕ 不正解"} · ${new Date(pv.at).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })} · これまで ${times}回`)
     : el("span", "pill prev-pill new", "初めての問題");
   if (pv) prev.title = `前回 ${new Date(pv.at).toLocaleString("ja-JP")} に回答。これまでにこの問題を ${times} 回解いています。`;
   tp.hidden = !q.topic;
