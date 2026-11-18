@@ -71,3 +71,5 @@ export function chosenAlert(q, sel, letters) {
   });
   return p;
 }
+/** 試験のまずい度データを読み込む(振り返りで使う) */
+export const badnessFor = load;

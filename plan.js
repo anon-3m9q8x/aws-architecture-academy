@@ -7,6 +7,7 @@ import { store } from "./storage.js";
 import { questions } from "./data/questions.js";
 import { EXAMS, examByCode } from "./data/exams.js";
 import { reviewCard, recordList } from "./review.js?v=20261118b";
+import { studyMinutes, dailyReport } from "./report.js?v=20261118g";
 import { goalCodes, goalDate, haveCodes, setGoal, openGoalDialog, MAX_GOALS } from "./goal.js?v=20261117c";
 
 const KEY = "aaa.plan.v1";
@@ -319,7 +320,7 @@ function readiness(st) {
 }
 function streak(st) {
   let d = today(), n = 0;
-  const active = (x) => dayStat(st, x).total > 0 || (plan.log[x]?.min || 0) > 0;
+  const active = (x) => dayStat(st, x).total > 0 || studyMinutes(x) > 0;
   if (!active(d)) d = addDays(d, -1); // 今日まだなら、昨日までの連続日数
   while (active(d) && n < 999) {
     n++;
@@ -539,45 +540,27 @@ function dayPanel(st) {
   // 記録
   if (!future) {
     const rec = el("div", "plan-record");
-    const auto = el("p", "plan-auto");
-    const acc = s.total ? Math.round((s.correct / s.total) * 100) : null;
-    const rate = dayRate(day, st);
-    auto.append(el("b", "", "自動記録"), document.createTextNode(` 回答 ${s.total} 問${acc != null ? `（正答率 ${acc}%）` : ""} ・ 新しい問題 ${s.newTotal} ・ 解き直し ${s.review}${rate != null ? ` ・ 計画の達成度 ${Math.round(rate * 100)}%` : ""}`));
-    rec.append(auto);
-    const est = Math.round((s.total * secOf(ex)) / 60);
+    // 学習時間・振り返りは回答履歴から自動で作る(調子だけは手で選べる)
+    const mins = studyMinutes(selected);
     const form = el("div", "plan-rec-grid");
-    form.innerHTML = `<label>学習時間（分）<span class="plan-min"><input type="number" min="0" max="1440" step="5" inputmode="numeric" value="${log.min ?? ""}" placeholder="${est || 0}">${est ? `<button type="button" class="goal-btn plan-est">演習から推定 ${est} 分</button>` : ""}</span></label>
-      <fieldset class="plan-mood"><legend>調子</legend>${[["4", "😄", "好調"], ["3", "🙂", "ふつう"], ["2", "😐", "いまいち"], ["1", "😣", "不調"]].map(([v, e, l]) => `<label title="${l}"><input type="radio" name="mood-${selected}" value="${v}" ${String(log.mood) === v ? "checked" : ""}><span>${e}<small>${l}</small></span></label>`).join("")}</fieldset>
-      <label class="plan-note">振り返り（分かったこと・苦手・明日やること）<textarea rows="3" maxlength="2000" placeholder="例：Transit Gateway と VPC ピアリングの使い分けで迷った。明日もう一度。">${(log.note || "").replace(/</g, "&lt;")}</textarea></label>`;
-    let tmr = 0;
-    const commit = () => {
-      const min = form.querySelector('input[type="number"]').value;
+    form.innerHTML = `<div class="plan-min-auto"><span>学習時間（自動）</span><strong>${mins ? `約 ${mins} 分` : "—"}</strong><small>回答した時刻の間隔から推定</small></div>
+      <fieldset class="plan-mood"><legend>調子</legend>${[["4", "😄", "好調"], ["3", "🙂", "ふつう"], ["2", "😐", "いまいち"], ["1", "😣", "不調"]].map(([v, e, l]) => `<label title="${l}"><input type="radio" name="mood-${selected}" value="${v}" ${String(log.mood) === v ? "checked" : ""}><span>${e}<small>${l}</small></span></label>`).join("")}</fieldset>`;
+    const status = el("small", "plan-saved", "");
+    status.setAttribute("role", "status");
+    form.addEventListener("change", () => {
       const mood = form.querySelector(".plan-mood input:checked")?.value;
-      const note = form.querySelector("textarea").value.trim();
       const l = { ...(plan.log[selected] || {}) };
-      if (min === "") delete l.min;
-      else l.min = Math.min(1440, Math.max(0, Math.round(Number(min) || 0)));
       if (mood) l.mood = Number(mood);
-      if (note) l.note = note;
-      else delete l.note;
-      if (Object.keys(l).length) plan.log[selected] = l;
-      else delete plan.log[selected];
+      plan.log[selected] = l;
       save();
       status.textContent = "保存しました";
       refreshCalendar(st);
-    };
-    const status = el("small", "plan-saved", "");
-    status.setAttribute("role", "status");
-    form.addEventListener("input", () => {
-      status.textContent = "保存中…";
-      clearTimeout(tmr);
-      tmr = setTimeout(commit, 500);
     });
-    form.querySelector(".plan-est")?.addEventListener("click", () => {
-      form.querySelector('input[type="number"]').value = est;
-      commit();
-    });
-    rec.append(form, status);
+    const idx = plan.days.findIndex((x) => x.d === selected);
+    const tmr = plan.days[idx + 1];
+    const tomorrow = tmr && tmr.ph >= 1 && tmr.ph <= 4 ? tmr.tasks.map((k) => taskLabel(k, ex) + (k.n && k.k !== "final" ? ` ${k.n} 問` : "")) : [];
+    rec.append(form, status, dailyReport(selected, { today: isToday, rate: dayRate(day, st), tomorrow }));
+    if (log.note) rec.append(el("p", "plan-old-note", `以前のメモ：${log.note}`));
     wrap.append(rec);
   }
   return wrap;
@@ -633,7 +616,7 @@ function refreshCalendar(st) {
     b.append(el("span", "plan-cell-d", Number(d.slice(8)) === 1 || d === s || d === first ? md(d) : String(Number(d.slice(8)))));
     const mark = day.ph === 5 ? "🎯" : log?.mood ? ["", "😣", "😐", "🙂", "😄"][log.mood] : stt.total ? String(stt.total) : log?.note ? "✎" : "";
     if (mark) b.append(el("small", "", mark));
-    b.title = `${mdw(d)} ${PHASE[day.ph][0]}${d <= t && day.ph >= 1 && day.ph <= 4 ? ` ・ 回答 ${stt.total} 問 ・ 達成度 ${Math.round((rate ?? 0) * 100)}%` : ""}${log?.min ? ` ・ ${log.min} 分` : ""}${log?.note ? `\n${log.note.slice(0, 80)}` : ""}`;
+    b.title = `${mdw(d)} ${PHASE[day.ph][0]}${d <= t && day.ph >= 1 && day.ph <= 4 ? ` ・ 回答 ${stt.total} 問 ・ 達成度 ${Math.round((rate ?? 0) * 100)}%` : ""}${stt.total ? ` ・ 約 ${studyMinutes(d)} 分` : ""}`;
     b.addEventListener("click", () => {
       selected = d;
       render();

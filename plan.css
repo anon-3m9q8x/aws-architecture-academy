@@ -163,3 +163,17 @@
 .diff-pill.lv1{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
 .diff-pill.lv2{background:#fffbeb;border-color:#fde68a;color:#92400e}
 .diff-pill.lv3{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
+/* 自動の学習時間と振り返り */
+.plan-min-auto{display:grid;gap:2px;padding:8px 12px;border-radius:10px;border:1px solid var(--aaa-border);background:var(--aaa-bg);min-width:150px}
+.plan-min-auto span{font-size:.78rem;font-weight:700;color:var(--aaa-muted)}.plan-min-auto strong{font-size:1.2rem}.plan-min-auto small{font-size:.7rem;color:var(--aaa-muted)}
+.auto-report{display:grid;gap:8px;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb,var(--aaa-blue) 35%,var(--aaa-border));background:color-mix(in srgb,var(--aaa-blue) 5%,transparent)}
+.auto-report-h{margin:0;font-size:.92rem}
+.auto-report-sum,.auto-report-empty{margin:0;font-size:.86rem;line-height:1.8}
+.auto-report-empty{color:var(--aaa-muted)}
+.auto-report-list{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:.84rem;line-height:1.7}
+.auto-report-list li{display:block;padding-left:1.7em;text-indent:-1.7em}
+.ar-ic{display:inline-block;width:1.7em;text-indent:0;text-align:center}
+.auto-report-list b{margin-right:2px}
+.auto-report-next{font-size:.84rem;line-height:1.7;padding-top:6px;border-top:1px dashed var(--aaa-border)}
+.auto-report-next ol{margin:4px 0 0;padding-left:1.4em}
+.plan-old-note{margin:0;font-size:.78rem;color:var(--aaa-muted)}
