@@ -27,6 +27,7 @@ const CAT_FIX = {
   grafana: "一般概念", internet: "一般概念", user: "一般概念", onprem: "一般概念",
 };
 const ABBR = {
+  bluegreen: "B/G",
   ec2: "EC2", asg: "ASG", lambda: "λ", ecs: "ECS", s3: "S3", backup: "BKP", rds: "RDS", aurora: "AUR", dynamodb: "DDB", elasticache: "EC$",
   vpc: "VPC", alb: "ALB", cloudfront: "CF", route53: "R53", apigw: "API", tgw: "TGW", dx: "DX", vpn: "VPN", vpce: "EP", sqs: "SQS", sns: "SNS",
   eventbridge: "EB", stepfn: "SFN", iam: "IAM", kms: "KMS", waf: "WAF", cognito: "ID", orgs: "ORG", cloudwatch: "CW", cloudtrail: "CT", config: "CFG",

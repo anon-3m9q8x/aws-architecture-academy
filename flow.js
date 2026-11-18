@@ -578,6 +578,7 @@ const nm = (id, metaOf) => (id === "user" ? "ユーザー" : metaOf(id)?.name ||
  *  ・IAM・KMS・監視などは流れに入れず、あとからサービスに「機能を追加」するステップで登場させる */
 export function serviceScene(svc, rels, metaOf) {
   const me = svc.id;
+  if (me === "bluegreen") return blueGreenScene(svc);
   if (isAddon(me)) return addonScene(svc, rels, metaOf);
   const myTier = TIER[me] ?? CAT_TIER[svc.cat] ?? 5;
   const flowCands = rels.filter((r) => !isAddon(r.id) && svcById.has(r.id) && !["internet", "user", "onprem"].includes(r.id));
@@ -662,6 +663,35 @@ export function serviceScene(svc, rels, metaOf) {
   const route = chain.map((id) => nm(id, metaOf)).join(" → ");
   steps.push({ type: "request", source: chain[0], via: chain.slice(1, -1), target: chain[N - 1], label: "通しで流す", dur: 2600, narration: `${route} の順に処理が流れます。${addons.length ? `${addons.map((id) => nm(id, metaOf)).join("・")} は、${svc.name} に機能として追加して使います。` : ""}`, dur: 1400 });
   return { id: "svc-" + me, title: `${svc.name} の連携`, nodes, edges, steps, curved: false, nodeWidth: N >= 5 ? 116 : N === 4 ? 128 : 138 };
+}
+
+/** ブルー/グリーンデプロイ: 本番(ブルー)を動かしたまま、グリーンを構築 → テスト → 切り替え → (問題があれば)切り戻し */
+function blueGreenScene(svc) {
+  const nodes = [
+    { id: "user", label: "ユーザー", svc: "user", x: 4, y: 40 },
+    { id: "alb", label: "ALB", svc: "alb", x: 34, y: 40 },
+    { id: "blue", label: "ブルー(v1)", svc: "ec2", x: 70, y: 16 },
+    { id: "green", label: "グリーン(v2)", svc: "ec2", x: 70, y: 64, appear: 1 },
+    { id: "codedeploy", label: "CodeDeploy", svc: "codedeploy", x: 34, y: 88, appear: 1, addon: true },
+    { id: "cloudwatch", label: "CloudWatch", svc: "cloudwatch", x: 96, y: 88, appear: 5, addon: true },
+  ];
+  const edges = [
+    { from: "user", to: "alb", label: "" },
+    { from: "alb", to: "blue", label: "本番" },
+    { from: "alb", to: "green", label: "テスト → 本番", appear: 1 },
+    { from: "codedeploy", to: "green", label: "", appear: 1, dashed: true },
+    { from: "cloudwatch", to: "green", label: "", appear: 5, dashed: true },
+  ];
+  const steps = [
+    { type: "request", source: "user", via: ["alb"], target: "blue", label: "いまの本番はブルー", narration: "利用者のトラフィックは、ALB からすべて現在の本番環境(ブルー・v1)に流れています。", dur: 1800 },
+    { type: "addon", source: "codedeploy", target: "green", label: "＋ グリーン環境を構築", narration: "ブルーを動かしたまま、同じ構成の新しい環境(グリーン)を裏側で用意し、新しいバージョン(v2)をデプロイします。CodeDeploy なら環境の用意から切り替えまで自動化できます。", chips: ["新しいターゲットグループ"], dur: 1600 },
+    { type: "request", source: "alb", target: "green", label: "テスト用リスナーで確認", narration: "本番の利用者には影響を与えずに、テスト用のリスナー(別のポート)からグリーンの動作を確認します。", dur: 1500 },
+    { type: "setup", source: "alb", target: null, chipOn: "alb", label: "リスナーの転送先を切り替え", narration: "テストが済んだら、ALB の本番リスナーの転送先をグリーンのターゲットグループに切り替えます。DNS を変えないので、すぐに全員に反映されます(一度に・カナリア・線形で少しずつ移すこともできます)。", chips: ["転送先 → グリーン"], dur: 1400 },
+    { type: "request", source: "user", via: ["alb"], target: "green", label: "本番がグリーンに", narration: "利用者のトラフィックはグリーン(v2)に流れるようになりました。ダウンタイムはありません。ブルーは切り戻しに備えてしばらく残しておきます。", dur: 1800 },
+    { type: "addon", source: "cloudwatch", target: "green", label: "＋ アラームで監視", narration: "切り替え後のエラー率や遅延を CloudWatch アラームで監視します。アラームが発報したら、CodeDeploy が自動でブルーに戻します(自動ロールバック)。", chips: ["自動ロールバック"], dur: 1500 },
+    { type: "request", source: "user", via: ["alb"], target: "blue", label: "問題があればすぐに戻す", narration: "問題が見つかっても、転送先をブルーに戻すだけで、すぐに旧バージョンへ切り戻せます。問題がなければ、待機時間のあとにブルーを削除して完了です(切り替えまでは 2 環境ぶんの費用がかかります)。", dur: 1800 },
+  ];
+  return { id: "svc-bluegreen", title: `${svc.name} の流れ`, nodes, edges, steps, curved: false, nodeWidth: 128 };
 }
 
 /** IAM・KMS・監視などの「機能として足す」サービス: 使う側のサービスを並べ、順にこのサービスを追加していく */
