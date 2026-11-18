@@ -137,3 +137,17 @@
 .rec-q:hover{text-decoration:underline}
 .record-qs small{color:var(--aaa-muted);font-size:.72rem;white-space:nowrap}
 .plan-home .review-card{margin:0}
+
+/* 選択肢の「選んだらまずい度」評価（資格問題演習の解説） */
+.cr-widget{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 2px}
+.cr-q{font-size:.74rem;font-weight:700;color:var(--aaa-muted);margin-right:2px}
+.cr-btn{border:1px solid var(--aaa-border);background:var(--aaa-panel);color:var(--aaa-text);border-radius:999px;padding:3px 11px;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
+.cr-btn:hover{background:var(--aaa-panel-hover)}
+.cr-btn.cr-1.on,.cr-badge.cr-1{background:#fef3c7;border-color:#d97706;color:#92400e}
+.cr-btn.cr-2.on,.cr-badge.cr-2{background:#ffedd5;border-color:#ea580c;color:#9a3412}
+.cr-btn.cr-3.on,.cr-badge.cr-3{background:#fee2e2;border-color:#dc2626;color:#991b1b}
+.cr-btn:focus-visible{outline:2px solid var(--aaa-blue);outline-offset:1px}
+.cr-badge{display:inline-block;border:1px solid;border-radius:999px;padding:0 8px;font-size:.74rem;font-weight:800;line-height:1.6}
+.cr-summary{margin:0 0 8px;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--aaa-blue) 7%,transparent);font-size:.82rem;line-height:1.8}
+.cr-summary b{margin-right:4px}
+.cr-alert{margin:6px 0 0;font-size:.85rem;font-weight:700;color:#991b1b;line-height:1.8}

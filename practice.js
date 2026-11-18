@@ -4,6 +4,7 @@ import { serviceQuestions } from "./data/service-questions.js";
 import { byId as svcById } from "./services.js";
 import { findServices, servicesIn } from "./data/service-terms.js";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
+import { rateWidget, rateSummary, rateOf, badge, chosenRisk } from "./choice-rate.js";
 import { goalCodes, goalDate, haveCodes, daysLeft, focusOn, setFocus, openGoalDialog } from "./goal.js?v=20261117c";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
@@ -864,6 +865,13 @@ function feedback(q) {
         (s.correct ? "" : `　／　あなたの回答：${[...s.sel].sort().map((i) => LETTERS[i]).join("・")}`),
     ),
   );
+  // 以前「危険」「不適切」と評価した選択肢を選んでしまったとき
+  const risk = chosenRisk(q, s.sel);
+  if (risk.length) {
+    const w = el("p", "cr-alert");
+    w.append(document.createTextNode(`⚠ 選んだ選択肢 ${risk.map(([i]) => LETTERS[i]).join("・")} は、以前あなたが `), ...risk.map(([, lv]) => badge(lv)), document.createTextNode(" と評価していた選択肢です。なぜまずいのかを解説で確認しましょう。"));
+    head.append(w);
+  }
   box.append(head);
   // 論点・トピック
   if (q.concept) {
@@ -901,6 +909,13 @@ function feedback(q) {
     exp.append(linkify(q.explanation, el("p", "fb-explanation")));
   }
   exp.append(el("p", "eyebrow", q.choices.some((c) => c.explanation) ? "ALL CHOICES · 選択肢ごとの理由" : "CHOICES · 選択肢"));
+  let summary = rateSummary(q);
+  exp.append(summary);
+  const refresh = () => {
+    const n = rateSummary(q);
+    summary.replaceWith(n);
+    summary = n;
+  };
   q.choices.forEach((choice, i) => {
     const row = el("div", choice.correct ? "explanation is-correct" : s.sel.has(i) ? "explanation is-chosen" : "explanation");
     row.append(el("strong", "", `${LETTERS[i]} · ${choice.correct ? "正解" : "不正解"}${s.sel.has(i) ? " / あなたの回答" : ""}`));
@@ -911,6 +926,7 @@ function feedback(q) {
       else why.append(el("span", "why-label", "なぜ間違い"), linkify(choice.explanation, el("span", "why-body")));
       row.append(why);
     }
+    if (!choice.correct) row.append(rateWidget(q, i, refresh)); // 理由を読んでから評価する
     exp.append(row);
   });
   box.append(exp);
