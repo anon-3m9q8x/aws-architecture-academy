@@ -33,6 +33,7 @@
     <link rel="stylesheet" href="command-lab.css" />
     <link rel="stylesheet" href="memopad.css?v=20261117a" />
     <link rel="stylesheet" href="goal.css?v=20261117c" />
+    <link rel="stylesheet" href="plan.css?v=20261118a" />
   </head>
   <body>
     <div id="siteShell">
@@ -56,6 +57,9 @@
         <nav aria-label="メインナビゲーション">
           <a href="#home" data-page="home"
             ><span aria-hidden="true">◈</span> ホーム</a
+          >
+          <a href="#plan" data-page="plan"
+            ><span aria-hidden="true">▤</span> 学習計画</a
           >
           <a href="#services" data-page="services"
             ><span aria-hidden="true">▦</span> サービス図鑑
@@ -95,6 +99,7 @@
           <!-- アカウント同期の表示はホームだけ -->
           <section id="accountBar" class="account-bar" aria-label="アカウントと同期"><p>学習データを読み込み中…</p></section>
           <section id="goal-card" class="panel goal-card" aria-label="取得目標と取得済みの資格"></section>
+          <section id="plan-home" class="panel goal-card plan-home" aria-label="今日の学習プラン"></section>
           <div class="home-layout">
             <div class="home-primary">
               <div class="hero study-hero">
@@ -236,6 +241,7 @@
         <section id="command-lab" class="page" hidden></section>
         <section id="build" class="page" hidden></section>
         <section id="memo" class="page" hidden></section>
+        <section id="plan" class="page plan-page" hidden></section>
         <section id="practice" class="page" hidden>
           <h1 class="sr-only">資格問題演習</h1>
           <span class="pill" id="practice-exam-pill" hidden>全資格対応</span>
@@ -361,7 +367,7 @@
     <div id="accountOverlay" class="account-overlay" hidden></div>
     <script src="config.js"></script>
     <script src="vendor/supabase.js"></script>
-    <script src="account.js?v=20261117b"></script>
-    <script src="script.js?v=20261117c" type="module"></script>
+    <script src="account.js?v=20261118a"></script>
+    <script src="script.js?v=20261118a" type="module"></script>
   </body>
 </html>

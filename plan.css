@@ -1,0 +1,112 @@
+/* 学習計画（#plan）とホームの「今日の学習プラン」 */
+.plan-page{display:grid;gap:16px}
+.plan-page h2{margin:0;font-size:1.08rem}
+.plan-intro,.plan-form,.plan-summary,.plan-day,.plan-cal,.plan-doms{padding:18px 20px;display:grid;gap:12px}
+.plan-intro p{margin:0;line-height:1.8;color:var(--aaa-muted)}.plan-intro .eyebrow{margin:0}
+.plan-intro h2{font-size:1.35rem}.plan-intro .goal-btn{justify-self:start}
+
+/* 設定フォーム */
+.plan-form-h p{margin:6px 0 0;color:var(--aaa-muted);line-height:1.7;font-size:.9rem}
+.plan-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.plan-form-grid>label{display:grid;gap:6px;font-weight:700;font-size:.88rem}
+.plan-form select,.plan-form input[type=date],.plan-rec-grid input[type=number],.plan-rec-grid textarea{padding:8px 10px;border-radius:9px;border:1px solid var(--aaa-border);background:var(--aaa-bg);color:var(--aaa-text);font:inherit;min-width:0}
+.plan-rest{grid-column:1/-1;margin:0;border:1px solid var(--aaa-border);border-radius:10px;padding:6px 10px 10px;display:flex;flex-wrap:wrap;gap:6px}
+.plan-rest legend{font-size:.82rem;font-weight:700;color:var(--aaa-muted);padding:0 4px}
+.plan-rest label{position:relative;cursor:pointer}
+.plan-rest input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.plan-rest span{display:block;min-width:38px;text-align:center;padding:5px 8px;border-radius:8px;border:1px solid var(--aaa-border);font-weight:700;font-size:.85rem}
+.plan-rest input:checked+span{background:color-mix(in srgb,var(--aaa-muted) 22%,transparent);text-decoration:line-through}
+.plan-rest input:focus-visible+span{outline:2px solid var(--aaa-blue)}
+.plan-preview{margin:0;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--aaa-blue) 8%,transparent);line-height:1.7;min-height:1.7em}
+.plan-preview:empty{display:none}
+.plan-warn{color:#c2410c;font-weight:700;margin:0;line-height:1.7}
+.plan-hint{color:#15803d;font-weight:700}
+.plan-form-acts{display:flex;justify-content:flex-end;gap:8px}
+
+/* サマリー */
+.plan-sum-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.plan-sum-h .eyebrow{margin:0 0 2px}
+.plan-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.plan-kpi{display:grid;gap:2px;padding:12px 14px;border-radius:12px;border:1px solid var(--aaa-border);background:var(--aaa-bg)}
+.plan-kpi span{font-size:.78rem;font-weight:700;color:var(--aaa-muted)}
+.plan-kpi strong{font-size:1.45rem;line-height:1.25}
+.plan-kpi small{font-size:.74rem;color:var(--aaa-muted);line-height:1.5}
+.plan-kpi.good strong{color:#15803d}.plan-kpi.bad strong{color:#c2410c}
+.plan-phases{display:flex;gap:3px;border-radius:10px;overflow:hidden}
+.plan-phase{flex-basis:0;min-width:46px;padding:7px 8px;display:grid;gap:1px;font-size:.74rem;line-height:1.35;overflow:hidden;white-space:nowrap}
+.plan-phase b{font-size:.78rem;overflow:hidden;text-overflow:ellipsis}.plan-phase small{opacity:.8}
+.plan-phase.now{box-shadow:inset 0 -3px 0 currentColor}
+.ph1{--ph:#2563eb}.ph2{--ph:#ea580c}.ph3{--ph:#7c3aed}.ph4{--ph:#16a34a}.ph5{--ph:#dc2626}.ph0{--ph:#94a3b8}
+.plan-phase{background:color-mix(in srgb,var(--ph) 16%,transparent);color:color-mix(in srgb,var(--ph) 80%,var(--aaa-text))}
+
+/* レイアウト */
+.plan-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr);gap:16px;align-items:start}
+.plan-main,.plan-side{display:grid;gap:16px}
+@media (max-width:980px){.plan-grid{grid-template-columns:1fr}}
+
+/* 今日のプラン */
+.plan-day-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.plan-day-h h2{flex:1}
+.plan-ph-chip{padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:800;background:color-mix(in srgb,var(--ph) 18%,transparent);color:color-mix(in srgb,var(--ph) 85%,var(--aaa-text))}
+.plan-day-lead{margin:0;color:var(--aaa-muted);font-size:.88rem}
+.plan-tasks{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.plan-task{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:1px solid var(--aaa-border);background:var(--aaa-bg)}
+.plan-task-i{flex:1;display:grid;gap:5px;min-width:0}
+.plan-task-i b{font-size:.92rem;line-height:1.5}
+.plan-task-i small{font-size:.76rem;color:var(--aaa-muted)}
+.plan-task-bar{height:8px;border-radius:99px;background:var(--aaa-border);overflow:hidden}.plan-task-bar i{display:block;height:100%;background:#16a34a;transition:width .3s}
+.plan-go{white-space:nowrap;padding:8px 14px}
+.plan-check{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.85rem;cursor:pointer}.plan-check input{width:18px;height:18px;accent-color:#16a34a}
+.plan-record{display:grid;gap:10px;padding-top:12px;border-top:1px dashed var(--aaa-border)}
+.plan-auto{margin:0;font-size:.86rem;line-height:1.7}.plan-auto b{margin-right:4px}
+.plan-rec-grid{display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:start}
+.plan-rec-grid>label{display:grid;gap:6px;font-weight:700;font-size:.85rem}
+.plan-min{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.plan-min input{width:96px}
+.plan-mood{margin:0;border:0;padding:0;display:flex;gap:4px;flex-wrap:wrap}
+.plan-mood legend{font-weight:700;font-size:.85rem;padding:0;margin-bottom:6px}
+.plan-mood label{position:relative;cursor:pointer}
+.plan-mood input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.plan-mood span{display:grid;justify-items:center;padding:4px 8px;border-radius:9px;border:1px solid var(--aaa-border);font-size:1.15rem;line-height:1.2}
+.plan-mood small{font-size:.66rem;color:var(--aaa-muted)}
+.plan-mood input:checked+span{border-color:var(--aaa-blue);background:color-mix(in srgb,var(--aaa-blue) 14%,transparent)}
+.plan-mood input:focus-visible+span{outline:2px solid var(--aaa-blue)}
+.plan-note{grid-column:1/-1}.plan-note textarea{resize:vertical;line-height:1.6}
+.plan-saved{color:var(--aaa-muted);min-height:1em}
+@media (max-width:600px){.plan-rec-grid{grid-template-columns:1fr}.plan-task{flex-wrap:wrap}.plan-go{width:100%}}
+
+/* カレンダー */
+.plan-cal-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.plan-legend{display:flex;align-items:center;gap:4px;font-size:.72rem;color:var(--aaa-muted);flex-wrap:wrap}
+.plan-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-left:6px}
+.plan-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.plan-cal-wd{text-align:center;font-size:.72rem;font-weight:700;color:var(--aaa-muted)}
+.plan-cell{aspect-ratio:1;min-height:36px;border-radius:8px;border:1px solid var(--aaa-border);background:var(--aaa-bg);color:var(--aaa-text);display:grid;place-content:center;justify-items:center;gap:0;padding:2px;font:inherit;cursor:pointer;position:relative}
+.plan-cell-d{font-size:.72rem;font-weight:700;line-height:1.1}
+.plan-cell small{font-size:.66rem;line-height:1.1}
+.plan-cell.out{visibility:hidden}
+.plan-cell.future{border-style:dashed;border-color:color-mix(in srgb,var(--ph) 45%,var(--aaa-border));color:var(--aaa-muted)}
+.lv0,.plan-cell.lv0{background:var(--aaa-bg)}
+.plan-cell.miss{border-color:color-mix(in srgb,#dc2626 45%,var(--aaa-border))}
+.lv1{background:#bbf7d0}.lv2{background:#4ade80}.lv3{background:#15803d}
+.plan-cell.lv1{background:#dcfce7}.plan-cell.lv2{background:#86efac}.plan-cell.lv3{background:#16a34a;color:#fff}
+.rest,.plan-cell.rest{background:color-mix(in srgb,var(--aaa-muted) 18%,transparent)}
+.plan-cell.exam{background:color-mix(in srgb,#dc2626 16%,transparent);border-color:#dc2626}
+.plan-legend .lv0{border:1px solid var(--aaa-border)}
+.plan-cell.today{outline:2px solid var(--aaa-orange);outline-offset:1px}
+.plan-cell.sel{box-shadow:0 0 0 2px var(--aaa-blue) inset}
+.plan-cell:focus-visible{outline:2px solid var(--aaa-blue)}
+
+/* 分野別 */
+.plan-state{font-size:.78rem;font-weight:800;padding:3px 10px;border-radius:999px}
+.plan-state.ok{background:#dcfce7;color:#166534}.plan-state.near{background:#fef3c7;color:#92400e}.plan-state.low{background:#fee2e2;color:#991b1b}
+.plan-dom-list{display:grid;gap:10px}
+.plan-dom{display:grid;gap:4px}
+.plan-dom-n{font-size:.86rem;line-height:1.5}.plan-dom-n small{color:var(--aaa-muted)}
+.plan-dom-bar{position:relative;height:10px;border-radius:99px;background:var(--aaa-border);overflow:visible}
+.plan-dom-bar i{display:block;height:100%;border-radius:99px;background:var(--aaa-muted)}
+.plan-dom-bar i.ok{background:#16a34a}.plan-dom-bar i.near{background:#f59e0b}.plan-dom-bar i.low{background:#ef4444}
+.plan-dom-line{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--aaa-text);opacity:.55}
+.plan-dom-v{font-size:.74rem;color:var(--aaa-muted)}
+.plan-note-s{margin:0;font-size:.74rem;color:var(--aaa-muted);line-height:1.7}
+
+/* ホーム */
+.plan-home-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.plan-home .goal-card-bar i{background:#16a34a}

@@ -9,10 +9,12 @@ import "./command-lab.js?v=20261117b";
 import { buildStats, refreshRec } from "./build.js?v=20261117b";
 import "./academy.js?v=20261117b";
 import "./memopad.js?v=20261117b";
+import "./plan.js?v=20261118a";
 import { store } from "./storage.js";
 const $ = (id) => document.getElementById(id);
 const labels = {
   home: "ホーム",
+  plan: "学習計画",
   services: "サービス図鑑",
   build: "構築問題",
   practice: "資格問題演習",
