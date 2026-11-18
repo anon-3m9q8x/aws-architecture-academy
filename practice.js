@@ -1216,13 +1216,106 @@ document.addEventListener("visibilitychange", () => document.visibilityState ===
 window.addEventListener("route-change", (e) => {
   if (e.detail?.page === "practice") renderPaused();
 });
+/* ---------- 前回(1 回前)の演習 ---------- */
+// 演習を終えたとき(結果を見た・終了した)に、出題した問題と結果を aaa.practice.last.v1 に保存する(新しい順に 5 回分、アカウント同期)。
+// 設定画面の「前回の演習」から、同じ問題をもう一度・不正解だけ・1 問ずつ開き直せる。
+const LAST_KEY = "aaa.practice.last.v1";
+function readLast() {
+  const v = store.get(LAST_KEY, []);
+  return (Array.isArray(v) ? v : []).filter((x) => x && Array.isArray(x.items) && x.items.length && x.items.every((it) => questionMap.has(it.id)));
+}
+function saveLast() {
+  const items = session.map((q, i) => ({ id: q.id, done: states[i].submitted, ok: states[i].submitted && states[i].correct }));
+  if (!items.some((it) => it.done)) return;
+  const list = readLast().slice(0, 4);
+  store.set(LAST_KEY, [{ at: new Date().toISOString(), label: sessionLabel, items }, ...list]);
+}
+let lastIdx = 0;
+function renderLast() {
+  const box = $("last-box");
+  if (!box) return;
+  box.replaceChildren();
+  const list = readLast();
+  if (!list.length) return;
+  lastIdx = Math.min(lastIdx, list.length - 1);
+  const cur = list[lastIdx];
+  const done = cur.items.filter((it) => it.done), ok = done.filter((it) => it.ok).length;
+  const d = new Date(cur.at);
+  const det = el("details", "last-card");
+  const sum = el("summary");
+  const txt = el("span", "last-txt");
+  txt.append(
+    el("b", "", `↩ ${lastIdx === 0 ? "前回" : `${lastIdx + 1} 回前`}の演習${cur.label ? `：${cur.label}` : ""}`),
+    el("small", "", `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} ・ ${cur.items.length} 問中 ${done.length} 問に回答（正解 ${ok}・不正解 ${done.length - ok}）`),
+  );
+  sum.append(txt);
+  const acts = el("span", "last-acts");
+  const btn = (label, cls, ids, title) => {
+    const b = el("button", cls, label);
+    b.type = "button";
+    b.addEventListener("click", (e) => {
+      e.preventDefault();
+      if (!ids.length) return;
+      window.dispatchEvent(new CustomEvent("practice-preset", { detail: { ids, label: title } }));
+      $("quiz-start").click();
+    });
+    return b;
+  };
+  const when = `${d.getMonth() + 1}/${d.getDate()}`;
+  acts.append(btn("同じ問題をもう一度", "primary", cur.items.map((it) => it.id), `${when} の演習をもう一度`));
+  const ng = cur.items.filter((it) => it.done && !it.ok).map((it) => it.id);
+  if (ng.length) acts.append(btn(`不正解だけ（${ng.length}）`, "", ng, `${when} の演習で不正解だった問題`));
+  const rest = cur.items.filter((it) => !it.done).map((it) => it.id);
+  if (rest.length) acts.append(btn(`未回答だけ（${rest.length}）`, "", rest, `${when} の演習で未回答だった問題`));
+  sum.append(acts);
+  det.append(sum);
+  // 問題の一覧(1 問ずつ開ける)
+  const ul = el("ol", "last-qs");
+  cur.items.forEach((it) => {
+    const q = questionMap.get(it.id);
+    const li = el("li", it.done ? (it.ok ? "ok" : "ng") : "na");
+    li.append(el("span", "last-mark", it.done ? (it.ok ? "○" : "×") : "－"));
+    const b = el("button", "last-q", q.concept || q.topic || q.prompt.slice(0, 40));
+    b.type = "button";
+    b.title = q.prompt.slice(0, 140);
+    b.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("practice-preset", { detail: { ids: [it.id], label: `${when} の演習の問題` } }));
+      $("quiz-start").click();
+    });
+    li.append(b);
+    ul.append(li);
+  });
+  det.append(ul);
+  if (list.length > 1) {
+    const nav = el("div", "last-nav");
+    nav.append(el("small", "", "それより前の演習："));
+    list.forEach((x, i) => {
+      const xd = new Date(x.at);
+      const b = el("button", i === lastIdx ? "on" : "", i === 0 ? "前回" : `${i + 1} 回前（${xd.getMonth() + 1}/${xd.getDate()}）`);
+      b.type = "button";
+      b.addEventListener("click", () => {
+        lastIdx = i;
+        renderLast();
+        $("last-box").querySelector("details").open = true;
+      });
+      nav.append(b);
+    });
+    det.append(nav);
+  }
+  box.append(det);
+}
+window.addEventListener("route-change", (e) => e.detail?.page === "practice" && renderLast());
+renderLast();
 renderPaused();
 $("quiz-exit").addEventListener("click", () => {
   const answered = states.filter((s) => s.submitted).length;
+  saveLast();
+  lastIdx = 0;
   // 「終了」は中断の保存をしない(自動保存された分も消す)
   if (store.get(PAUSE_KEY, null)) store.set(PAUSE_KEY, null);
   settings();
   renderPaused();
+  renderLast();
   if (answered) window.dispatchEvent(new CustomEvent("toast", { detail: `回答した${answered}問は記録済みです` }));
 });
 $("quiz-prev").addEventListener("click", () => goTo(position - 1));
@@ -1258,6 +1351,9 @@ $("quiz-next").addEventListener("click", () => {
 function showResult() {
   finished = true;
   if (store.get(PAUSE_KEY, null)) store.set(PAUSE_KEY, null);
+  saveLast();
+  lastIdx = 0;
+  renderLast();
   $("quiz-workspace").hidden = true;
   document.body.classList.remove("in-quiz");
   const box = $("quiz-result");

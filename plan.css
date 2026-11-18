@@ -184,3 +184,17 @@
 .plan-bonus-note{color:var(--aaa-muted);font-size:.76rem}
 .plan-home-bonus{font-weight:700;font-size:.86rem;color:#b45309;text-decoration:none}
 .plan-home-bonus:hover{text-decoration:underline}
+/* 前回の演習 */
+.last-card{margin:0 0 14px;border-radius:12px;border:1px solid var(--aaa-border);background:var(--aaa-panel)}
+.last-card>summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;cursor:pointer;list-style:none}
+.last-card>summary::-webkit-details-marker{display:none}
+.last-txt{flex:1;display:grid;gap:3px;min-width:220px;line-height:1.6}.last-txt small{color:var(--aaa-muted);font-size:.78rem}
+.last-txt b::after{content:" ▾";color:var(--aaa-muted);font-size:.8em}.last-card[open] .last-txt b::after{content:" ▴"}
+.last-acts{display:flex;gap:6px;flex-wrap:wrap}.last-acts button{white-space:nowrap}
+.last-qs{margin:0;padding:0 14px 12px 2.6em;display:grid;gap:3px;max-height:360px;overflow:auto;font-size:.84rem}
+.last-qs li{display:flex;align-items:center;gap:8px}
+.last-mark{font-weight:800;width:1.2em;text-align:center}.last-qs li.ok .last-mark{color:#15803d}.last-qs li.ng .last-mark{color:#dc2626}.last-qs li.na .last-mark{color:var(--aaa-muted)}
+.last-q{flex:1;text-align:left;border:0;background:none;color:var(--aaa-blue);font:inherit;cursor:pointer;padding:2px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.last-q:hover{text-decoration:underline}
+.last-nav{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:0 14px 12px}
+.last-nav button{font-size:.76rem;padding:3px 10px}.last-nav button.on{border-color:var(--aaa-blue);color:var(--aaa-blue);font-weight:700}

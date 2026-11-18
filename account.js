@@ -1,7 +1,7 @@
 /* Account isolation, durable pending writes and revision-checked cloud sync. */
 (() => {
   'use strict';
-  const KEYS = ['aaa.practice.attempts.v1', 'aaa.notebook.v1', 'aaa.build.v1', 'aaa.ex.viewed', 'aaa.step1.progress.v1', 'aaa.resume.svc', 'aaa.resume.build', 'aaa.resume.scene', 'aaa.commandLab.progress.v1', 'aaa.commandLab.drafts.v1', 'aaa.memo.v1', 'aaa.goal.v1', 'aaa.plan.v1', 'aaa.review.v1', 'aaa.choiceRate.v1', 'aaa.practice.paused.v1'];
+  const KEYS = ['aaa.practice.attempts.v1', 'aaa.notebook.v1', 'aaa.build.v1', 'aaa.ex.viewed', 'aaa.step1.progress.v1', 'aaa.resume.svc', 'aaa.resume.build', 'aaa.resume.scene', 'aaa.commandLab.progress.v1', 'aaa.commandLab.drafts.v1', 'aaa.memo.v1', 'aaa.goal.v1', 'aaa.plan.v1', 'aaa.review.v1', 'aaa.choiceRate.v1', 'aaa.practice.paused.v1', 'aaa.practice.last.v1'];
   const isLearningKey = key => KEYS.includes(key) || /^aaa\.build\.ws\.[A-Za-z0-9_-]{1,100}$/.test(key);
   const empty = () => ({format:'aws-academy-v1', records:{}});
   const config = window.ACADEMY_CONFIG || {};
