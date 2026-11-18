@@ -2,11 +2,13 @@
 // ・曲線の経路を、光の尾を引くパケットがイージング付きで移動
 // ・到着時の波紋、処理中の脈動、経路の流れる破線、ノードの拡大と減光をなめらかに遷移
 // ・1 本の requestAnimationFrame で時間を管理し、速度変更・一時停止・シークしても途切れない
+import { relsOf, linkDetail, byId as svcById } from "./services.js";
 const SVGNS = "http://www.w3.org/2000/svg";
-const W = 780, H = 420, NW = 138, NH = 50;
+const W = 780, H = 420, NH = 50;
+let NW = 138; // ノードの幅(教材ごとに変えられる。描画のたびに再生中の教材の値にそろえる)
 const STEP = {
   request: ["リクエスト", "req"], response: ["応答", "res"], process: ["処理", "proc"],
-  probe: ["ヘルスチェック", "probe"], decision: ["判定", "proc"], healthChange: ["状態変化", "bad"], status: ["状態", "proc"],
+  probe: ["ヘルスチェック", "probe"], setup: ["設定を追加", "set"], addon: ["機能を追加", "set"], decision: ["判定", "proc"], healthChange: ["状態変化", "bad"], status: ["状態", "proc"],
 };
 const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -125,6 +127,8 @@ export class FlowPlayer {
   /* ---------- 図の組み立て ---------- */
   build() {
     const sc = this.scene;
+    this.nw = sc.nodeWidth || 138;
+    NW = this.nw;
     const svg = s("svg", { viewBox: `0 0 ${W} ${H}`, class: "fp-svg", role: "img", "aria-label": sc.title || "" });
     const defs = s("defs", {}, svg);
     const uid = "fp" + Math.random().toString(36).slice(2, 8);
@@ -164,6 +168,9 @@ export class FlowPlayer {
         const w = textW(e.label, 10.5) + 12;
         lab.insertBefore(s("rect", { x: -w / 2, y: -9, width: w, height: 17, rx: 8.5 }), t);
       }
+      if (e.appear != null) g.dataset.appear = e.appear;
+      if (lab && e.appear != null) lab.dataset.appear = e.appear;
+      if (e.dashed) g.classList.add("is-addon");
       return { e, g, base, flow, lab, len: base.getTotalLength ? 0 : 0 };
     });
     this.nodes = new Map();
@@ -192,6 +199,8 @@ export class FlowPlayer {
       }
       const title = s("title", {}, g);
       title.textContent = label;
+      if (n.appear != null) g.dataset.appear = n.appear;
+      if (n.addon) g.classList.add("is-addon");
       this.nodes.set(n.id, { n, g, inner });
     });
     // パケット: 本体 + 光の尾
@@ -206,10 +215,30 @@ export class FlowPlayer {
     this.bubR = s("rect", { rx: 12, height: 24, y: -12 }, this.bub);
     this.bubT = s("text", { "text-anchor": "middle", y: 4.5 }, this.bub);
     this.ghost = s("path", { class: "fp-ghost" }, svg);
+    // 「設定を追加」のチップ(ノードの上に積み上がる)
+    this.gChip = s("g", { class: "fp-chips" }, svg);
+    this.chips = [];
+    const perNode = new Map();
+    sc.steps.forEach((t, k) => {
+      if (!t.chips?.length) return;
+      const on = t.chipOn || t.target;
+      const nd = pos.get(on);
+      if (!nd) return;
+      t.chips.forEach((txt) => {
+        const idx = perNode.get(on) || 0;
+        perNode.set(on, idx + 1);
+        const w = textW("＋" + txt, 10) + 14;
+        const g = s("g", { class: "fp-chip", transform: `translate(${nd.px},${nd.py - NH / 2 - 14 - idx * 21})` }, this.gChip);
+        s("rect", { x: -w / 2, y: -9, width: w, height: 18, rx: 9 }, g);
+        s("text", { "text-anchor": "middle", y: 3.5 }, g).textContent = "＋" + txt;
+        this.chips.push({ g, k });
+      });
+    });
     this.svg = svg;
     // ノードの範囲に合わせて表示範囲を詰める(横一列の構成でも余白が大きくならない)
     const ys = [...pos.values()].map((n) => n.py);
-    const top = Math.max(0, Math.min(...ys) - NH / 2 - 46), bot = Math.min(H, Math.max(...ys) + NH / 2 + 30);
+    const chipRoom = Math.max(0, ...[...perNode.values()].map((c) => c * 21 - 10));
+    const top = Math.max(0, Math.min(...ys) - NH / 2 - 46 - chipRoom), bot = Math.min(H, Math.max(...ys) + NH / 2 + 30);
     const vh = Math.max(230, bot - top), vy = Math.max(0, Math.min(H - vh, (top + bot) / 2 - vh / 2));
     svg.setAttribute("viewBox", `0 ${vy.toFixed(0)} ${W} ${vh.toFixed(0)}`);
     this.stage.replaceChildren(svg);
@@ -278,6 +307,7 @@ export class FlowPlayer {
 
   /* ステップの静的な状態(ノードの強調・経路・吹き出し・説明)を整える */
   prepare() {
+    NW = this.nw;
     const sc = this.scene, st = sc.steps[this.i];
     const hops = [st.source, ...(st.via || []), st.target].filter(Boolean);
     const kind = (STEP[st.type] || STEP.request)[1];
@@ -310,6 +340,16 @@ export class FlowPlayer {
       x.g.classList.toggle("t-probe", on && kind === "probe");
       if (!sc.undirected) x.base.setAttribute("marker-end", `url(#${this.uid}-${on ? "ao" : "a"})`);
       x.lab?.classList.toggle("on", on);
+    });
+    // 段階的に登場するノード・連携線・チップ(このステップより後のものは隠す)
+    this.svg.querySelectorAll("[data-appear]").forEach((x) => {
+      const a = Number(x.dataset.appear);
+      x.classList.toggle("is-hidden", a > this.i);
+      x.classList.toggle("is-new", a === this.i);
+    });
+    this.chips.forEach(({ g, k }) => {
+      g.classList.toggle("is-hidden", k > this.i);
+      g.classList.toggle("is-new", k === this.i);
     });
     // 状態(異常ノード)とメトリクス
     const down = new Set();
@@ -423,6 +463,7 @@ export class FlowPlayer {
   }
 
   drawFrame(p, el) {
+    NW = this.nw;
     const st = this.scene.steps[this.i];
     if (reduce()) p = 1;
     if (this.total) {
@@ -494,23 +535,153 @@ function edgePt(n, tx, ty) {
   return { x: n.px + dx * t, y: n.py + dy * t };
 }
 
-/** あるサービスを中心に、連携先へ順にパケットが流れる教材を作る */
+/* ---------- サービスの連携を「一連の流れ」として組み立てる ---------- */
+// リクエストが通る順番の目安(小さいほど利用者に近い)。連携データには通信の向きが無いため、サービスの役割から並べる
+const TIER = {
+  user: 0, internet: 0, onprem: 0, route53: 1, globalacc: 1, cloudfront: 2, lambdaedge: 2, shield: 2, amplify: 2,
+  apigw: 3, alb: 3, nlb: 3, gwlb: 3, igw: 3, appsync: 3, cognito: 3, transfer: 3, vpn: 3, dx: 3, tgw: 3, natgw: 4.6, vpce: 4.6, rdsproxy: 5.6, dax: 5.8, elasticache: 5.8,
+  ec2: 4, asg: 4, ecs: 4, eks: 4, fargate: 4, lambda: 4, beanstalk: 4, apprunner: 4, batch: 4, stepfn: 4.5,
+  sqs: 5, sns: 5, eventbridge: 5, kinesis: 5, firehose: 5.5, mq: 5, msk: 5,
+  glacier: 7, athena: 7, glue: 6.5, quicksight: 7.5, redshift: 7, emr: 7, lakeformation: 7,
+};
+const CAT_TIER = { ネットワーク: 3, コンピューティング: 4, アプリ統合: 5, "AI・機械学習": 4.5, データベース: 6, ストレージ: 6, 分析: 7, 移行: 6, IoT: 3, メディア: 5, "エンドユーザー・業務": 5 };
+// 流れの途中に置くのではなく、サービスに「足す」設定・機能として表すもの
+const ADDON = new Set(["iam", "kms", "acm", "waf", "shield", "cloudwatch", "cwlogs", "cloudtrail", "config", "secrets", "ssm", "xray", "guardduty", "macie", "inspector", "securityhub", "sts", "backup", "dlm", "privateca", "cloudhsm", "orgs", "sso", "accessanalyzer", "budgets", "ce", "trustedadvisor", "cfn", "cdk", "sam"]);
+const isAddon = (id) => ADDON.has(id) || ["セキュリティ", "運用・管理", "コスト管理", "開発者ツール"].includes(svcById.get(id)?.cat);
+const tierOf = (id) => TIER[id] ?? CAT_TIER[svcById.get(id)?.cat] ?? 5;
+const related = (a, b) => a === b || relsOf(a).some((r) => r.id === b);
+// 「必要な設定」の文から、追加する設定・機能の名前を取り出す(チップに表示)
+const SETTING = [
+  [/OAC|オリジンアクセスコントロール/, "OAC"], [/OAI/, "OAI"], [/バケットポリシー/, "バケットポリシー"], [/リソースベース(の)?ポリシー/, "リソースポリシー"], [/キーポリシー/, "キーポリシー"],
+  [/実行ロール/, "実行ロール"], [/IAM ?ロール|ロール/, "IAM ロール"], [/IAM ?ポリシー|権限|許可/, "IAM 権限"], [/セキュリティグループ|SG/, "セキュリティグループ"],
+  [/ターゲットグループ/, "ターゲットグループ"], [/ヘルスチェック/, "ヘルスチェック"], [/リスナー/, "リスナー"], [/証明書|ACM/, "証明書"], [/ルート表|ルートテーブル/, "ルート表"],
+  [/サブネット/, "サブネット"], [/VPC ?エンドポイント/, "VPC エンドポイント"], [/イベント通知/, "イベント通知"], [/トリガー|イベントソースマッピング/, "トリガー"],
+  [/暗号化|KMS/, "暗号化"], [/可視性タイムアウト/, "可視性タイムアウト"], [/DLQ|デッドレター/, "DLQ"], [/サブスクリプション/, "サブスクリプション"], [/キャッシュポリシー|キャッシュ/, "キャッシュ設定"],
+  [/エイリアス/, "エイリアスレコード"], [/レコード/, "DNS レコード"], [/ライフサイクル/, "ライフサイクル"], [/バージョニング/, "バージョニング"], [/レプリケーション/, "レプリケーション"],
+  [/起動テンプレート/, "起動テンプレート"], [/スケーリングポリシー/, "スケーリング"], [/パラメータグループ/, "パラメータグループ"], [/タグ/, "タグ"], [/オリジン/, "オリジン設定"],
+  [/ステージ|デプロイ/, "デプロイ"], [/オーソライザー|認可/, "オーソライザー"], [/ルール/, "ルール"],
+];
+function settingsIn(text) {
+  if (!text) return [];
+  const hits = [];
+  for (const [re, name] of SETTING) {
+    const m = text.match(re);
+    if (m && !hits.some((h) => h.name === name)) hits.push({ name, at: m.index });
+  }
+  return hits.sort((a, b) => a.at - b.at).slice(0, 2).map((h) => h.name);
+}
+const nm = (id, metaOf) => (id === "user" ? "ユーザー" : metaOf(id)?.name || id);
+
+/** あるサービスを含む連携を、利用者側から奥へ向かう「一連の流れ」として再生する教材を作る。
+ *  ・連携先をリクエストの通る順(TIER)に 1 列に並べ、隣どうしに実際の連携があるものだけをつなぐ
+ *  ・つなぐ前に必要な設定(連携の詳細の need)があれば、「＋設定」のチップを足すステップを入れる
+ *  ・IAM・KMS・監視などは流れに入れず、あとからサービスに「機能を追加」するステップで登場させる */
 export function serviceScene(svc, rels, metaOf) {
-  const nb = rels.slice(0, 8);
-  const nodes = [{ id: svc.id, label: svc.name, svc: svc.id, x: 50, y: 50 }];
-  const N = nb.length;
-  nb.forEach((r, i) => {
-    const a = -Math.PI / 2 + (i / Math.max(1, N)) * Math.PI * 2 + (N === 2 ? Math.PI / 2 : 0);
-    const rx = N <= 2 ? 40 : 42, ry = N <= 2 ? 30 : 42;
-    nodes.push({ id: r.id, label: metaOf(r.id)?.name || r.id, svc: r.id, x: 50 + Math.cos(a) * rx, y: 50 + Math.sin(a) * ry });
+  const me = svc.id;
+  if (isAddon(me)) return addonScene(svc, rels, metaOf);
+  const myTier = TIER[me] ?? CAT_TIER[svc.cat] ?? 5;
+  const flowCands = rels.filter((r) => !isAddon(r.id) && svcById.has(r.id) && !["internet", "user", "onprem"].includes(r.id));
+  const addonCands = rels.filter((r) => isAddon(r.id) && svcById.has(r.id) && r.id !== me);
+  // 詳細解説のある連携を優先して選ぶ
+  const ordered = (list, cmp) => [...list.filter((r) => r.detail).sort(cmp), ...list.filter((r) => !r.detail).sort(cmp)];
+  // 左(利用者側)へ: 自分より手前の段から、直前のノードと実際に連携しているものを 2 つまで(同じ段は 1 つ)
+  const left = [];
+  let end = me;
+  const leftCands = ordered(flowCands.filter((r) => tierOf(r.id) < myTier), (a, b) => tierOf(b.id) - tierOf(a.id));
+  // すぐ手前には、入口(API・ロードバランサー)やコンピューティングを優先する(典型的なリクエストの経路になりやすい)
+  const CORE = ["lambda", "ec2", "ecs", "apigw", "alb", "fargate", "eks"];
+  const near = leftCands.find((r) => CORE.includes(r.id)) || leftCands.find((r) => tierOf(r.id) >= 3 && tierOf(r.id) <= 4.5) || leftCands[0];
+  if (near) {
+    left.push(near.id);
+    end = near.id;
+  }
+  // さらに手前へ: 直前のノードの連携先から、入口になるサービスを 1 つ(API Gateway・ALB・CloudFront・Route 53 を優先)
+  const ENTRY = ["apigw", "alb", "nlb", "cloudfront", "route53", "appsync"];
+  if (near) {
+    const ext = ordered(relsOf(end).filter((r) => svcById.has(r.id) && !isAddon(r.id) && r.id !== me && tierOf(r.id) < tierOf(end)), (a, b) => (ENTRY.includes(b.id) ? 1 : 0) - (ENTRY.includes(a.id) ? 1 : 0) || tierOf(b.id) - tierOf(a.id));
+    const pick = ext.find((r) => ENTRY.includes(r.id)) || (tierOf(end) > 4.5 ? ext[0] : null);
+    if (pick) {
+      left.unshift(pick.id);
+      end = pick.id;
+    }
+  }
+  // 右(奥)へ: 自分より奥の段から、合計 5 ノードに収まるまで
+  const right = [];
+  end = me;
+  const room = () => 5 - left.length - 1 - right.length - (left.length && tierOf(left[0]) <= 3 ? 1 : 0);
+  ordered(flowCands.filter((r) => tierOf(r.id) >= myTier + 0.75), (a, b) => tierOf(a.id) - tierOf(b.id)).forEach((r) => {
+    if (room() > 0 && right.length < 3 && tierOf(r.id) > tierOf(end) && related(end, r.id)) {
+      right.push(r.id);
+      end = r.id;
+    }
   });
-  // 連携の向きはサービスの組み合わせで異なるため、中心 → 連携先 → 中心と往復するパケットで「つながり」を示す
-  const edges = nb.map((r) => ({ from: svc.id, to: r.id, label: "" }));
-  const steps = [{ type: "process", source: svc.id, target: null, label: svc.name, narration: svc.summary, dur: 1400 }];
-  nb.forEach((r) => {
-    steps.push({ type: "request", source: svc.id, via: [r.id], target: svc.id, label: r.label, narration: r.detail?.how || r.label, dur: 2200, focus: r.id });
+  let chain = [...left, me, ...right];
+  // 入口のサービスなら、先頭に利用者を置く
+  if (tierOf(chain[0]) <= 3 && tierOf(chain[0]) >= 1 && chain.length < 5) chain.unshift("user");
+  // 流れが短すぎるときは、詳細のある連携先を奥に足す
+  if (chain.filter((x) => x !== "user").length < 2) {
+    const extra = ordered(flowCands.filter((r) => !chain.includes(r.id)), (a, b) => tierOf(a.id) - tierOf(b.id)).slice(0, 2).map((r) => r.id);
+    chain = [...chain, ...extra];
+  }
+  const addons = addonCands.filter((r) => !chain.includes(r.id)).sort((a, b) => (b.detail?.need ? 1 : 0) - (a.detail?.need ? 1 : 0)).slice(0, 3).map((r) => r.id);
+  const relOf = (id) => rels.find((r) => r.id === id);
+  // 配置: 流れは横一列、追加する機能はサービスの下
+  const N = chain.length;
+  const xs = chain.map((_, i) => (N === 1 ? 50 : 4 + (i / (N - 1)) * 92));
+  const nodes = chain.map((id, i) => ({ id, label: nm(id, metaOf), svc: id, x: xs[i], y: addons.length ? 26 : 50 }));
+  const meX = xs[chain.indexOf(me)];
+  const edges = [], steps = [];
+  steps.push({ type: "process", source: me, target: null, label: `${svc.name} の役割`, narration: svc.summary || svc.purpose || "", dur: 1400 });
+  // 流れを左から右へ。各区間で、必要な設定を足してからパケットを通す
+  for (let i = 0; i < N - 1; i++) {
+    const a = chain[i], b = chain[i + 1];
+    const det = a === "user" ? null : linkDetail(a, b);
+    const r = a === me ? relOf(b) : b === me ? relOf(a) : null;
+    const set = settingsIn(det?.need);
+    if (set.length) {
+            // ロール・権限は呼び出す側(コンピューティング)に付けることが多い
+      const host = set.some((x) => /ロール/.test(x)) && tierOf(a) >= 4 && tierOf(a) <= 4.5 ? a : b;
+      steps.push({ type: "setup", source: host, target: null, chipOn: host, label: `${nm(host, metaOf)} に ${set.join("・")} を追加`, narration: det.need, chips: set, dur: 1200 });
+    }
+    edges.push({ from: a, to: b, label: "" });
+    const rl = (r?.label || relsOf(a).find((x) => x.id === b)?.label || "").replace(/\(P\d+\)$/, "");
+    const label = a === "user" ? `${nm(b, metaOf)} へアクセス` : `${nm(a, metaOf)} → ${nm(b, metaOf)}`;
+    steps.push({ type: "request", source: a, target: b, label: label.length > 24 ? label.slice(0, 23) + "…" : label, narration: (rl && a !== "user" ? `【${rl}】` : "") + (det?.how || (a === "user" ? `利用者のリクエストは最初に ${nm(b, metaOf)} に届きます。` : `${nm(a, metaOf)} から ${nm(b, metaOf)} へ処理が進みます。`)), dur: 1600 });
+  }
+  // あとから足す機能(IAM・KMS・監視など)
+  addons.forEach((id, k) => {
+    const det = linkDetail(me, id);
+    const r = relOf(id);
+    const x = Math.max(6, Math.min(94, meX + (k - (addons.length - 1) / 2) * 26));
+    const appear = steps.length;
+    nodes.push({ id, label: nm(id, metaOf), svc: id, x, y: 74, appear, addon: true });
+    edges.push({ from: id, to: me, label: "", appear, dashed: true });
+    const set = settingsIn(det?.need);
+    steps.push({ type: "addon", source: id, target: me, label: `＋ ${nm(id, metaOf)} を追加`, narration: [det?.how || r?.label || "", det?.need ? `必要な設定：${det.need}` : ""].filter(Boolean).join(" "), chips: set.length ? set : undefined, dur: 1500 });
   });
-  return { id: "svc-" + svc.id, title: `${svc.name} の連携`, nodes, edges, steps, curved: false, undirected: true };
+  const route = chain.map((id) => nm(id, metaOf)).join(" → ");
+  steps.push({ type: "request", source: chain[0], via: chain.slice(1, -1), target: chain[N - 1], label: "通しで流す", dur: 2600, narration: `${route} の順に処理が流れます。${addons.length ? `${addons.map((id) => nm(id, metaOf)).join("・")} は、${svc.name} に機能として追加して使います。` : ""}`, dur: 1400 });
+  return { id: "svc-" + me, title: `${svc.name} の連携`, nodes, edges, steps, curved: false, nodeWidth: N >= 5 ? 116 : N === 4 ? 128 : 138 };
+}
+
+/** IAM・KMS・監視などの「機能として足す」サービス: 使う側のサービスを並べ、順にこのサービスを追加していく */
+function addonScene(svc, rels, metaOf) {
+  const me = svc.id;
+  const users = [...rels.filter((r) => r.detail && svcById.has(r.id)), ...rels.filter((r) => !r.detail && svcById.has(r.id))].filter((r) => r.id !== me).slice(0, 4);
+  const N = users.length;
+  const nodes = [{ id: me, label: svc.name, svc: me, x: 50, y: 74 }];
+  const edges = [], steps = [];
+  steps.push({ type: "process", source: me, target: null, label: `${svc.name} の役割`, narration: svc.summary || svc.purpose || "", dur: 1400 });
+  users.forEach((r, i) => {
+    const appear = steps.length;
+    nodes.push({ id: r.id, label: nm(r.id, metaOf), svc: r.id, x: N === 1 ? 50 : 8 + (i / (N - 1)) * 84, y: 26, appear });
+    edges.push({ from: me, to: r.id, label: "", appear, dashed: true });
+    const det = r.detail;
+    const set = settingsIn(det?.need);
+    steps.push({ type: "addon", source: me, target: r.id, label: `${nm(r.id, metaOf)} に ${svc.name} を追加`, narration: [`【${r.label.replace(/\(P\d+\)$/, "")}】`, det?.how || "", det?.need ? `必要な設定：${det.need}` : ""].filter(Boolean).join(" "), chips: set.length ? set : undefined, dur: 1500 });
+  });
+  steps.push({ type: "process", source: me, target: null, label: "まとめ", narration: `${svc.name} は単独で動くのではなく、${users.map((r) => nm(r.id, metaOf)).join("・")} などのサービスに機能として追加して使います。`, dur: 1400 });
+  return { id: "svc-" + me, title: `${svc.name} の連携`, nodes, edges, steps, curved: false, nodeWidth: N >= 4 ? 128 : 138 };
 }
 
 /** 構築問題の模範解答から教材を作る */

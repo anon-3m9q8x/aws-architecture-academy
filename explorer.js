@@ -474,7 +474,7 @@ function openDetail(s) {
     if (!player) player = new FlowPlayer(stage, { meta: metaOf, onNode: (id) => id !== s.id && byId.has(id) && (location.hash = `services/${id}`) });
     player.load(a.scene(), { autoplay: auto });
     animNote.textContent = a.key === "auto"
-      ? "中央のサービスから連携先へ順にパケットが流れます。ノードをタップするとそのサービスの解説へ移動します。"
+      ? "利用者側から奥へ、連携を一連の流れとして再生します。つなぐ前に必要な設定は「＋」のチップで、IAM・KMS・監視などはあとから追加する機能として登場します。ノードをタップするとそのサービスの解説へ移動します。"
       : a.pb ? `構築問題「${a.pb.title}」の模範解答の動きです。`
       : a.pattern ? `SAP 設計パターン ${a.pattern.id}: ${a.pattern.why}` : (a.scene().rule || "");
   }
