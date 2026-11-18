@@ -177,3 +177,10 @@
 .auto-report-next{font-size:.84rem;line-height:1.7;padding-top:6px;border-top:1px dashed var(--aaa-border)}
 .auto-report-next ol{margin:4px 0 0;padding-left:1.4em}
 .plan-old-note{margin:0;font-size:.78rem;color:var(--aaa-muted)}
+/* 一日の目標を達成したあとの追加の目標 */
+.plan-bonus{display:grid;gap:8px;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb,#d97706 50%,var(--aaa-border));background:color-mix(in srgb,#f59e0b 9%,transparent)}
+.plan-bonus-h{margin:0;font-weight:800;font-size:.92rem}
+.plan-bonus .plan-task-bar i{background:#d97706}
+.plan-bonus-note{color:var(--aaa-muted);font-size:.76rem}
+.plan-home-bonus{font-weight:700;font-size:.86rem;color:#b45309;text-decoration:none}
+.plan-home-bonus:hover{text-decoration:underline}

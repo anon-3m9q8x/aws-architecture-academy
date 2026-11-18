@@ -6,7 +6,7 @@
 import { store } from "./storage.js";
 import { questions } from "./data/questions.js";
 import { EXAMS, examByCode } from "./data/exams.js";
-import { reviewCard, recordList } from "./review.js?v=20261118b";
+import { reviewCard, recordList, reviewSet, reviewProgress, startReview } from "./review.js?v=20261118b";
 import { studyMinutes, dailyReport } from "./report.js?v=20261118g";
 import { goalCodes, goalDate, haveCodes, setGoal, openGoalDialog, MAX_GOALS } from "./goal.js?v=20261117c";
 
@@ -95,9 +95,10 @@ function analyze(code) {
   const seen = new Set(), wrongBefore = new Set();
   for (const a of atts) {
     const d = ymd(new Date(a.at));
-    const s = days.get(d) || days.set(d, { total: 0, correct: 0, newByDom: {}, review: 0, newTotal: 0 }).get(d);
+    const s = days.get(d) || days.set(d, { total: 0, correct: 0, newByDom: {}, totalByDom: {}, review: 0, newTotal: 0 }).get(d);
     const dom = qById.get(a.id).exams[code][0];
     s.total++;
+    s.totalByDom[dom] = (s.totalByDom[dom] || 0) + 1;
     if (a.correct) s.correct++;
     if (!seen.has(a.id)) {
       s.newByDom[dom] = (s.newByDom[dom] || 0) + 1;
@@ -230,7 +231,7 @@ function makePlan({ code, min, rest, end, from }) {
 }
 
 /* ---------- 日ごとの達成度 ---------- */
-const dayStat = (st, d) => st.days.get(d) || { total: 0, correct: 0, newByDom: {}, review: 0, newTotal: 0 };
+const dayStat = (st, d) => st.days.get(d) || { total: 0, correct: 0, newByDom: {}, totalByDom: {}, review: 0, newTotal: 0 };
 function taskDone(t, s, log) {
   if (t.k === "new") return s.newByDom[t.dom] || 0;
   if (t.k === "review") return s.review;
@@ -306,6 +307,111 @@ function startTask(t, st, left) {
   window.dispatchEvent(new CustomEvent("practice-preset", { detail: { ids, label: `学習計画：${taskLabel(t, st.ex)}` } }));
   $("quiz-start")?.click();
   location.hash = "practice";
+}
+
+
+/* ---------- 一日の目標を達成したあとの「追加の目標」 ----------
+ * 今日の計画をすべて達成したら、追加の目標を作る(plan.log[今日].bonus に段階ごとに保存)。
+ * 候補: ①前日の復習の残り ②正答率の低い分野の強化 ③明日の新しい問題の先取り。
+ * 追加の目標をすべて達成したら、次の段階の目標を作る(1 日 5 段階まで)。進み具合は作成した時点からの回答数で数える。
+ */
+const BONUS_MAX = 5;
+function bonusCount(b, s) {
+  if (b.k === "prev") {
+    const set = reviewSet();
+    return set ? reviewProgress(set).done : 0;
+  }
+  if (b.k === "weak") return s.totalByDom[b.dom] || 0;
+  if (b.k === "ahead") return s.newByDom[b.dom] || 0;
+  return 0;
+}
+const bonusDone = (b, s) => Math.max(0, bonusCount(b, s) - b.base);
+function makeBonus(st, stage) {
+  const t = today(), s = dayStat(st, t);
+  const n = Math.max(5, Math.round((plan.q || capOf(st.ex, plan.min)) * 0.3));
+  const out = [];
+  const used = new Set((plan.log[t]?.bonus || []).flat().map((b) => b.k + b.dom));
+  // ①前日の復習が残っていれば最優先
+  const set = reviewSet();
+  if (set && !used.has("prevundefined")) {
+    const p = reviewProgress(set);
+    if (p.done < p.total) out.push({ k: "prev", n: p.total - p.done, base: p.done });
+  }
+  // ②正答率の低い分野(まだ追加の目標にしていないもの)
+  // (3 問以上解いて正答率が 8 割未満の分野だけを「苦手」とみなす)
+  const weak = [...st.doms].filter((d) => d.answered >= 3 && d.acc < 0.8 && !used.has("weak" + d.i)).sort((a, b) => a.acc - b.acc || b.w - a.w)[0];
+  if (weak) out.push({ k: "weak", dom: weak.i, n, base: s.totalByDom[weak.i] || 0 });
+  // ③明日以降の新しい問題を先取り(未回答が残る分野)
+  const next = plan.days.find((d) => d.d > t && d.tasks.some((k) => k.k === "new"));
+  const dom = next?.tasks.find((k) => k.k === "new")?.dom || [...st.doms].sort((a, b) => b.w - a.w).find((d) => d.unseen.length)?.i;
+  if (dom && st.doms[dom - 1]?.unseen.length && out.length < 3) out.push({ k: "ahead", dom, n: Math.min(n, st.doms[dom - 1].unseen.length), base: s.newByDom[dom] || 0 });
+  // 候補が尽きたら、全分野の総合演習
+  if (!out.length) out.push({ k: "weak", dom: [...st.doms].sort((a, b) => (a.acc ?? 0) - (b.acc ?? 0))[0].i, n, base: 0, mix: true });
+  return out.slice(0, 2 + (stage === 0 ? 1 : 0));
+}
+function ensureBonus(st) {
+  const t = today(), s = dayStat(st, t);
+  const log = (plan.log[t] ||= {});
+  log.bonus ||= [];
+  const cur = log.bonus.at(-1);
+  if ((!cur || cur.every((b) => bonusDone(b, s) >= b.n)) && log.bonus.length < BONUS_MAX) {
+    log.bonus.push(makeBonus(st, log.bonus.length));
+    save();
+  }
+  return log.bonus;
+}
+function bonusLabel(b, ex) {
+  if (b.k === "prev") return "前日の復習を最後まで解く";
+  if (b.k === "weak") return `${b.mix ? "総合演習" : "苦手の強化"}：分野${b.dom}「${ex.domains[b.dom - 1]?.[0] || ""}」${b.mix ? "" : `（正答率を上げる）`}`;
+  if (b.k === "ahead") return `明日の先取り：分野${b.dom}「${ex.domains[b.dom - 1]?.[0] || ""}」の新しい問題`;
+  return "";
+}
+function startBonus(b, st, left) {
+  if (b.k === "prev") return startReview();
+  const d = st.doms[b.dom - 1];
+  let ids;
+  if (b.k === "ahead") ids = shuffle([...d.unseen]);
+  else {
+    // 苦手の強化: 直近不正解 → 未回答 → それ以外 の順
+    const score = (id) => (st.latest.has(id) && !st.latest.get(id).correct ? 3 : !st.latest.has(id) ? 2 : 0) + Math.random();
+    ids = [...d.ids].sort((a, c) => score(c) - score(a));
+  }
+  ids = ids.slice(0, Math.max(1, left));
+  if (!ids.length) return;
+  window.dispatchEvent(new CustomEvent("practice-preset", { detail: { ids, label: `追加の目標：${bonusLabel(b, st.ex)}` } }));
+  $("quiz-start")?.click();
+  location.hash = "practice";
+}
+function bonusPanel(st) {
+  const t = today(), s = dayStat(st, t);
+  const stages = ensureBonus(st);
+  const box = el("div", "plan-bonus");
+  const cur = stages.at(-1);
+  const allDone = cur.every((b) => bonusDone(b, s) >= b.n);
+  box.append(el("p", "plan-bonus-h", allDone && stages.length >= BONUS_MAX ? `🏆 追加の目標も ${stages.length} 段階すべて達成！今日はここまでで十分です。` : `🎉 今日の目標を達成！ 追加の目標（${stages.length} 段階目）`));
+  const ul = el("ul", "plan-tasks");
+  cur.forEach((b) => {
+    const done = Math.min(b.n, bonusDone(b, s));
+    const li = el("li", "plan-task k-bonus");
+    const info = el("div", "plan-task-i");
+    info.append(el("b", "", bonusLabel(b, st.ex)));
+    const bar = el("span", "plan-task-bar");
+    const fill = el("i");
+    fill.style.width = Math.round((done / b.n) * 100) + "%";
+    bar.append(fill);
+    info.append(bar, el("small", "", `${done} / ${b.n} 問${done >= b.n ? " ✓ 達成" : ""}`));
+    li.append(info);
+    if (done < b.n) {
+      const go = el("button", "button primary plan-go", "挑戦する");
+      go.type = "button";
+      go.addEventListener("click", () => startBonus(b, st, b.n - done));
+      li.append(go);
+    }
+    ul.append(li);
+  });
+  box.append(ul);
+  if (stages.length > 1) box.append(el("small", "plan-bonus-note", `これまでに追加の目標を ${stages.length - (allDone ? 0 : 1)} 段階達成しています。`));
+  return box;
 }
 
 /* ---------- 合格ラインへの到達度 ---------- */
@@ -537,6 +643,8 @@ function dayPanel(st) {
     list.append(li);
   });
   wrap.append(list);
+  // 今日の計画をすべて達成したら、追加の目標を出す
+  if (isToday && day.ph >= 1 && day.ph <= 4 && (dayRate(day, st) ?? 0) >= 1) wrap.append(bonusPanel(st));
   // 記録
   if (!future) {
     const rec = el("div", "plan-record");
@@ -721,6 +829,14 @@ function renderHome() {
     list.append(a);
   });
   box.append(list);
+  if ((dayRate(day, st) ?? 0) >= 1 && day.ph >= 1 && day.ph <= 4) {
+    const stages = ensureBonus(st);
+    const cur = stages.at(-1);
+    const left = cur.filter((b) => bonusDone(b, s) < b.n).length;
+    const a = el("a", "plan-home-bonus", left ? `🎉 今日の目標は達成！ 追加の目標（${stages.length} 段階目）があと ${left} つ →` : `🏆 追加の目標も達成しました`);
+    a.href = "#plan";
+    box.append(a);
+  }
 }
 
 let dirty = false;
