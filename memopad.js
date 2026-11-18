@@ -340,15 +340,20 @@ function openPanel() {
   paintStatus();
   ped.focus();
 }
-function closePanel() {
+function closePanel(keepFocus) {
   if (timer) persist();
   panel.hidden = true;
   fab.setAttribute("aria-expanded", "false");
   document.body.classList.remove("memo-open");
-  fab.focus({ preventScroll: true });
+  if (!keepFocus) fab.focus({ preventScroll: true });
 }
+// メモ以外の場所を触ったら閉じる(書きかけの内容は保存してから閉じる。触った先の操作やフォーカスはそのまま生かす)
+document.addEventListener("pointerdown", (e) => {
+  if (panel.hidden || panel.contains(e.target) || fab.contains(e.target)) return;
+  closePanel(true);
+}, true);
 fab.addEventListener("click", () => (panel.hidden ? openPanel() : closePanel()));
-panel.querySelector(".mp-x").addEventListener("click", closePanel);
+panel.querySelector(".mp-x").addEventListener("click", () => closePanel());
 panel.querySelector(".mp-pnew").addEventListener("click", () => {
   panelId = null;
   drawPick();
