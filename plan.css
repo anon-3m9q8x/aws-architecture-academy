@@ -83,11 +83,12 @@
 .plan-cell small{font-size:.66rem;line-height:1.1}
 .plan-cell.out{visibility:hidden}
 .plan-cell.future{border-style:dashed;border-color:color-mix(in srgb,var(--ph) 45%,var(--aaa-border));color:var(--aaa-muted)}
-.lv0,.plan-cell.lv0{background:var(--aaa-bg)}
+.plan-cell.lv0{background:var(--aaa-bg)}
+.plan-legend .lv0{background:var(--aaa-bg)}
 .plan-cell.miss{border-color:color-mix(in srgb,#dc2626 45%,var(--aaa-border))}
-.lv1{background:#bbf7d0}.lv2{background:#4ade80}.lv3{background:#15803d}
+.plan-legend .lv1{background:#dcfce7}.plan-legend .lv2{background:#86efac}.plan-legend .lv3{background:#16a34a}
 .plan-cell.lv1{background:#dcfce7}.plan-cell.lv2{background:#86efac}.plan-cell.lv3{background:#16a34a;color:#fff}
-.rest,.plan-cell.rest{background:color-mix(in srgb,var(--aaa-muted) 18%,transparent)}
+.plan-legend .rest,.plan-cell.rest{background:color-mix(in srgb,var(--aaa-muted) 18%,transparent)}
 .plan-cell.exam{background:color-mix(in srgb,#dc2626 16%,transparent);border-color:#dc2626}
 .plan-legend .lv0{border:1px solid var(--aaa-border)}
 .plan-cell.today{outline:2px solid var(--aaa-orange);outline-offset:1px}
@@ -158,3 +159,7 @@
 .pause-button{font-weight:700}
 /* Enter で次の問題へ移ったときに、問題文へ移したフォーカスの枠を出さない(フォーカス自体は読み上げのために残す) */
 #quiz-prompt:focus,#quiz-prompt:focus-visible{outline:none !important;box-shadow:none !important}
+/* 資格問題演習の難易度の表示(淡い色で、文字が読めるように) */
+.diff-pill.lv1{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+.diff-pill.lv2{background:#fffbeb;border-color:#fde68a;color:#92400e}
+.diff-pill.lv3{background:#ecfdf5;border-color:#a7f3d0;color:#065f46}
