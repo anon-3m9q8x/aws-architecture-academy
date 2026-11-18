@@ -1,82 +1,73 @@
-// 選択肢の「選んだらまずい度」評価。資格問題演習で回答したあと、不正解の選択肢を 3 段階で自分で評価する。
-// 惜しい（条件次第で成り立つ）／不適切（要件を満たさない・過剰）／危険（セキュリティ・データ損失・可用性を損なう）
-// 保存キー aaa.choiceRate.v1 = { 問題ID: { 選択肢番号: 1〜3 } }。学習データとしてアカウントに同期する。
-import { store } from "./storage.js";
-const KEY = "aaa.choiceRate.v1";
+// 選択肢の「選んだらまずい度」。資格問題演習の不正解の選択肢すべてに、あらかじめ 3 段階の評価と理由を設定している。
+// データ: data/badness/<試験コード>.json = { 問題ID: { 選択肢番号: [段階 1〜3, 理由] } }(試験ごとに必要なときだけ読み込む)
+//   1 惜しい … 方向性は合っていて要件の一部は満たす・条件次第で成り立つ
+//   2 不適切 … 要件を満たさない・目的違い・過剰
+//   3 危険   … 採用するとセキュリティ事故・データ損失・障害・法令違反などを招く
 export const LEVELS = [
-  [1, "惜しい", "条件次第では成り立つ・要件の一部は満たす"],
-  [2, "不適切", "要件を満たさない・コストや運用負荷が過大"],
-  [3, "危険", "セキュリティ・データ損失・可用性を損なう"],
+  [3, "危険", "採用するとセキュリティ事故・データ損失・障害・法令違反などを招く"],
+  [2, "不適切", "要件を満たさない・目的違い・過剰"],
+  [1, "惜しい", "方向性は合っていて、条件次第では成り立つ"],
 ];
 const ICON = { 1: "△", 2: "✕", 3: "☠" };
-let data = store.get(KEY, {});
-if (!data || typeof data !== "object" || Array.isArray(data)) data = {};
+const NAME = { 1: "惜しい", 2: "不適切", 3: "危険" };
+const cache = new Map(); // 試験コード → Promise<データ>
+const codeOf = (qid) => qid.split("-").slice(0, 2).join("-");
+function load(qid) {
+  const code = codeOf(qid);
+  if (!/^[A-Z]{3}-C\d\d$/.test(code)) return Promise.resolve({});
+  if (!cache.has(code)) cache.set(code, fetch(`data/badness/${code}.json?v=20261118`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})));
+  return cache.get(code);
+}
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
   if (text !== undefined) n.textContent = text;
   return n;
 };
-export const rateOf = (qid, i) => data[qid]?.[i] || 0;
-export function setRate(qid, i, lv) {
-  const m = { ...(data[qid] || {}) };
-  if (lv) m[i] = lv;
-  else delete m[i];
-  if (Object.keys(m).length) data[qid] = m;
-  else delete data[qid];
-  store.set(KEY, data);
-}
-export const levelName = (lv) => LEVELS.find((l) => l[0] === lv)?.[1] || "";
-export const badge = (lv) => el("span", `cr-badge cr-${lv}`, `${ICON[lv]} ${levelName(lv)}`);
+export const badge = (lv) => el("span", `cr-badge cr-${lv}`, `${ICON[lv]} ${NAME[lv]}`);
 
-/** 選択肢ごとの評価ボタン（不正解の選択肢に付ける）。onChange で要約を更新する */
-export function rateWidget(q, i, onChange) {
-  const box = el("div", "cr-widget");
-  box.setAttribute("role", "radiogroup");
-  box.setAttribute("aria-label", `選択肢 ${i + 1} を選んだらまずい度`);
-  box.append(el("span", "cr-q", "選んだらまずい度"));
-  const draw = () => {
-    const cur = rateOf(q.id, i);
-    box.querySelectorAll("button").forEach((b) => {
-      const on = Number(b.dataset.lv) === cur;
-      b.classList.toggle("on", on);
-      b.setAttribute("aria-checked", String(on));
-    });
-    box.dataset.lv = cur;
-  };
-  LEVELS.forEach(([lv, name, hint]) => {
-    const b = el("button", `cr-btn cr-${lv}`, `${ICON[lv]} ${name}`);
-    b.type = "button";
-    b.dataset.lv = lv;
-    b.title = hint;
-    b.setAttribute("role", "radio");
-    b.addEventListener("click", () => {
-      setRate(q.id, i, rateOf(q.id, i) === lv ? 0 : lv); // 同じものをもう一度押すと解除
-      draw();
-      onChange?.();
-    });
-    box.append(b);
+/** 不正解の選択肢に付ける「選んだらまずい度」(読み込み後に中身が入る) */
+export function rateTag(q, i) {
+  const box = el("div", "cr-tag");
+  box.hidden = true;
+  load(q.id).then((d) => {
+    const v = d[q.id]?.[i];
+    if (!v) return;
+    const [lv, why] = v;
+    box.append(el("span", "cr-q", "選んだらまずい度"), badge(lv), el("span", "cr-why", why || ""));
+    box.dataset.lv = lv;
+    box.hidden = false;
   });
-  draw();
   return box;
 }
-/** 評価の要約（この問題の不正解の選択肢をどう評価したか） */
+/** 選択肢一覧の上の要約 */
 export function rateSummary(q) {
-  const wrong = q.choices.map((c, i) => (c.correct ? null : i)).filter((i) => i !== null);
-  const done = wrong.filter((i) => rateOf(q.id, i));
   const p = el("p", "cr-summary");
-  if (!done.length) {
-    p.append(el("b", "", "選択肢の評価"), document.createTextNode(` 不正解の選択肢を「${LEVELS.map((l) => ICON[l[0]] + l[1]).join(" / ")}」で評価して、選んだらどれだけまずいかを整理しましょう（評価は保存され、次に解いたときにも表示されます）。`));
-    return p;
-  }
-  p.append(el("b", "", `選択肢の評価 ${done.length} / ${wrong.length}`));
-  LEVELS.forEach(([lv]) => {
-    const n = done.filter((i) => rateOf(q.id, i) === lv).length;
-    if (n) p.append(document.createTextNode(" "), badge(lv), document.createTextNode(` ${n}`));
+  p.hidden = true;
+  load(q.id).then((d) => {
+    const m = d[q.id];
+    if (!m) return;
+    p.append(el("b", "", "選んだらまずい度"));
+    [3, 2, 1].forEach((lv) => {
+      const n = Object.values(m).filter((v) => v[0] === lv).length;
+      if (n) p.append(document.createTextNode(" "), badge(lv), document.createTextNode(` ${n}`));
+    });
+    p.append(el("small", "", "　危険 ＞ 不適切 ＞ 惜しい の順に、本番で選ぶと困る選択肢です。"));
+    p.hidden = false;
   });
   return p;
 }
-/** 選んだ選択肢のうち、以前「危険」「不適切」と評価していたもの */
-export function chosenRisk(q, sel) {
-  return [...sel].filter((i) => !q.choices[i]?.correct && rateOf(q.id, i) >= 2).map((i) => [i, rateOf(q.id, i)]);
+/** 選んだ不正解の選択肢が「危険」「不適切」だったときの注意(結果の見出しに表示) */
+export function chosenAlert(q, sel, letters) {
+  const p = el("p", "cr-alert");
+  p.hidden = true;
+  load(q.id).then((d) => {
+    const m = d[q.id] || {};
+    const bad = [...sel].filter((i) => !q.choices[i]?.correct && m[i]?.[0] >= 2).map((i) => [i, m[i][0]]);
+    if (!bad.length) return;
+    const worst = Math.max(...bad.map((b) => b[1]));
+    p.append(document.createTextNode(`⚠ 選んだ選択肢 ${bad.map(([i]) => letters[i]).join("・")} は `), ...bad.map(([, lv]) => badge(lv)), document.createTextNode(worst === 3 ? " です。本番の設計で採用すると事故につながる判断なので、理由を必ず確認しましょう。" : " です。要件とのずれを解説で確認しましょう。"));
+    p.hidden = false;
+  });
+  return p;
 }

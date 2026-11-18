@@ -138,16 +138,23 @@
 .record-qs small{color:var(--aaa-muted);font-size:.72rem;white-space:nowrap}
 .plan-home .review-card{margin:0}
 
-/* 選択肢の「選んだらまずい度」評価（資格問題演習の解説） */
-.cr-widget{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 2px}
-.cr-q{font-size:.74rem;font-weight:700;color:var(--aaa-muted);margin-right:2px}
-.cr-btn{border:1px solid var(--aaa-border);background:var(--aaa-panel);color:var(--aaa-text);border-radius:999px;padding:3px 11px;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
-.cr-btn:hover{background:var(--aaa-panel-hover)}
-.cr-btn.cr-1.on,.cr-badge.cr-1{background:#fef3c7;border-color:#d97706;color:#92400e}
-.cr-btn.cr-2.on,.cr-badge.cr-2{background:#ffedd5;border-color:#ea580c;color:#9a3412}
-.cr-btn.cr-3.on,.cr-badge.cr-3{background:#fee2e2;border-color:#dc2626;color:#991b1b}
-.cr-btn:focus-visible{outline:2px solid var(--aaa-blue);outline-offset:1px}
-.cr-badge{display:inline-block;border:1px solid;border-radius:999px;padding:0 8px;font-size:.74rem;font-weight:800;line-height:1.6}
+/* 選択肢の「選んだらまずい度」(あらかじめ設定した評価) */
+.cr-tag{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 2px;font-size:.8rem;line-height:1.6}
+.cr-q{font-size:.72rem;font-weight:700;color:var(--aaa-muted)}
+.cr-why{color:var(--aaa-text)}
+.cr-badge{display:inline-block;border:1px solid;border-radius:999px;padding:0 9px;font-size:.74rem;font-weight:800;line-height:1.7}
+.cr-badge.cr-1{background:#fef3c7;border-color:#d97706;color:#92400e}
+.cr-badge.cr-2{background:#ffedd5;border-color:#ea580c;color:#9a3412}
+.cr-badge.cr-3{background:#fee2e2;border-color:#dc2626;color:#991b1b}
+.cr-tag[data-lv="3"]{padding:6px 10px;border-radius:9px;background:color-mix(in srgb,#dc2626 7%,transparent)}
 .cr-summary{margin:0 0 8px;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--aaa-blue) 7%,transparent);font-size:.82rem;line-height:1.8}
-.cr-summary b{margin-right:4px}
+.cr-summary b{margin-right:4px}.cr-summary small{color:var(--aaa-muted)}
 .cr-alert{margin:6px 0 0;font-size:.85rem;font-weight:700;color:#991b1b;line-height:1.8}
+
+/* 一時中断した演習 */
+.paused-card{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border-radius:12px;border:1px solid color-mix(in srgb,var(--aaa-blue) 50%,var(--aaa-border));background:color-mix(in srgb,var(--aaa-blue) 8%,transparent)}
+.paused-txt{flex:1;display:grid;gap:3px;min-width:220px;line-height:1.6}.paused-txt small{color:var(--aaa-muted);font-size:.78rem}
+.paused-card button{white-space:nowrap}
+.pause-button{font-weight:700}
+/* Enter で次の問題へ移ったときに、問題文へ移したフォーカスの枠を出さない(フォーカス自体は読み上げのために残す) */
+#quiz-prompt:focus,#quiz-prompt:focus-visible{outline:none !important;box-shadow:none !important}

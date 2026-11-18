@@ -4,7 +4,7 @@ import { serviceQuestions } from "./data/service-questions.js";
 import { byId as svcById } from "./services.js";
 import { findServices, servicesIn } from "./data/service-terms.js";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
-import { rateWidget, rateSummary, rateOf, badge, chosenRisk } from "./choice-rate.js";
+import { rateTag, rateSummary, chosenAlert } from "./choice-rate.js?v=20261118e";
 import { goalCodes, goalDate, haveCodes, daysLeft, focusOn, setFocus, openGoalDialog } from "./goal.js?v=20261117c";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
@@ -865,13 +865,8 @@ function feedback(q) {
         (s.correct ? "" : `　／　あなたの回答：${[...s.sel].sort().map((i) => LETTERS[i]).join("・")}`),
     ),
   );
-  // 以前「危険」「不適切」と評価した選択肢を選んでしまったとき
-  const risk = chosenRisk(q, s.sel);
-  if (risk.length) {
-    const w = el("p", "cr-alert");
-    w.append(document.createTextNode(`⚠ 選んだ選択肢 ${risk.map(([i]) => LETTERS[i]).join("・")} は、以前あなたが `), ...risk.map(([, lv]) => badge(lv)), document.createTextNode(" と評価していた選択肢です。なぜまずいのかを解説で確認しましょう。"));
-    head.append(w);
-  }
+  // 選んだ不正解の選択肢が「危険」「不適切」だったとき
+  if (!s.correct) head.append(chosenAlert(q, s.sel, LETTERS));
   box.append(head);
   // 論点・トピック
   if (q.concept) {
@@ -909,13 +904,7 @@ function feedback(q) {
     exp.append(linkify(q.explanation, el("p", "fb-explanation")));
   }
   exp.append(el("p", "eyebrow", q.choices.some((c) => c.explanation) ? "ALL CHOICES · 選択肢ごとの理由" : "CHOICES · 選択肢"));
-  let summary = rateSummary(q);
-  exp.append(summary);
-  const refresh = () => {
-    const n = rateSummary(q);
-    summary.replaceWith(n);
-    summary = n;
-  };
+  exp.append(rateSummary(q));
   q.choices.forEach((choice, i) => {
     const row = el("div", choice.correct ? "explanation is-correct" : s.sel.has(i) ? "explanation is-chosen" : "explanation");
     row.append(el("strong", "", `${LETTERS[i]} · ${choice.correct ? "正解" : "不正解"}${s.sel.has(i) ? " / あなたの回答" : ""}`));
@@ -926,7 +915,7 @@ function feedback(q) {
       else why.append(el("span", "why-label", "なぜ間違い"), linkify(choice.explanation, el("span", "why-body")));
       row.append(why);
     }
-    if (!choice.correct) row.append(rateWidget(q, i, refresh)); // 理由を読んでから評価する
+    if (!choice.correct) row.append(rateTag(q, i));
     exp.append(row);
   });
   box.append(exp);
@@ -1075,6 +1064,7 @@ $("quiz-start").addEventListener("click", () => {
   candidates.sort((a, b) => Number(prevResults.has(a.id)) - Number(prevResults.has(b.id)));
   session = $("quiz-limit").value === "real" ? pickReal(candidates, realCount()) : candidates.slice(0, Number($("quiz-limit").value));
   if (!session.length) return;
+  sessionLabel = presetIds ? $("preset-label").textContent : [$("quiz-cert").selectedOptions[0]?.textContent.replace(/ · .*$/, ""), $("quiz-domain").value !== "all" ? $("quiz-domain").selectedOptions[0]?.textContent.replace(/ · .*$/, "") : ""].filter(Boolean).join(" / ");
   states = session.map(() => ({ sel: new Set(), submitted: false, correct: false, visited: false }));
   position = 0;
   maxVisited = -1;
@@ -1134,9 +1124,105 @@ function settings() {
   }
   updatePool();
 }
+/* ---------- 一時中断と再開 ---------- */
+// 途中の演習(出題順・選んだ選択肢・回答済み・現在位置)を aaa.practice.paused.v1 に保存する(アカウント同期)。
+// 「一時中断」のほか、演習中にページを閉じた・別のタブへ移ったときも自動で保存し、設定画面の「続きから」で再開できる。
+const PAUSE_KEY = "aaa.practice.paused.v1";
+let sessionLabel = "";
+function readPaused() {
+  const p = store.get(PAUSE_KEY, null);
+  if (!p || !Array.isArray(p.ids) || !Array.isArray(p.states) || p.ids.length !== p.states.length) return null;
+  if (!p.ids.every((id) => questionMap.has(id))) return null;
+  return p;
+}
+function savePaused() {
+  if (!session.length || finished) return false;
+  store.set(PAUSE_KEY, {
+    at: new Date().toISOString(),
+    label: sessionLabel,
+    ids: session.map((q) => q.id),
+    position,
+    maxVisited,
+    states: states.map((s) => ({ sel: [...s.sel], submitted: s.submitted, correct: s.correct, visited: s.visited })),
+  });
+  return true;
+}
+function clearPaused() {
+  if (store.get(PAUSE_KEY, null)) store.set(PAUSE_KEY, null);
+  renderPaused();
+}
+function resumePaused() {
+  const p = readPaused();
+  if (!p) return renderPaused();
+  session = p.ids.map((id) => questionMap.get(id));
+  states = p.states.map((s) => ({ sel: new Set(s.sel || []), submitted: !!s.submitted, correct: !!s.correct, visited: !!s.visited }));
+  position = Math.min(session.length - 1, Math.max(0, p.position || 0));
+  maxVisited = p.maxVisited ?? -1;
+  sessionLabel = p.label || "";
+  prevResults = new Map(latest());
+  sessionId++;
+  results = [];
+  finished = false;
+  lastJump = -1;
+  store.set(PAUSE_KEY, null);
+  $("practice-setup").hidden = true;
+  $("quiz-result").hidden = true;
+  $("quiz-workspace").hidden = false;
+  document.body.classList.add("in-quiz");
+  // 未回答の問題から再開する
+  if (states[position]?.submitted) {
+    const next = states.findIndex((s) => !s.submitted);
+    if (next >= 0) position = next;
+  }
+  render();
+  $("quiz-prompt").setAttribute("tabindex", "-1");
+  $("quiz-prompt").focus({ preventScroll: true });
+}
+function renderPaused() {
+  const box = $("paused-box");
+  if (!box) return;
+  box.replaceChildren();
+  const p = readPaused();
+  if (!p) return;
+  const done = p.states.filter((s) => s.submitted), ok = done.filter((s) => s.correct).length;
+  const d = new Date(p.at);
+  const card = el("div", "paused-card");
+  const txt = el("div", "paused-txt");
+  txt.append(
+    el("b", "", `⏸ 中断中の演習${p.label ? `：${p.label}` : ""}`),
+    el("small", "", `${p.ids.length} 問中 ${done.length} 問に回答（正解 ${ok}）・ ${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")} に中断`),
+  );
+  const go = el("button", "primary", "続きから解く");
+  go.type = "button";
+  go.addEventListener("click", resumePaused);
+  const drop = el("button", "", "破棄");
+  drop.type = "button";
+  drop.addEventListener("click", () => {
+    confirmBox("中断中の演習を破棄しますか？（回答済みの問題の記録は残ります）", "破棄する", "キャンセル").then((yes) => yes && clearPaused());
+  });
+  card.append(txt, go, drop);
+  box.append(card);
+}
+$("quiz-pause").addEventListener("click", () => {
+  if (!savePaused()) return;
+  settings();
+  renderPaused();
+  window.dispatchEvent(new CustomEvent("toast", { detail: "演習を一時中断しました。「続きから解く」で再開できます" }));
+});
+// ページを閉じる・別のタブへ移るときは自動で保存
+const autoPause = () => session.length && !finished && !$("quiz-workspace").hidden && savePaused();
+window.addEventListener("pagehide", autoPause);
+document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && autoPause());
+window.addEventListener("route-change", (e) => {
+  if (e.detail?.page === "practice") renderPaused();
+});
+renderPaused();
 $("quiz-exit").addEventListener("click", () => {
   const answered = states.filter((s) => s.submitted).length;
+  // 「終了」は中断の保存をしない(自動保存された分も消す)
+  if (store.get(PAUSE_KEY, null)) store.set(PAUSE_KEY, null);
   settings();
+  renderPaused();
   if (answered) window.dispatchEvent(new CustomEvent("toast", { detail: `回答した${answered}問は記録済みです` }));
 });
 $("quiz-prev").addEventListener("click", () => goTo(position - 1));
@@ -1171,6 +1257,7 @@ $("quiz-next").addEventListener("click", () => {
 });
 function showResult() {
   finished = true;
+  if (store.get(PAUSE_KEY, null)) store.set(PAUSE_KEY, null);
   $("quiz-workspace").hidden = true;
   document.body.classList.remove("in-quiz");
   const box = $("quiz-result");

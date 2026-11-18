@@ -33,7 +33,7 @@
     <link rel="stylesheet" href="command-lab.css" />
     <link rel="stylesheet" href="memopad.css?v=20261117a" />
     <link rel="stylesheet" href="goal.css?v=20261117c" />
-    <link rel="stylesheet" href="plan.css?v=20261118c" />
+    <link rel="stylesheet" href="plan.css?v=20261118e" />
   </head>
   <body>
     <div id="siteShell">
@@ -254,6 +254,7 @@
               <span class="pill" id="practice-type-pill"></span>
             </div>
             <div id="goal-bar" class="goal-bar"></div>
+            <div id="paused-box"></div>
             <div id="review-box"></div>
             <div class="kind-switch" id="quiz-kind" role="group" aria-label="演習の種類">
               <button type="button" data-kind="exam" aria-pressed="true"><b>資格試験の問題</b><small></small></button>
@@ -314,7 +315,8 @@
                 <span id="quiz-position"></span>
                 <span id="quiz-tally" class="quiz-tally" aria-live="polite"></span>
                 <button id="quiz-miss" class="warn-button" type="button" hidden>⚠ 未回答 <b>0</b>問へ</button>
-                <button id="quiz-exit" type="button">中断して設定に戻る</button>
+                <button id="quiz-pause" type="button" class="pause-button" title="途中の状態を保存して設定画面に戻ります。設定画面の「続きから」で再開できます。">⏸ 一時中断</button>
+                <button id="quiz-exit" type="button" title="この演習を終了します（回答済みの問題は記録されます）">終了</button>
               </div>
               <div id="quiz-map" class="quiz-map" aria-label="問題マップ（押すとその問題へ移動）"></div>
               <progress id="quiz-progress" value="0" max="10" aria-label="演習の進捗"></progress>
@@ -368,7 +370,7 @@
     <div id="accountOverlay" class="account-overlay" hidden></div>
     <script src="config.js"></script>
     <script src="vendor/supabase.js"></script>
-    <script src="account.js?v=20261118c"></script>
-    <script src="script.js?v=20261118d" type="module"></script>
+    <script src="account.js?v=20261118e"></script>
+    <script src="script.js?v=20261118e" type="module"></script>
   </body>
 </html>
