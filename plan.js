@@ -6,8 +6,8 @@
 import { store } from "./storage.js";
 import { questions } from "./data/questions.js";
 import { EXAMS, examByCode } from "./data/exams.js";
-import { reviewCard, recordList, reviewSet, reviewProgress, startReview } from "./review.js?v=20261118b";
-import { studyMinutes, dailyReport } from "./report.js?v=20261118g";
+import { reviewCard, recordList, reviewSet, reviewProgress, startReview } from "./review.js?v=20261119a";
+import { studyMinutes, dailyReport } from "./report.js?v=20261119a";
 import { goalCodes, goalDate, haveCodes, setGoal, openGoalDialog, MAX_GOALS } from "./goal.js?v=20261117c";
 
 const KEY = "aaa.plan.v1";
@@ -389,7 +389,7 @@ function bonusLabel(b, ex) {
   return "";
 }
 function startBonus(b, st, left) {
-  if (b.k === "prev") return startReview();
+  if (b.k === "prev") return startReview(left);
   const d = st.doms[b.dom - 1];
   let ids;
   if (b.k === "ahead") ids = shuffle([...d.unseen]);

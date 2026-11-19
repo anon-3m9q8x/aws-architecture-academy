@@ -122,6 +122,7 @@ export function reviewSet() {
   if (!from) return null;
   const set = build(from, days.get(from), atts.filter((a) => ymd(new Date(a.at)) < t));
   if (!set.ids.length) return null;
+  if (Number.isInteger(saved?.pick)) set.pick = saved.pick; // 選んだ出題数は日をまたいで引き継ぐ
   store.set(KEY, set);
   return set;
 }
@@ -138,12 +139,28 @@ export function startIds(ids, label) {
   $("quiz-start")?.click();
   if (location.hash !== "#practice") location.hash = "practice";
 }
-export function startReview() {
+/** limit を指定すると、その問題数だけ出題する（未指定 = 残り全部） */
+export function startReview(limit) {
   const set = reviewSet();
   if (!set) return;
   const p = reviewProgress(set);
   const rest = set.ids.filter((id) => !p.doneIds.has(id));
-  startIds(rest.length ? rest : set.ids, `前日の復習（${mdw(set.from)} の問題から）`);
+  const ids = rest.length ? rest : set.ids;
+  startIds(limit > 0 ? ids.slice(0, limit) : ids, `前日の復習（${mdw(set.from)} の問題から）`);
+}
+const PICKS = [5, 10, 15, 20, 30];
+/** 出題数の選択（残り全部・5〜30 問）。選んだ数は aaa.review.v1 の pick に保存（0 = 残り全部） */
+function pickSelect(set, left) {
+  const sel = el("select", "plan-pick");
+  sel.setAttribute("aria-label", "出題数");
+  sel.append(new Option(`残り全部（${left} 問）`, "0"));
+  PICKS.filter((n) => n < left).forEach((n) => sel.append(new Option(`${n} 問`, String(n))));
+  sel.value = set.pick > 0 && set.pick < left && PICKS.includes(set.pick) ? String(set.pick) : "0";
+  sel.addEventListener("change", () => {
+    const cur = store.get(KEY, null);
+    if (cur && cur.date === set.date) store.set(KEY, { ...cur, pick: Number(sel.value) });
+  });
+  return sel;
 }
 const KIND_LABEL = { wrong: "間違えた問題", similar: "類題", right: "正解の確認" };
 export function reviewSummary(set) {
@@ -172,8 +189,12 @@ export function reviewCard(cls = "") {
   txt.append(head, el("small", "", reviewSummary(set)), bar, el("small", "", `今日 ${p.done} / ${p.total} 問を実施${p.done ? `（正解 ${p.correct}）` : ""}${p.done >= p.total ? " ✓ 完了" : ""}`));
   const b = el("button", p.done >= p.total ? "goal-btn" : "button primary", p.done >= p.total ? "もう一度解く" : p.done ? "続きから" : "復習を始める");
   b.type = "button";
-  b.addEventListener("click", startReview);
-  box.append(txt, b);
+  const left = p.done >= p.total ? p.total : p.total - p.done;
+  const sel = pickSelect(set, left);
+  b.addEventListener("click", () => startReview(Number(sel.value)));
+  const go = el("div", "plan-go-box");
+  go.append(sel, b);
+  box.append(txt, go);
   return box;
 }
 

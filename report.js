@@ -2,7 +2,7 @@
 // 学習時間 … 回答した時刻の間隔を合計(10 分以上あいたら別の学習として区切り、1 問目の時間を足す)
 // 振り返り … その日の回答・正答率・分野別の成績・苦手な問題・再び間違えた問題・克服した問題・選んでしまった危険な選択肢・
 //            直近 7 日との比較・計画の達成度から、まとめと明日やることを文章にする。今日の分は途中経過として随時更新される。
-import { readAttempts, qById, ymd } from "./review.js?v=20261118b";
+import { readAttempts, qById, ymd } from "./review.js?v=20261119a";
 import { examByCode, primaryExam } from "./data/exams.js";
 import { badnessFor } from "./choice-rate.js?v=20261118e";
 
