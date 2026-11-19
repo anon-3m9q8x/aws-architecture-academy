@@ -54,6 +54,8 @@
 .plan-task-i small{font-size:.76rem;color:var(--aaa-muted)}
 .plan-task-bar{height:8px;border-radius:99px;background:var(--aaa-border);overflow:hidden}.plan-task-bar i{display:block;height:100%;background:#16a34a;transition:width .3s}
 .plan-go{white-space:nowrap;padding:8px 14px}
+.plan-go-box{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.plan-pick{font:inherit;font-size:.85rem;padding:7px 8px;border-radius:8px;border:1px solid var(--aaa-border);background:var(--aaa-panel);color:inherit;max-width:11em}
 .plan-check{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.85rem;cursor:pointer}.plan-check input{width:18px;height:18px;accent-color:#16a34a}
 .plan-record{display:grid;gap:10px;padding-top:12px;border-top:1px dashed var(--aaa-border)}
 .plan-auto{margin:0;font-size:.86rem;line-height:1.7}.plan-auto b{margin-right:4px}
@@ -70,7 +72,7 @@
 .plan-mood input:focus-visible+span{outline:2px solid var(--aaa-blue)}
 .plan-note{grid-column:1/-1}.plan-note textarea{resize:vertical;line-height:1.6}
 .plan-saved{color:var(--aaa-muted);min-height:1em}
-@media (max-width:600px){.plan-rec-grid{grid-template-columns:1fr}.plan-task{flex-wrap:wrap}.plan-go{width:100%}}
+@media (max-width:600px){.plan-rec-grid{grid-template-columns:1fr}.plan-task{flex-wrap:wrap}.plan-go{width:auto;flex:1}.plan-go-box{width:100%}.plan-pick{flex:0 0 auto}}
 
 /* カレンダー */
 .plan-cal-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}

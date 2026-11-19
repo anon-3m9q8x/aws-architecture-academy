@@ -65,6 +65,7 @@ function clean(raw) {
     end: typeof p.end === "string" ? p.end : "",
     fixed: !!p.fixed, // 受験予定日を指定して作った計画か（false = 最短の日程で作った計画）
     q: Number.isFinite(p.q) ? p.q : 0, // 1 日の目標問題数
+    pick: Number.isInteger(p.pick) && p.pick >= 0 && p.pick <= 300 ? p.pick : 0, // 今日のプランで 1 回に解く問題数（0 = 残り全部）
     days: Array.isArray(p.days) ? p.days.filter((d) => d && typeof d.d === "string" && Array.isArray(d.tasks)) : [],
     log,
   };
@@ -301,6 +302,27 @@ function idsFor(t, st, left) {
   }
   return [];
 }
+/* ---------- 1 回に解く問題数を選ぶ（今日のプラン・追加の目標の「はじめる」横） ----------
+ * 選んだ数は plan.pick に保存し、次回以降も同じ数を初期値にする（0 = 残り全部）。
+ */
+const PICKS = [5, 10, 15, 20, 30, 50];
+function goBox(btn, left, onGo) {
+  const box = el("div", "plan-go-box");
+  const sel = el("select", "plan-pick");
+  sel.setAttribute("aria-label", "出題数");
+  const opts = PICKS.filter((n) => n < left);
+  sel.append(new Option(`残り全部（${left} 問）`, "0"));
+  opts.forEach((n) => sel.append(new Option(`${n} 問`, String(n))));
+  sel.value = plan.pick > 0 && plan.pick < left && opts.includes(plan.pick) ? String(plan.pick) : "0";
+  // 保存値が候補にない（残りより多い等）ときは「残り全部」を表示するが、保存値は変えない
+  sel.addEventListener("change", () => {
+    plan.pick = Number(sel.value);
+    store.set(KEY, plan); // 再描画はしない（他のボタンの表示はそのまま）
+  });
+  btn.addEventListener("click", () => onGo(Number(sel.value) > 0 ? Number(sel.value) : left));
+  box.append(sel, btn);
+  return box;
+}
 function startTask(t, st, left) {
   const ids = idsFor(t, st, left);
   if (!ids.length) return;
@@ -404,8 +426,7 @@ function bonusPanel(st) {
     if (done < b.n) {
       const go = el("button", "button primary plan-go", "挑戦する");
       go.type = "button";
-      go.addEventListener("click", () => startBonus(b, st, b.n - done));
-      li.append(go);
+      li.append(goBox(go, b.n - done, (k) => startBonus(b, st, k)));
     }
     ul.append(li);
   });
@@ -632,12 +653,11 @@ function dayPanel(st) {
     if (n && tk.k !== "final" && !future && done < n) {
       const go = el("button", "button primary plan-go", selected === t ? "はじめる" : "取り戻す");
       go.type = "button";
-      go.addEventListener("click", () => startTask(tk, st, n - done));
-      li.append(go);
+      li.append(goBox(go, n - done, (k) => startTask(tk, st, k)));
     } else if (n && tk.k !== "final" && done >= n && !future) {
       const more = el("button", "goal-btn plan-go", "もう少し");
       more.type = "button";
-      more.addEventListener("click", () => startTask(tk, st, Math.max(5, Math.round(n / 3))));
+      more.addEventListener("click", () => startTask(tk, st, plan.pick > 0 ? plan.pick : Math.max(5, Math.round(n / 3))));
       li.append(more);
     }
     list.append(li);
