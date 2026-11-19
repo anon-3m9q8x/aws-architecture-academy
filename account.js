@@ -1,7 +1,7 @@
 /* Account isolation, durable pending writes and revision-checked cloud sync. */
 (() => {
   'use strict';
-  const KEYS = ['aaa.practice.attempts.v1', 'aaa.notebook.v1', 'aaa.build.v1', 'aaa.ex.viewed', 'aaa.step1.progress.v1', 'aaa.resume.svc', 'aaa.resume.build', 'aaa.resume.scene', 'aaa.commandLab.progress.v1', 'aaa.commandLab.drafts.v1', 'aaa.memo.v1', 'aaa.goal.v1', 'aaa.plan.v1', 'aaa.review.v1', 'aaa.choiceRate.v1', 'aaa.practice.paused.v1', 'aaa.practice.last.v1'];
+  const KEYS = ['aaa.practice.attempts.v1', 'aaa.notebook.v1', 'aaa.build.v1', 'aaa.ex.viewed', 'aaa.step1.progress.v1', 'aaa.resume.svc', 'aaa.resume.build', 'aaa.resume.scene', 'aaa.commandLab.progress.v1', 'aaa.commandLab.drafts.v1', 'aaa.memo.v1', 'aaa.goal.v1', 'aaa.plan.v1', 'aaa.review.v1', 'aaa.choiceRate.v1', 'aaa.practice.paused.v1', 'aaa.practice.last.v1', 'aaa.profile.v1'];
   const isLearningKey = key => KEYS.includes(key) || /^aaa\.build\.ws\.[A-Za-z0-9_-]{1,100}$/.test(key);
   const empty = () => ({format:'aws-academy-v1', records:{}});
   const config = window.ACADEMY_CONFIG || {};
@@ -58,17 +58,28 @@
     location.reload();
   }
   let menuOpen = false;
+  const NAME_MAX = 30;
+  // アカウント名(学習データ aaa.profile.v1 に保存し、ログイン中は端末間で同期)
+  function accountName() {
+    const n = data?.records?.['aaa.profile.v1']?.name;
+    return typeof n === 'string' ? n.trim().slice(0, NAME_MAX) : '';
+  }
+  function nameDialog() {
+    openDialog(`<h2 id="accountTitle">アカウント名</h2><p>ワークスペース下部のアカウント表示に使う名前です（${NAME_MAX} 文字まで）。${user ? 'ログイン中は別の端末にも同期されます。' : 'ログインすると別の端末にも同期できます。'}空欄にすると${user ? 'メールアドレス' : '「ゲスト」'}を表示します。</p><form id="accountForm" data-mode="name"><label>名前<input name="name" type="text" maxlength="${NAME_MAX}" autocomplete="nickname" value="${esc(accountName())}" placeholder="例：トト"></label><button class="btn btn-primary" type="submit">保存</button><p id="accountMessage" class="account-message" role="status" aria-live="polite"></p></form><div class="account-actions"><button class="btn" data-account="close">閉じる</button></div>`);
+    overlay.querySelector('input[name="name"]')?.select();
+  }
   function draw() {
     const item = (name, label, icon, extra = '') => `<button type="button" role="menuitem" class="account-item" data-account="${name}" ${extra}><span aria-hidden="true">${icon}</span>${label}</button>`;
     const items = user
-      ? item('refresh', '同期する', '⟳') + item('import', '端末データを取り込む', '⇣') + item('backup', '学習データを書き出す', '⇪') + '<hr>' + item('logout', 'ログアウト', '⎋')
-      : item('login', 'ログイン・新規登録', '→', configured ? '' : 'disabled') + item('backup', '学習データを書き出す', '⇪');
+      ? item('name', 'アカウント名を設定', '✎') + item('refresh', '同期する', '⟳') + item('import', '端末データを取り込む', '⇣') + item('backup', '学習データを書き出す', '⇪') + '<hr>' + item('logout', 'ログアウト', '⎋')
+      : item('login', 'ログイン・新規登録', '→', configured ? '' : 'disabled') + item('name', 'アカウント名を設定', '✎') + item('backup', '学習データを書き出す', '⇪');
     const sub = status || (user ? '同期済み' : configured ? 'この端末だけで利用中' : 'この端末に保存中');
-    const name = user ? (user.email || 'ログイン中') : 'ゲスト';
-    const initial = user ? (user.email || '?').trim().charAt(0).toUpperCase() : 'G';
+    const custom = accountName();
+    const name = custom || (user ? (user.email || 'ログイン中') : 'ゲスト');
+    const initial = custom ? [...custom][0].toUpperCase() : user ? (user.email || '?').trim().charAt(0).toUpperCase() : 'G';
     bar.classList.toggle('account-conflict', conflict);
     bar.classList.toggle('open', menuOpen);
-    bar.innerHTML = `<div class="account-menu" role="menu" aria-label="アカウントのメニュー" ${menuOpen ? '' : 'hidden'}>${user ? `<p class="account-menu-h">${esc(user.email || '')}</p>` : '<p class="account-menu-h">ゲスト（この端末に保存）</p>'}${conflict ? '<div class="account-conflict-box"><p>別の端末で更新されています。端末の未送信データをバックアップしてから、使用する内容を選んでください。</p>' + item('backup', '未送信データを保存', '⇪') + item('cloud', 'クラウドの内容を使う', '☁') + item('replace', 'この端末の内容で置き換える', '⇧') + '</div><hr>' : ''}${items}</div><button type="button" class="account-chip" data-account-menu aria-haspopup="menu" aria-expanded="${menuOpen}" title="${esc(name)}"><span class="account-avatar${user ? '' : ' guest'}" aria-hidden="true">${esc(initial)}</span><span class="account-chip-t"><strong class="account-email">${esc(name)}</strong><small role="status" aria-live="polite">${esc(sub)}</small></span><span class="account-caret" aria-hidden="true">⌃</span></button>`;
+    bar.innerHTML = `<div class="account-menu" role="menu" aria-label="アカウントのメニュー" ${menuOpen ? '' : 'hidden'}>${user ? `<p class="account-menu-h">${esc(user.email || '')}</p>` : '<p class="account-menu-h">ゲスト（この端末に保存）</p>'}${conflict ? '<div class="account-conflict-box"><p>別の端末で更新されています。端末の未送信データをバックアップしてから、使用する内容を選んでください。</p>' + item('backup', '未送信データを保存', '⇪') + item('cloud', 'クラウドの内容を使う', '☁') + item('replace', 'この端末の内容で置き換える', '⇧') + '</div><hr>' : ''}${items}</div><button type="button" class="account-chip" data-account-menu aria-haspopup="menu" aria-expanded="${menuOpen}" title="${esc(name)}"><span class="account-avatar${user || custom ? '' : ' guest'}" aria-hidden="true">${esc(initial)}</span><span class="account-chip-t"><strong class="account-email">${esc(name)}</strong><small role="status" aria-live="polite">${esc(sub)}</small></span><span class="account-caret" aria-hidden="true">⌃</span></button>`;
   }
   function setMenu(open) {
     if (menuOpen === open) return;
@@ -200,6 +211,7 @@
   async function action(name) {
     if (['login','signup','reset'].includes(name)) { authDialog(name); return; }
     if (name === 'close') { closeDialog(); return; }
+    if (name === 'name') { nameDialog(); return; }
     if (name === 'reload') { location.reload(); return; }
     if (name === 'logout') { await logout(); return; }
     if (name === 'refresh') { await refresh(true); return; }
@@ -237,6 +249,15 @@
     event.preventDefault();
     const form = event.target, fields = new FormData(form), mode = form.dataset.mode;
     const button = form.querySelector('button'), message = document.getElementById('accountMessage');
+    if (mode === 'name') {
+      const value = String(fields.get('name') || '').replace(/\s+/g, ' ').trim().slice(0, NAME_MAX);
+      try {
+        window.AcademyAccount.set('aaa.profile.v1', value ? {name: value} : {});
+        draw(); closeDialog();
+        bar.querySelector('[data-account-menu]')?.focus();
+      } catch { message.classList.add('error'); message.textContent = '保存できませんでした。時間をおいて再試行してください。'; }
+      return;
+    }
     button.disabled = true; message.classList.remove('error'); message.textContent = '処理中…';
     try {
       const email = String(fields.get('email') || '').trim(), password = String(fields.get('password') || '');
