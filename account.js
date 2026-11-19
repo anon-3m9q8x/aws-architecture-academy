@@ -65,7 +65,7 @@
     return typeof n === 'string' ? n.trim().slice(0, NAME_MAX) : '';
   }
   function nameDialog() {
-    openDialog(`<h2 id="accountTitle">アカウント名</h2><p>ワークスペース下部のアカウント表示に使う名前です（${NAME_MAX} 文字まで）。${user ? 'ログイン中は別の端末にも同期されます。' : 'ログインすると別の端末にも同期できます。'}空欄にすると${user ? 'メールアドレス' : '「ゲスト」'}を表示します。</p><form id="accountForm" data-mode="name"><label>名前<input name="name" type="text" maxlength="${NAME_MAX}" autocomplete="nickname" value="${esc(accountName())}" placeholder="例：トト"></label><button class="btn btn-primary" type="submit">保存</button><p id="accountMessage" class="account-message" role="status" aria-live="polite"></p></form><div class="account-actions"><button class="btn" data-account="close">閉じる</button></div>`);
+    openDialog(`<h2 id="accountTitle">アカウント名</h2><p>ワークスペース下部のアカウント表示に使う名前です（${NAME_MAX} 文字まで）。${user ? 'ログイン中は別の端末にも同期されます。' : 'ログインすると別の端末にも同期できます。'}空欄にすると${user ? 'メールアドレス' : '「ゲスト」'}を表示します。</p><form id="accountForm" data-mode="name"><label>名前<input name="name" type="text" maxlength="${NAME_MAX}" autocomplete="nickname" value="${esc(accountName())}" placeholder="例：たろう"></label><button class="btn btn-primary" type="submit">保存</button><p id="accountMessage" class="account-message" role="status" aria-live="polite"></p></form><div class="account-actions"><button class="btn" data-account="close">閉じる</button></div>`);
     overlay.querySelector('input[name="name"]')?.select();
   }
   function draw() {
