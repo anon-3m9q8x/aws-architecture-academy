@@ -12,7 +12,7 @@ let scenes = [];
 // 上部バーの高さ(スマホでは 2 段になる)を CSS 変数に反映し、固定表示のタブが上部バーの下に隠れないようにする
 {
   const bar = document.querySelector(".topbar");
-  const setH = () => document.documentElement.style.setProperty("--topbar-h", (bar?.offsetHeight || 82) + "px");
+  const setH = () => document.documentElement.style.setProperty("--topbar-h", (bar?.offsetHeight ?? 82) + "px");
   setH();
   if (bar) new ResizeObserver(setH).observe(bar);
 }

@@ -4227,7 +4227,7 @@ body.page-scrolled .topbar {
   .shell.side-collapsed .side-brand { display: none; }
 }
 /* 上部バーに表示するものがない幅では上部バー自体を出さない */
-@media (min-width: 761px) and (max-width: 1300px) { .topbar { display: none; } }
+@media (min-width: 761px) { .topbar { display: none; } }
 @media (max-width: 760px) { .side-brand { display: none; } }
 /* ロゴがワークスペースの幅に収まるよう調整 */
 @media (min-width: 761px) {
