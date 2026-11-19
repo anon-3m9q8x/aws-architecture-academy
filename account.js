@@ -57,15 +57,38 @@
     changingAccount = true;
     location.reload();
   }
+  let menuOpen = false;
   function draw() {
-    const actions = user
-      ? `<button class="btn btn-sm" data-account="refresh">同期する</button><button class="btn btn-sm" data-account="import">端末データを取り込む</button><button class="btn btn-sm" data-account="logout">ログアウト</button>`
-      : `<button class="btn btn-sm btn-primary" data-account="login" ${configured ? '' : 'disabled'}>ログイン・新規登録</button>`;
+    const item = (name, label, icon, extra = '') => `<button type="button" role="menuitem" class="account-item" data-account="${name}" ${extra}><span aria-hidden="true">${icon}</span>${label}</button>`;
+    const items = user
+      ? item('refresh', '同期する', '⟳') + item('import', '端末データを取り込む', '⇣') + item('backup', '学習データを書き出す', '⇪') + '<hr>' + item('logout', 'ログアウト', '⎋')
+      : item('login', 'ログイン・新規登録', '→', configured ? '' : 'disabled') + item('backup', '学習データを書き出す', '⇪');
+    const sub = status || (user ? '同期済み' : configured ? 'この端末だけで利用中' : 'この端末に保存中');
+    const name = user ? (user.email || 'ログイン中') : 'ゲスト';
+    const initial = user ? (user.email || '?').trim().charAt(0).toUpperCase() : 'G';
     bar.classList.toggle('account-conflict', conflict);
-    bar.innerHTML = `<div><strong class="account-email">${user ? esc(user.email || 'ログイン中') : 'この端末だけで利用中'}</strong><p role="status" aria-live="polite">${esc(status || (user ? '同期済み' : configured ? 'ログインすると別の端末でも同じ記録を使えます。' : 'アカウント同期は準備中です。学習データはこの端末に保存されます。'))}</p></div><div class="account-actions">${actions}<button class="btn btn-sm" data-account="backup">学習データを書き出す</button></div>${conflict ? '<div><p>別の端末で更新されています。端末の未送信データをバックアップしてから、使用する内容を選んでください。</p><div class="account-actions"><button class="btn" data-account="backup">未送信データを保存</button><button class="btn" data-account="cloud">クラウドの内容を使う</button><button class="btn" data-account="replace">この端末の内容で置き換える</button></div></div>' : ''}`;
-    const profile = document.getElementById('learnerName');
-    if (profile) profile.textContent = user ? user.email : 'マイワークスペース';
+    bar.classList.toggle('open', menuOpen);
+    bar.innerHTML = `<div class="account-menu" role="menu" aria-label="アカウントのメニュー" ${menuOpen ? '' : 'hidden'}>${user ? `<p class="account-menu-h">${esc(user.email || '')}</p>` : '<p class="account-menu-h">ゲスト（この端末に保存）</p>'}${conflict ? '<div class="account-conflict-box"><p>別の端末で更新されています。端末の未送信データをバックアップしてから、使用する内容を選んでください。</p>' + item('backup', '未送信データを保存', '⇪') + item('cloud', 'クラウドの内容を使う', '☁') + item('replace', 'この端末の内容で置き換える', '⇧') + '</div><hr>' : ''}${items}</div><button type="button" class="account-chip" data-account-menu aria-haspopup="menu" aria-expanded="${menuOpen}" title="${esc(name)}"><span class="account-avatar${user ? '' : ' guest'}" aria-hidden="true">${esc(initial)}</span><span class="account-chip-t"><strong class="account-email">${esc(name)}</strong><small role="status" aria-live="polite">${esc(sub)}</small></span><span class="account-caret" aria-hidden="true">⌃</span></button>`;
   }
+  function setMenu(open) {
+    if (menuOpen === open) return;
+    menuOpen = open;
+    draw();
+    if (open) bar.querySelector('.account-menu .account-item:not(:disabled)')?.focus();
+  }
+  bar.addEventListener('click', event => {
+    if (event.target.closest('[data-account-menu]')) { setMenu(!menuOpen); return; }
+    if (event.target.closest('.account-menu [data-account]')) { menuOpen = false; bar.classList.remove('open'); bar.querySelector('.account-menu').hidden = true; }
+  });
+  document.addEventListener('pointerdown', event => { if (menuOpen && !bar.contains(event.target)) setMenu(false); });
+  bar.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && menuOpen) { setMenu(false); bar.querySelector('[data-account-menu]')?.focus(); return; }
+    if (!menuOpen || !['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+    const nodes = [...bar.querySelectorAll('.account-menu .account-item:not(:disabled)')];
+    const i = nodes.indexOf(document.activeElement);
+    nodes[(i + (event.key === 'ArrowDown' ? 1 : -1) + nodes.length) % nodes.length]?.focus();
+    event.preventDefault();
+  });
   function closeDialog() {
     if (blockingLoad) return;
     overlay.hidden = true;
@@ -111,6 +134,7 @@
         if (result.error) {
           if (result.error.code === 'PT409' || result.status === 409) {
             conflict = true;
+            menuOpen = true;
             status = '同期の競合：内容を選んでください。';
             break;
           }
@@ -272,6 +296,7 @@
           const row = await fetchRow();
           if (dirty) {
             conflict = Number(row?.revision || 0) !== revision;
+            if (conflict) menuOpen = true;
             status = conflict ? '同期の競合：内容を選んでください。' : '端末に未同期の変更があります。';
           } else adopt(row);
         } catch (error) {

@@ -1,8 +1,42 @@
-.account-bar{border:1px solid var(--aaa-border);border-radius:16px;background:var(--aaa-panel);padding:16px 18px;margin:0 0 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;min-width:0}
-.account-email{overflow-wrap:anywhere;font-size:14px}.account-bar p{margin:4px 0 0;font-size:12px;color:var(--aaa-muted)}.account-actions{display:flex;gap:8px;flex-wrap:wrap}.account-bar .btn{font-size:12px}.account-bar .btn-primary,.account-dialog .btn-primary{background:var(--aaa-blue);color:white;border-color:var(--aaa-blue)}
+.account-actions{display:flex;gap:8px;flex-wrap:wrap}.account-dialog .btn-primary{background:var(--aaa-blue);color:white;border-color:var(--aaa-blue)}
 .account-overlay{position:fixed;inset:0;z-index:5000;display:grid;place-items:center;background:#17263b88;padding:18px;overflow:auto}.account-overlay[hidden]{display:none!important}
 .account-dialog{background:var(--aaa-panel);color:var(--aaa-text);border:1px solid var(--aaa-border);border-radius:18px;width:min(100%,490px);max-height:calc(100dvh - 36px);overflow:auto;padding:25px;box-shadow:0 20px 70px #0003}
 .account-dialog h2{margin:0 0 12px;font-size:22px}.account-dialog p{font-size:13px;line-height:1.8}.account-dialog form{display:grid;gap:14px}.account-dialog label{display:grid;gap:5px;font-size:13px;font-weight:600}.account-dialog input{width:100%;min-width:0;padding:12px}.account-dialog .account-actions{margin-top:14px}
-.account-message{min-height:1.5em;white-space:pre-wrap;color:var(--aaa-blue)}.account-message.error{color:#b33030}.account-conflict{border:2px solid #c78125}.account-conflict p{color:var(--aaa-text)}
-#learnerName{display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media(max-width:600px){.account-bar{padding:13px;gap:10px}.account-actions .btn{min-height:42px;font-size:12px;padding:8px 10px}.account-dialog{padding:20px}}
+.account-message{min-height:1.5em;white-space:pre-wrap;color:var(--aaa-blue)}.account-message.error{color:#b33030}
+@media(max-width:600px){.account-actions .btn{min-height:42px;font-size:12px;padding:8px 10px}.account-dialog{padding:20px}}
+
+/* ワークスペース下部のアカウント表示(Claude の左下のアカウント表示に倣う) */
+.account-bar{position:relative;min-width:0;margin:auto 0 10px}
+.account-bar>p{margin:0;padding:10px;font-size:11px;color:var(--aaa-muted)}
+.account-chip{display:flex;align-items:center;gap:10px;width:100%;min-width:0;padding:8px 10px;border:1px solid transparent;border-radius:12px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .15s,border-color .15s}
+.account-chip:hover,.account-bar.open .account-chip{background:var(--selection,#3985ff14);border-color:var(--aaa-border)}
+.account-chip:focus-visible{outline:2px solid var(--aaa-blue);outline-offset:2px}
+.account-avatar{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:linear-gradient(140deg,#a9d7ff,#568dea);color:#102e53;font-weight:700;font-size:14px}
+.account-avatar.guest{background:var(--aaa-bg);color:var(--aaa-muted);border:1px solid var(--aaa-border)}
+.account-chip-t{display:grid;min-width:0;flex:1}
+.account-email{display:block;font-size:12px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-chip-t small{font-size:10px;color:var(--aaa-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-caret{flex:none;font-size:11px;color:var(--aaa-muted);transition:transform .15s}
+.account-bar.open .account-caret{transform:rotate(180deg)}
+.account-menu{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:60;display:grid;gap:1px;padding:6px;border:1px solid var(--aaa-border);border-radius:14px;background:var(--aaa-panel);color:var(--aaa-text);box-shadow:0 12px 36px #0b1a3226}
+.account-menu-h{margin:2px 8px 6px;font-size:11px;color:var(--aaa-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-menu hr{border:0;border-top:1px solid var(--aaa-border);margin:5px 4px}
+.account-item{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:inherit;font:inherit;font-size:12.5px;text-align:left;cursor:pointer}
+.account-item span{width:16px;text-align:center;color:var(--aaa-muted)}
+.account-item:hover:not(:disabled),.account-item:focus-visible{background:var(--selection,#3985ff14);outline:0}
+.account-item:disabled{opacity:.5;cursor:not-allowed}
+.account-conflict .account-chip{border-color:#c78125}
+.account-conflict .account-chip-t small{color:#c78125}
+.account-conflict-box{border:1px solid #c78125;border-radius:10px;padding:6px}
+.account-conflict-box p{margin:2px 6px 6px;font-size:11px;line-height:1.7}
+/* スマホ: 横並びメニューの右端にアイコンだけを置き、メニューは下に開く */
+@media(max-width:760px){
+  body .shell>.sidebar{display:flex!important;flex-direction:row;align-items:center;gap:6px}
+  body .shell>.sidebar nav{flex:1 1 auto;min-width:0}
+  body .shell>.sidebar .account-bar{flex:none;margin:0 2px 0 0;width:auto}
+  .account-chip{padding:3px;gap:0;border-radius:50%}
+  .account-caret{display:none}
+  .account-chip-t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+  .account-bar>p{display:none}
+  .account-menu{left:auto;right:0;bottom:auto;top:calc(100% + 8px);width:min(280px,calc(100vw - 24px))}
+}

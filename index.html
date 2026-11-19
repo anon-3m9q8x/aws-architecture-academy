@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&amp;display=swap" />
     <link rel="stylesheet" href="style.css?v=20261118j" />
-    <link rel="stylesheet" href="account.css?v=20261110b" />
+    <link rel="stylesheet" href="account.css?v=20261119a" />
     <!-- 資格問題演習の大きな問題データを先に並行して読み込む(import の連鎖を待たずに取得し、表示までの時間を短くする) -->
     <link rel="modulepreload" href="data/bank/AIB-C01.js" />
     <link rel="modulepreload" href="data/bank/AIF-C01.js" />
@@ -33,7 +33,7 @@
     <link rel="stylesheet" href="command-lab.css" />
     <link rel="stylesheet" href="memopad.css?v=20261118o" />
     <link rel="stylesheet" href="goal.css?v=20261117c" />
-    <link rel="stylesheet" href="plan.css?v=20261118s" />
+    <link rel="stylesheet" href="plan.css?v=20261119a" />
   </head>
   <body>
     <div id="siteShell">
@@ -43,13 +43,6 @@
         ><img class="brand-logo" src="assets/logo.svg" alt="" width="44" height="40"
         /><span class="brand-text"><b class="brand-main">AWS Architecture</b><span class="brand-sub">Academy</span></span></a
       >
-      <div class="learner-profile">
-        <span class="learner-avatar" aria-hidden="true">A</span>
-        <div>
-          <strong id="learnerName">マイワークスペース</strong
-          ><small>学びをつなげて、設計する力に</small>
-        </div>
-      </div>
     </header>
     <div class="shell">
       <aside class="sidebar">
@@ -85,10 +78,8 @@
             <span class="nav-badge" data-memo-count hidden>0</span></a
           >
         </nav>
-        <div class="sidebar-note">
-          <span class="dot"></span> つながりで覚える AWS 設計。
-          <p>実際の AWS 環境は操作しません。学習のアカウント登録に AWS の認証情報は不要です。</p>
-        </div>
+        <!-- アカウント(Claude の左下と同じ形式。押すとメニューを開く) -->
+        <section id="accountBar" class="account-bar" aria-label="アカウントと同期"><p>学習データを読み込み中…</p></section>
         <span class="version">ACADEMY EDITION / 08</span>
       </aside>
       <main id="main" tabindex="-1">
@@ -96,8 +87,6 @@
           Workspace <span>/</span> <span id="page-label">ダッシュボード</span>
         </div>
         <section id="home" class="page">
-          <!-- アカウント同期の表示はホームだけ -->
-          <section id="accountBar" class="account-bar" aria-label="アカウントと同期"><p>学習データを読み込み中…</p></section>
           <section id="goal-card" class="panel goal-card" aria-label="取得目標と取得済みの資格"></section>
           <section id="plan-home" class="panel goal-card plan-home" aria-label="今日の学習プラン"></section>
           <div class="home-layout">
@@ -372,7 +361,7 @@
     <div id="accountOverlay" class="account-overlay" hidden></div>
     <script src="config.js"></script>
     <script src="vendor/supabase.js"></script>
-    <script src="account.js?v=20261118k"></script>
+    <script src="account.js?v=20261119a"></script>
     <script src="script.js?v=20261118s" type="module"></script>
   </body>
 </html>

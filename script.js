@@ -9,7 +9,7 @@ import "./command-lab.js?v=20261117b";
 import { buildStats, refreshRec } from "./build.js?v=20261118d";
 import "./academy.js?v=20261118l";
 import "./memopad.js?v=20261118o";
-import "./plan.js?v=20261118i";
+import "./plan.js?v=20261119a";
 import { store } from "./storage.js";
 const $ = (id) => document.getElementById(id);
 const labels = {

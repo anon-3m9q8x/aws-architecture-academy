@@ -239,6 +239,7 @@ test('command lab browser: routes, grading, persistence, account sync, mobile, n
     return {page, context};
   }
   async function login(page) {
+    await page.locator('#accountBar [data-account-menu]').click();
     await page.locator('[data-account="login"]').click();
     await page.locator('#accountForm input[name="email"]').fill('alice@example.test');
     await page.locator('#accountForm input[name="password"]').fill('test-password-123');

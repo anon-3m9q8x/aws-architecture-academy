@@ -19,6 +19,15 @@ function session(email) {
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const attemptCount = pg => pg.evaluate(()=>{try{return (window.AcademyAccount.get('aaa.practice.attempts.v1',[])||[]).length}catch(_){return -1}});
+// アカウントの操作はワークスペース下部のアカウント表示から開くメニューの中にある
+async function acct(page, name) {
+  const item = page.locator(`#accountBar [data-account="${name}"]`);
+  for (let i = 0; i < 100 && !(await item.isVisible()); i++) {
+    if (await item.count() && !(await page.locator('#accountBar .account-menu').isVisible())) await page.locator('#accountBar [data-account-menu]').click();
+    else await sleep(100);
+  }
+  return item;
+}
 async function eventually(fn) {
   for(let i=0;i<100;i++){if(await fn())return;await sleep(50);}
   assert.fail('Expected condition was not reached');
@@ -72,7 +81,7 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
     return {page,context,state};
   }
   async function login(page,email='alice@example.test') {
-    await page.locator('[data-account="login"]').click();
+    await (await acct(page,'login')).click();
     await page.locator('#accountForm input[name="email"]').fill(email);
     await page.locator('#accountForm input[name="password"]').fill('test-password-123');
     await page.locator('#accountForm button[type="submit"]').click();
@@ -102,7 +111,7 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
   }
   try {
     const a=await device(), b=await device();
-    await a.page.locator('[data-account="login"]').click();
+    await (await acct(a.page,'login')).click();
     await a.page.locator('[data-account="signup"]').click();
     await a.page.locator('input[name="email"]').fill('alice@example.test');
     await a.page.locator('input[name="password"]').fill('test-password-123');
@@ -129,7 +138,7 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
     assert.equal(rows.size,0);
     assert.equal(await attemptCount(a.page),0);
     a.page.once('dialog',d=>d.accept());
-    await Promise.all([a.page.waitForEvent('load'),a.page.locator('[data-account="import"]').click()]);
+    await Promise.all([a.page.waitForEvent('load'),(await acct(a.page,'import')).click()]);
     const alice=accounts['alice@example.test'],bob=accounts['bob@example.test'];
     await eventually(()=>rows.get(alice)?.data.records['aaa.practice.attempts.v1']?.length===1);
     await a.page.waitForFunction(()=>Number(document.getElementById('svc-total')?.textContent)>0);
@@ -146,7 +155,7 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
     await home(b.page);
     // Let page-navigation writes settle before syncing the other device.
     await eventually(async()=> (await b.page.locator('#accountBar').innerText()).includes('同期済み'));
-    await a.page.locator('[data-account="refresh"]').click();
+    await (await acct(a.page,'refresh')).click();
     await a.page.waitForFunction(()=>Number(document.getElementById('svc-total')?.textContent)>0);
     // A real edited memo, persisted while offline, survives reload.
     await openService(b.page);
@@ -162,21 +171,21 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
     await a.page.locator('.memo-text').fill('別端末の更新');
     await eventually(()=>rows.get(alice)?.data.records['aaa.notebook.v1']?.notes.ec2==='別端末の更新');
     b.state.online=true;
-    await b.page.locator('[data-account="refresh"]').click();
-    await b.page.locator('[data-account="cloud"]').waitFor();
+    await (await acct(b.page,'refresh')).click();
+    await (await acct(b.page,'cloud')).waitFor();
     assert.equal(rows.get(alice).data.records['aaa.notebook.v1'].notes.ec2,'別端末の更新');
     b.page.once('dialog',d=>d.accept());
-    await b.page.locator('[data-account="replace"]').click();
+    await (await acct(b.page,'replace')).click();
     await eventually(()=>rows.get(alice).data.records['aaa.notebook.v1'].notes.ec2==='オフラインの追記');
     // Refreshing study content requires confirmation; home refresh is automatic.
-    await a.page.locator('#global-search').focus(); // prevent auto refresh until the explicit action
+    // (検索欄は廃止済み。すぐ下の「同期する」で明示的に読み込む)
     a.page.once('dialog',d=>d.accept());
-    await a.page.locator('[data-account="refresh"]').click();
+    await (await acct(a.page,'refresh')).click();
     await eventually(async()=>await a.page.locator('.memo-text').inputValue()==='オフラインの追記');
     await home(b.page);
     await eventually(async()=> (await b.page.locator('#accountBar').innerText()).includes('同期済み'));
-    await b.page.locator('[data-account="logout"]').click();
-    await eventually(async()=> (await b.page.locator('.account-email').textContent())==='この端末だけで利用中');
+    await (await acct(b.page,'logout')).click();
+    await eventually(async()=> (await b.page.locator('.account-email').textContent())==='ゲスト');
     assert.equal(await b.page.evaluate(()=>Object.keys(localStorage).some(k=>k.startsWith('aaa.account.'))),false);
     await login(b.page,'bob@example.test');
     assert.equal(await attemptCount(b.page),0);
@@ -188,7 +197,7 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
     assert.equal(await b.page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     // A failed first cloud read blocks editing rather than writing an empty account.
     const c=await device();c.state.failRead=true;
-    await c.page.locator('[data-account="login"]').click();
+    await (await acct(c.page,'login')).click();
     await c.page.locator('input[name="email"]').fill('alice@example.test');
     await c.page.locator('input[name="password"]').fill('test-password-123');
     await c.page.locator('#accountForm button').click();
