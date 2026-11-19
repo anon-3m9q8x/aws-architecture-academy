@@ -1,5 +1,6 @@
 // 日ごとの演習記録と「前日の復習」。
 // 記録 … 資格問題演習・サービス知識問題の回答履歴（aaa.practice.attempts.v1）を日付ごとにまとめる（端末の現地時間）。
+// 復習で間違えた問題 … 前日の復習を解き終えたあと、今日の復習で間違えた問題（最後の回答が不正解のもの）を、正解するまで解き直せる。
 // 前日の復習 … 毎日、直近の学習日（今日より前で回答がある最後の日）に解いた問題から復習セットを作る。
 //   ①その日に間違えた問題（すべて）②その類題（同じ試験・同じ論点の未回答の問題。無ければ同じサービスが登場する問題）
 //   ③その日に正解した問題の一部（定着の確認）。セットはその日のうちは変わらないよう aaa.review.v1 に保存し、アカウントに同期する。
@@ -126,12 +127,33 @@ export function reviewSet() {
   store.set(KEY, set);
   return set;
 }
-/** 今日の実施状況: done（今日解いた問題数）, correct（そのうち直近が正解） */
+/** 今日の実施状況: done（今日解いた問題数）, correct（そのうち直近が正解）
+ *  missed（今日の復習で 1 回でも間違えた問題）, retry（そのうち、最後の回答がまだ不正解の問題 = 解き直しが必要） */
 export function reviewProgress(set, atts = readAttempts()) {
   const t = today(), ids = new Set(set.ids);
-  const last = new Map();
-  atts.forEach((a) => ids.has(a.id) && ymd(new Date(a.at)) === t && last.set(a.id, a.correct));
-  return { done: last.size, correct: [...last.values()].filter(Boolean).length, total: set.ids.length, doneIds: new Set(last.keys()) };
+  const last = new Map(), missed = new Set();
+  [...atts].sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).forEach((a) => {
+    if (!ids.has(a.id) || ymd(new Date(a.at)) !== t) return;
+    last.set(a.id, a.correct);
+    if (!a.correct) missed.add(a.id);
+  });
+  const order = set.ids.filter((id) => missed.has(id));
+  return {
+    done: last.size,
+    correct: [...last.values()].filter(Boolean).length,
+    total: set.ids.length,
+    doneIds: new Set(last.keys()),
+    missed: order,
+    retry: order.filter((id) => last.get(id) === false),
+  };
+}
+/** 今日の復習で間違えた問題のうち、まだ正解していない問題を解き直す */
+export function startRetry() {
+  const set = reviewSet();
+  if (!set) return;
+  const p = reviewProgress(set);
+  const ids = p.retry.length ? p.retry : p.missed;
+  startIds(ids, `前日の復習で間違えた問題（${ids.length} 問）`);
 }
 export function startIds(ids, label) {
   if (!ids.length) return;
@@ -187,14 +209,35 @@ export function reviewCard(cls = "") {
   fill.style.width = Math.round((p.done / p.total) * 100) + "%";
   bar.append(fill);
   txt.append(head, el("small", "", reviewSummary(set)), bar, el("small", "", `今日 ${p.done} / ${p.total} 問を実施${p.done ? `（正解 ${p.correct}）` : ""}${p.done >= p.total ? " ✓ 完了" : ""}`));
-  const b = el("button", p.done >= p.total ? "goal-btn" : "button primary", p.done >= p.total ? "もう一度解く" : p.done ? "続きから" : "復習を始める");
+  const fin = p.done >= p.total;
+  const b = el("button", fin ? "goal-btn" : "button primary", fin ? "もう一度解く" : p.done ? "続きから" : "復習を始める");
   b.type = "button";
-  const left = p.done >= p.total ? p.total : p.total - p.done;
+  const left = fin ? p.total : p.total - p.done;
   const sel = pickSelect(set, left);
   b.addEventListener("click", () => startReview(Number(sel.value)));
   const go = el("div", "plan-go-box");
   go.append(sel, b);
   box.append(txt, go);
+  // 復習を解き終えたら: 復習の中で間違えた問題を、正解するまで解き直す
+  if (fin && p.missed.length) {
+    const row = el("div", `review-retry${p.retry.length ? "" : " clear"}`);
+    const info = el("div", "review-retry-t");
+    if (p.retry.length) {
+      info.append(el("b", "", `✏️ 復習で間違えた問題を解き直す`), el("small", "", `間違えた ${p.missed.length} 問のうち、まだ正解していない問題が ${p.retry.length} 問あります。正解するとここから外れます。`));
+      const rb = el("button", "button primary", `解き直す（${p.retry.length} 問）`);
+      rb.type = "button";
+      rb.addEventListener("click", startRetry);
+      row.append(info, rb);
+    } else {
+      info.append(el("b", "", `✓ 復習で間違えた ${p.missed.length} 問をすべて解き直しました`), el("small", "", "もう一度確認したいときは、間違えた問題だけをまとめて解けます。"));
+      const rb = el("button", "goal-btn", `もう一度（${p.missed.length} 問）`);
+      rb.type = "button";
+      rb.addEventListener("click", startRetry);
+      row.append(info, rb);
+    }
+    box.classList.add("has-retry");
+    box.append(row);
+  }
   return box;
 }
 
