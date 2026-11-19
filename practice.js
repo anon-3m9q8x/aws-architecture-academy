@@ -1563,7 +1563,7 @@ window.addEventListener("route-change", (e) => {
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         if (!ctx.inResult && !$("quiz-workspace").hidden && ctx.position !== position) goTo(ctx.position, false);
-        scrollTo({ top: ctx.scroll, behavior: "auto" });
+        scrollTo({ top: ctx.scroll, behavior: "instant" });
       }),
     );
   }

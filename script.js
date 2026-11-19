@@ -2,11 +2,11 @@
 // ページ単位のスクリプトには ?v= を付け、公開更新のたびに index.html の script.js?v= と一緒に上げる(古いキャッシュとの混在で動かなくなるのを防ぐ)
 import { SERVICES, byId, relsOf, serviceCount } from "./services.js";
 import { BUILD } from "./data/build.js";
-import "./practice.js?v=20261118s";
+import "./practice.js?v=20261119a";
 import "./home.js?v=20261117b";
-import "./explorer.js?v=20261119a";
+import "./explorer.js?v=20261119b";
 import "./command-lab.js?v=20261117b";
-import { buildStats, refreshRec } from "./build.js?v=20261118d";
+import { buildStats, refreshRec } from "./build.js?v=20261119a";
 import "./academy.js?v=20261118l";
 import "./memopad.js?v=20261118o";
 import "./plan.js?v=20261119b";
@@ -84,7 +84,10 @@ function route() {
   }
   const page = Object.hasOwn(labels, requested) ? requested : "home";
   // ページ ID と同じハッシュによるブラウザの自動スクロールを打ち消し、先頭から表示する
-  if (page !== lastPage) requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+  if (page !== lastPage) {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  }
   lastPage = page;
   document.body.dataset.route = page; // ページごとの表示切り替え(アカウント同期の表示はホームだけ など)
   document.querySelectorAll(".page").forEach((el) => {
@@ -112,7 +115,7 @@ route();
   let touched = false;
   const mark = () => (touched = true);
   for (const ev of ["wheel", "touchstart", "keydown", "pointerdown"]) window.addEventListener(ev, mark, { once: true, passive: true });
-  const reset = () => { if (!touched && window.scrollY > 0 && document.getElementById(location.hash.slice(1))) window.scrollTo({ top: 0, behavior: "auto" }); };
+  const reset = () => { if (!touched && window.scrollY > 0 && document.getElementById(location.hash.slice(1))) window.scrollTo({ top: 0, behavior: "instant" }); };
   const later = () => { reset(); requestAnimationFrame(reset); setTimeout(reset, 150); setTimeout(reset, 450); };
   if (document.readyState === "complete") later(); else window.addEventListener("load", later, { once: true });
 }

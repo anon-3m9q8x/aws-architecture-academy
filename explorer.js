@@ -348,7 +348,7 @@ function openCompare(g) {
   detail.classList.remove("enter");
   void detail.offsetWidth;
   detail.classList.add("enter");
-  window.scrollTo({ top: 0, behavior: "auto" });
+  window.scrollTo({ top: 0, behavior: "instant" });
   document.title = `${g.title} | 類似サービス比較 | AWS Architecture Academy`;
   $("page-label").textContent = `サービス図鑑 / ${g.title}`;
 }
@@ -799,7 +799,7 @@ function openDetail(s) {
       cancelAnimationFrame(raf);
     },
   };
-  window.scrollTo({ top: 0, behavior: "auto" });
+  window.scrollTo({ top: 0, behavior: "instant" });
   document.title = `${s.name} | サービス図鑑 | AWS Architecture Academy`;
   $("page-label").textContent = `サービス図鑑 / ${s.name}`;
 }
@@ -835,7 +835,7 @@ function openScene(sc) {
   player = new FlowPlayer(stage, { meta: metaOf, onNode: (id) => byId.has(id) && (location.hash = `services/${id}`) });
   player.load(sc);
   store.set("aaa.resume.scene", sc.id);
-  window.scrollTo({ top: 0, behavior: "auto" });
+  window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 function openPattern(p) {
@@ -899,7 +899,7 @@ function openPattern(p) {
   detail.classList.add("enter");
   player = new FlowPlayer(stage, { meta: metaOf, onNode: (id) => byId.has(id) && !["user", "onprem", "internet"].includes(id) && (location.hash = `services/${id}`) });
   player.load(patternScene(p, metaOf));
-  window.scrollTo({ top: 0, behavior: "auto" });
+  window.scrollTo({ top: 0, behavior: "instant" });
   document.title = `${p.id} ${p.t} | 設計パターン | AWS Architecture Academy`;
   $("page-label").textContent = `サービス図鑑 / ${p.id} ${p.t}`;
 }

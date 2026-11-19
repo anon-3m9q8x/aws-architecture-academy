@@ -20,7 +20,8 @@
   box-sizing: border-box;
 }
 html {
-  scroll-behavior: smooth;
+  /* ページ切り替え時に、ハッシュと同じ id の位置からなめらかにスクロールして戻る動きを出さない */
+  scroll-behavior: auto;
 }
 body {
   margin: 0;
@@ -3433,7 +3434,8 @@ body::before {
 
 /* --- ページ切替のフェード --- */
 .page-enter { animation: pg-in 0.42s var(--spring) both; }
-@keyframes pg-in { from { opacity: 0; transform: translateY(10px); } }
+/* ページ・カードの表示はフェードだけ(下から上へ動かさない) */
+@keyframes pg-in { from { opacity: 0; } }
 .enter { animation: pg-in 0.38s var(--spring) both; }
 
 /* --- スライドする選択表示(共通) --- */

@@ -513,7 +513,7 @@ function openProblem(pb) {
     toast(ok ? `「${pb.title}」正解です` : "採点しました。✕ の項目を見直しましょう");
   }
   draw();
-  window.scrollTo({ top: 0 });
+  window.scrollTo({ top: 0, behavior: "instant" });
   $("page-label").textContent = `構築問題 / ${pb.title}`;
   document.title = `${pb.title} | 構築問題 | AWS Architecture Academy`;
 }
