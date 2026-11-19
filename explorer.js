@@ -1,5 +1,5 @@
 // サービス図鑑: 一覧 → タップでサービスの解説ページへ。連携アニメーション・解説・連携・SAP 設計パターンを 1 ページに統合。
-import { TERMS, renderGlossary, openTerm, termById } from "./glossary.js?v=20261118s";
+import { TERMS, renderGlossary, openTerm, termById } from "./glossary.js?v=20261119a";
 import { SERVICES, CATS, byId, relsOf, compsOf, extOf, metaOf, serviceCount, patternsOf, groupsOf, COMPARE } from "./services.js";
 import { memo } from "./memo.js";
 import { FlowPlayer, normalizeScene, serviceScene, problemScene } from "./flow.js";

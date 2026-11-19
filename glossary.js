@@ -4,6 +4,7 @@
 // ・openTerm(id) で解説のダイアログを開く(構成要素の用語・関係するサービスへ移動できる)
 // ・renderGlossary(box) で図鑑の「用語集」タブを描く
 import DATA from "./data/glossary-data.js?v=20261118s";
+import MARKS from "./data/glossary-marks.js?v=20261119a";
 import { byId as svcById } from "./services.js";
 
 export const TERMS = DATA.filter((t) => t && t.id && t.term && t.body);
@@ -58,6 +59,24 @@ export function termify(text, parent, seen = new Set()) {
   return parent;
 }
 
+/** 重要ライン(黄色のマーカー)と注意(オレンジ)を付けながら、用語をボタンにして parent に追加する */
+function markify(text, parent, seen, marks, warns) {
+  const rs = [];
+  const add = (list, kind) => (list || []).forEach((p) => { const i = p ? text.indexOf(p) : -1; if (i >= 0) rs.push([i, i + p.length, kind]); });
+  add(warns, "w");
+  add(marks, "m");
+  rs.sort((a, b) => a[0] - b[0]);
+  let pos = 0;
+  for (const [s, e, kind] of rs) {
+    if (s < pos) continue;
+    if (s > pos) termify(text.slice(pos, s), parent, seen);
+    parent.append(termify(text.slice(s, e), el(kind === "m" ? "mark" : "strong", kind === "m" ? "kmark" : "kwarn"), seen));
+    pos = e;
+  }
+  if (pos < text.length) termify(text.slice(pos), parent, seen);
+  return parent;
+}
+
 /* ---------- 解説のダイアログ ---------- */
 let dlg = null;
 const history = [];
@@ -97,13 +116,24 @@ export function openTerm(id, push = true) {
   if (t.aliases?.length) dlg.append(el("p", "term-alias", `別の表記：${t.aliases.join("・")}`));
   dlg.append(el("p", "term-short", t.short || ""));
   const seen = new Set([t.id]);
-  const sec = (title, text) => {
+  const mk = MARKS[t.id] || {};
+  if (mk.body || mk.exam || mk.example || mk.warn) {
+    const legend = el("p", "kind-legend term-legend");
+    [["mark", "kmark", "重要", "試験で問われる要点"], ["strong", "kwarn", "注意", "ひっかけ・制限・費用"]].forEach(([tag, cls, chip, text]) => {
+      if (cls === "kwarn" && !(mk.warn || []).length) return;
+      const item = el("span", "kind-legend-item");
+      item.append(el(tag, cls, chip), el("span", "", text));
+      legend.append(item);
+    });
+    dlg.append(legend);
+  }
+  const sec = (title, text, key) => {
     if (!text) return;
     const d = el("div", "term-sec");
-    d.append(el("h3", "", title), termify(text, el("p"), seen));
+    d.append(el("h3", "", title), markify(text, el("p"), seen, mk[key], mk.warn));
     dlg.append(d);
   };
-  sec("解説", t.body);
+  sec("解説", t.body, "body");
   // 構成要素の用語(例: LLM-as-a-judge の「LLM」)
   const parts = (t.parts || []).filter((p) => termById.has(p) && p !== t.id);
   if (parts.length) {
@@ -117,8 +147,8 @@ export function openTerm(id, push = true) {
     });
     dlg.append(d);
   }
-  sec("AWS での使われ方", t.example);
-  sec("試験のポイント", t.exam);
+  sec("AWS での使われ方", t.example, "example");
+  sec("試験のポイント", t.exam, "exam");
   const svcs = (t.services || []).filter((s) => svcById.has(s));
   const users = TERMS.filter((u) => u.id !== t.id && (u.parts || []).includes(t.id));
   if (svcs.length || users.length) {
