@@ -252,6 +252,20 @@ function dayRate(day, st) {
   }
   return need ? got / need : null;
 }
+/** その日の計画に対して足りなかった問題数（最終確認は 1 件=1 問扱い）。 */
+function shortfall(day, st) {
+  const s = dayStat(st, day.d), log = plan.log[day.d];
+  let need = 0, got = 0;
+  for (const t of day.tasks) {
+    const n = taskTarget(t);
+    if (!n) continue;
+    need += n;
+    got += Math.min(n, taskDone(t, s, log));
+  }
+  return { need, got, lack: need - got };
+}
+/** 過ぎた学習日のうち、計画を満たせなかった日（今日はまだ途中なので含めない） */
+const missedDays = (st) => plan.days.filter((d) => d.ph >= 1 && d.ph <= 4 && d.d < today() && shortfall(d, st).lack > 0);
 function taskLabel(t, ex) {
   if (t.k === "new") return `分野${t.dom}「${ex.domains[t.dom - 1]?.[0] || ""}」の新しい問題`;
   if (t.k === "review") return "間違えた問題の解き直し";
@@ -571,6 +585,29 @@ function summary(st) {
   kpi("推定得点率", `${r.pct}%`, `合格目安 ${r.pass}% ・ 解いた問題の正答率 ${st.answeredN ? Math.round((st.correctN / st.answeredN) * 100) : 0}% ・ 実施率 ${r.cover}%`, r.state[0] === "ok" ? "good" : r.state[0] === "low" ? "bad" : "");
   kpi("連続学習", `${sk} 日`, `計画達成 ${doneDays.length} / ${passed.length} 日 ・ 全 ${study.length} 学習日 ${totalQ} 問`);
   wrap.append(kpis);
+  // 計画を満たせなかった日
+  const miss = missedDays(st);
+  if (miss.length) {
+    const lackAll = miss.reduce((a, d) => a + shortfall(d, st).lack, 0);
+    const box = el("div", "plan-missed");
+    box.setAttribute("role", "status");
+    box.append(el("b", "", `⚠ 計画未達の日が ${miss.length} 日あります（合計 ${lackAll} 問不足）`));
+    const row = el("div", "plan-missed-days");
+    miss.slice(-8).forEach((d) => {
+      const lack = shortfall(d, st).lack;
+      const bt = el("button", "plan-missed-chip", `${mdw(d.d)} あと${lack}問`);
+      bt.type = "button";
+      bt.addEventListener("click", () => {
+        selected = d.d;
+        render();
+        page.querySelector(".plan-day")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+      row.append(bt);
+    });
+    box.append(row);
+    if (miss.length > 8) box.append(el("small", "", `直近 8 日分を表示（ほかに ${miss.length - 8} 日）`));
+    wrap.append(box);
+  }
   // フェーズの帯（休みの日は前のフェーズに含める）
   const bar = el("div", "plan-phases");
   const segs = [];
@@ -619,6 +656,8 @@ function dayPanel(st) {
   }
   wrap.append(h);
   if (day.ph >= 1 && day.ph <= 4) wrap.append(el("p", "plan-day-lead", PHASE[day.ph][1]));
+  const dayShort = day.ph >= 1 && day.ph <= 4 && selected < t ? shortfall(day, st) : null;
+  if (dayShort && dayShort.lack > 0) wrap.append(el("p", "plan-day-miss", `⚠ この日は計画未達でした（${dayShort.got} / ${dayShort.need} 問・あと ${dayShort.lack} 問不足）。「取り戻す」で今から補えます。`));
   if (isToday) wrap.append(reviewCard("in-plan"));
   // 課題
   const list = el("ul", "plan-tasks");
@@ -647,9 +686,10 @@ function dayPanel(st) {
       const fill = el("i");
       fill.style.width = Math.min(100, Math.round((done / n) * 100)) + "%";
       bar.append(fill);
-      info.append(bar, el("small", "", `${Math.min(done, n)} / ${n} 問${done >= n ? " ✓ 達成" : ""}${tk.k === "mock" ? " ・ 本番の時間を測って解く" : ""}`));
+      info.append(bar, el("small", "", `${Math.min(done, n)} / ${n} 問${done >= n ? " ✓ 達成" : selected < t ? ` ✗ 未達（あと ${n - done} 問）` : ""}${tk.k === "mock" ? " ・ 本番の時間を測って解く" : ""}`));
     }
     li.append(info);
+    if (n && tk.k !== "final" && selected < t && done < n) li.classList.add("is-short");
     if (n && tk.k !== "final" && !future && done < n) {
       const go = el("button", "button primary plan-go", selected === t ? "はじめる" : "取り戻す");
       go.type = "button";
@@ -700,7 +740,7 @@ function calendar(st) {
   const h = el("div", "plan-cal-h");
   h.append(el("h2", "", "毎日の記録"));
   const lg = el("span", "plan-legend");
-  lg.innerHTML = '<i class="lv0"></i>未実施 <i class="lv1"></i>一部 <i class="lv2"></i>半分以上 <i class="lv3"></i>達成 <i class="rest"></i>休み';
+  lg.innerHTML = '<i class="lv0"></i>未実施 <i class="lv1"></i>一部 <i class="lv2"></i>半分以上 <i class="lv3"></i>達成 <i class="short"></i>計画未達 <i class="rest"></i>休み';
   h.append(lg);
   wrap.append(h);
   calBox = el("div", "plan-cal-grid");
@@ -739,12 +779,14 @@ function refreshCalendar(st) {
     else if (d <= t) lv = rate == null ? "lv0" : rate >= 1 ? "lv3" : rate >= 0.5 ? "lv2" : rate > 0 || stt.total ? "lv1" : d < t ? "lv0 miss" : "lv0";
     else lv = "future";
     b.className = `plan-cell ${lv} ph${day.ph}`;
+    const sf = day.ph >= 1 && day.ph <= 4 && d < t ? shortfall(day, st) : null;
+    if (sf && sf.lack > 0) b.classList.add("short");
     if (d === t) b.classList.add("today");
     if (d === selected) b.classList.add("sel");
     b.append(el("span", "plan-cell-d", Number(d.slice(8)) === 1 || d === s || d === first ? md(d) : String(Number(d.slice(8)))));
     const mark = day.ph === 5 ? "🎯" : log?.mood ? ["", "😣", "😐", "🙂", "😄"][log.mood] : stt.total ? String(stt.total) : log?.note ? "✎" : "";
     if (mark) b.append(el("small", "", mark));
-    b.title = `${mdw(d)} ${PHASE[day.ph][0]}${d <= t && day.ph >= 1 && day.ph <= 4 ? ` ・ 回答 ${stt.total} 問 ・ 達成度 ${Math.round((rate ?? 0) * 100)}%` : ""}${stt.total ? ` ・ 約 ${studyMinutes(d)} 分` : ""}`;
+    b.title = `${mdw(d)} ${PHASE[day.ph][0]}${d <= t && day.ph >= 1 && day.ph <= 4 ? ` ・ 回答 ${stt.total} 問 ・ 達成度 ${Math.round((rate ?? 0) * 100)}%` : ""}${sf && sf.lack > 0 ? ` ・ 計画未達（あと ${sf.lack} 問不足）` : ""}${stt.total ? ` ・ 約 ${studyMinutes(d)} 分` : ""}`;
     b.addEventListener("click", () => {
       selected = d;
       render();
@@ -828,6 +870,12 @@ function renderHome() {
   const day = plan.days.find((d) => d.d === t);
   const left = diffDays(t, plan.end);
   box.append(el("p", "goal-card-days", `${st.ex.code} ・ ${mdw(plan.end)} 受験 · ${left > 0 ? `あと ${left} 日` : left === 0 ? "今日が受験日" : "受験日を過ぎました"} ・ 連続 ${streak(st)} 日`));
+  const missHome = missedDays(st);
+  if (missHome.length) {
+    const a = el("a", "plan-home-miss", `⚠ 計画未達の日が ${missHome.length} 日あります（合計 ${missHome.reduce((x, d) => x + shortfall(d, st).lack, 0)} 問不足） →`);
+    a.href = "#plan";
+    box.append(a);
+  }
   if (!day) {
     box.append(el("p", "goal-card-empty", t > plan.end ? "計画の期間が終わりました。結果に合わせて次の計画を作りましょう。" : "今日は計画の期間外です。"));
     return;
