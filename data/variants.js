@@ -5,4 +5,7 @@
 // 仕様・上限値は変わるため、数値は代表的なものに留め、詳細は公式ドキュメントで確認する。
 import { VARIANTS_A } from "./variants-a.js";
 import { VARIANTS_B } from "./variants-b.js";
+import { VARIANTS_C } from "./variants-c.js";
+// variants-c.js は追加分。A / B に同じサービスがあれば、既存の項目の後ろに足す(置き換えない)。
 export const VARIANTS = { ...VARIANTS_A, ...VARIANTS_B };
+for (const [id, items] of Object.entries(VARIANTS_C)) VARIANTS[id] = [...(VARIANTS[id] || []), ...items];

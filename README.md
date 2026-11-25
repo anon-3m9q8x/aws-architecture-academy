@@ -25,6 +25,13 @@ DB準備が済むまでは `config.js` の `enabled: false` により従来の�
 - 従来の3教材に、添付Labの10教材を追加した13シーン。再生・停止・前後・先頭・速度・シーク。
 - 参考画像に寄せた3列のホーム、白・淡いブルー・丸いカード・写真のヒーロー。実回答に基づく直近7日間の回答数。ライト表示のみ(ダークモードは廃止)、モバイル対応。
 
+## Edition 10.11 — 図鑑の「種類・発展形・関連機能」を拡充(発展機能の解説が無かったサービス)
+
+- 「種類・発展形・関連機能」のあるサービスを 70 → **105**、項目を 303 → **423** に拡充(+120 項目)。すべて「概要」「使いどころ」「試験・設計のポイント」と重要ポイントの強調付き。図鑑の検索でも見つかります(例: Distributed Map → Step Functions)。
+- 新しく解説を付けた 35 サービス: Step Functions(Standard / Express、Distributed Map、サービス統合パターン、Retry / Catch)、EventBridge(イベントバス、Pipes、Scheduler、アーカイブとリプレイ、API 送信先)、Amazon MQ、AppSync、Fargate(Fargate Spot ほか)、AWS Batch、Outposts、DocumentDB、DAX、Neptune、MemoryDB、Global Accelerator、NAT Gateway、Network Firewall、NLB、Route 53 Resolver(エンドポイント、転送ルール、DNS Firewall)、VPC ピアリング、Gateway Load Balancer、ACM、CloudHSM、Control Tower、Inspector、Macie、Security Hub、STS、Private CA、Data Firehose、Lake Formation、MSK、CloudWatch Logs、Trusted Advisor、X-Ray、CodeBuild、CodePipeline、WorkSpaces。
+- 既存の 7 サービスに発展機能を補充: S3(サーバーサイド暗号化、バッチオペレーション、Object Lambda)、Lambda(イベントソースマッピング、非同期呼び出しの再試行 / 送信先 / DLQ)、Aurora(バックトラック、クローン)、CloudFront(キャッシュポリシー / オリジンリクエストポリシー、地理的制限 / フィールドレベル暗号化)、ElastiCache(Global Datastore)、Route 53(DNSSEC 署名)、EFS(レプリケーション)。
+- データ: `data/variants-c.js`(追加分)。`data/variants.js` が `variants-a.js` / `variants-b.js` に続けて読み込み、同じサービスが既にあれば既存の項目の後ろに足す(置き換えない)。既存の解説は変更していません。図鑑のサービス問題(`data/bank/SERVICE.js`)は再生成していません。
+
 ## Edition 10.10 — 用語の解説に重要ライン
 
 - 資格問題演習などで用語を押すと開く解説（全 408 語）に、重要な部分のラインを追加。黄色のマーカー＝試験で問われる要点、オレンジ（⚠）＝ひっかけ・制限・費用の注意。「解説」「AWS での使われ方」「試験のポイント」の各欄に表示し、見出しの下に凡例。ラインの中の用語もそのまま押して開ける。サービス図鑑の詳しい解説と同じ見た目（`.kmark`・`.kwarn`）。
