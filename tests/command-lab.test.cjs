@@ -344,7 +344,7 @@ test('command lab browser: routes, grading, persistence, account sync, mobile, n
     const a = await device({width: 1440, height: 950}, true);
     await login(a.page);
     await a.page.evaluate(() => { location.hash = 'command-lab/iam-s3-002'; });
-    await a.page.locator('.cl-choice input').first().check();
+    await a.page.locator('.cl-choice input[value="0"]').check(); // 表示順はシャッフルされるため元の番号 0(正解)で選ぶ
     await a.page.locator('.cl-run').click();
     assert.equal(await a.page.locator('.cl-status strong').textContent(), '正解');
     await eventually(() => rows.get(id)?.data.records['aaa.commandLab.progress.v1']?.items?.['iam-s3-002']?.cleared === true);

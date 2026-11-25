@@ -11,7 +11,7 @@ import { newSession, runCli, SUPPORTED_COMMANDS } from "./lab-engine/simulator-c
 import { newApiSession, sendRequest, simulatedSignature, looksLikeSecret } from "./lab-engine/simulator-api.js";
 import { formatJson } from "./lab-engine/json.js";
 import { byId as svcById } from "./services.js";
-import { el, store, searchClear, toast, slider } from "./ui.js";
+import { el, store, searchClear, toast, slider, shuffledOrder } from "./ui.js";
 
 const host = document.getElementById("command-lab");
 const PKEY = "aaa.commandLab.progress.v1";
@@ -529,7 +529,10 @@ function renderRead(p) {
   const form = el("form", "cl-choices");
   const fs = el("fieldset");
   fs.append(el("legend", "", q.multi ? "当てはまるものをすべて選ぶ" : "1 つ選ぶ"));
-  q.choices.forEach((c, i) => {
+  // 選択肢は表示するたびにランダムな順に並べる(value は元の番号のまま採点・記録する)
+  cur.order = shuffledOrder(q.choices.length);
+  cur.order.forEach((i) => {
+    const c = q.choices[i];
     const l = el("label", "cl-choice");
     const inp = el("input");
     inp.type = q.multi ? "checkbox" : "radio";
@@ -693,7 +696,10 @@ function renderTemplateRead(p) {
   const form = el("form", "cl-choices");
   const fs = el("fieldset");
   fs.append(el("legend", "", q.multi ? "当てはまるものをすべて選ぶ" : "1 つ選ぶ"));
-  q.choices.forEach((c, i) => {
+  // 選択肢は表示するたびにランダムな順に並べる(value は元の番号のまま採点・記録する)
+  cur.order = shuffledOrder(q.choices.length);
+  cur.order.forEach((i) => {
+    const c = q.choices[i];
     const l = el("label", "cl-choice");
     const inp = el("input");
     inp.type = q.multi ? "checkbox" : "radio";
@@ -745,7 +751,7 @@ function answerRead(form) {
   const res = gradeChoice(cur.q, picked);
   cur.result = res;
   record(res.status === "correct");
-  form.querySelectorAll(".cl-choice").forEach((l, i) => { l.classList.toggle("is-correct", res.correct.includes(i)); l.classList.toggle("is-wrong", picked.includes(i) && !res.correct.includes(i)); });
+  form.querySelectorAll(".cl-choice").forEach((l) => { const i = Number(l.querySelector("input").value); l.classList.toggle("is-correct", res.correct.includes(i)); l.classList.toggle("is-wrong", picked.includes(i) && !res.correct.includes(i)); });
   renderResult();
   setTab("result");
 }
@@ -880,7 +886,7 @@ function readResult() {
   const { q, result } = cur;
   const out = [statusBanner(result.status)];
   const ul = el("ul", "cl-why");
-  q.choices.forEach((c, i) => { const li = el("li", c.correct ? "ok" : result.picked.includes(i) ? "ng" : ""); li.append(el("span", "cl-mark", c.correct ? "✓" : result.picked.includes(i) ? "✗" : "・"), el("span", "", `${c.text} — ${c.why}`)); ul.append(li); });
+  (cur.order?.length === q.choices.length ? cur.order : q.choices.map((_, i) => i)).forEach((i) => { const c = q.choices[i]; const li = el("li", c.correct ? "ok" : result.picked.includes(i) ? "ng" : ""); li.append(el("span", "cl-mark", c.correct ? "✓" : result.picked.includes(i) ? "✗" : "・"), el("span", "", `${c.text} — ${c.why}`)); ul.append(li); });
   out.push(section("選択肢の解説", ul));
   if (q.category === "cfn") return out;
   const doc = JSON.parse(q.code);

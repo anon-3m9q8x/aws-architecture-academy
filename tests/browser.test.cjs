@@ -104,7 +104,7 @@ test('browser: learning records, migration, two-device sync, isolation, conflict
       const q=questions.find(q=>q.prompt===document.getElementById('quiz-prompt').textContent);
       return q.choices.flatMap((c,i)=>c.correct?[i]:[]);
     });
-    for(const i of good)await page.locator('#quiz-choices input').nth(i).check();
+    for(const i of good)await page.locator(`#quiz-choices input[value="${i}"]`).check(); // 選択肢は表示順がシャッフルされるため value(元の番号)で選ぶ
     await eventually(async()=>await attemptCount(page)===1);
     await page.locator('#quiz-exit').click();
     await home(page);

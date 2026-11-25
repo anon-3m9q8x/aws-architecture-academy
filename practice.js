@@ -7,6 +7,7 @@ import { findServices, servicesIn } from "./data/service-terms.js";
 import { findTerms, termButton, termify } from "./glossary.js?v=20261119a";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
 import { rateTag, rateSummary, chosenAlert } from "./choice-rate.js?v=20261118e";
+import { shuffledOrder, labelsFor } from "./ui.js";
 import { goalCodes, goalDate, haveCodes, daysLeft, focusOn, setFocus, openGoalDialog } from "./goal.js?v=20261117c";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
@@ -816,7 +817,7 @@ $("preset-clear")?.addEventListener("click", () => {
 
 /* ---------- セッション ---------- */
 let session = [], // 問題
-  states = [], // { sel:Set, submitted, correct, visited }
+  states = [], // { sel:Set, submitted, correct, visited, order } sel は元の選択肢番号。order は表示順(表示位置 → 元の番号)
   position = 0,
   maxVisited = -1, // 表示したことのある最も後ろの問題
   sessionId = 0, // 演習を始めるたびに増やす(番号ボタンの作り直しの判定)
@@ -826,6 +827,11 @@ let session = [], // 問題
   finished = false;
 function cur() {
   return states[position];
+}
+/** 選択肢の表示順。まだ無ければ毎回ランダムに作る(回答後は保持して並びを変えない) */
+function orderOf(q, s) {
+  if (!Array.isArray(s.order) || s.order.length !== q.choices.length || ![...s.order].sort((a, b) => a - b).every((v, i) => v === i)) s.order = shuffledOrder(q.choices.length);
+  return s.order;
 }
 function statusOf(i) {
   const s = states[i];
@@ -889,7 +895,9 @@ function renderMap() {
 }
 function renderChoiceMarks(q) {
   const s = cur();
-  $("quiz-choices").querySelectorAll(".choice").forEach((label, i) => {
+  const order = orderOf(q, s);
+  $("quiz-choices").querySelectorAll(".choice").forEach((label, pos) => {
+    const i = order[pos];
     label.classList.remove("is-right", "is-wrong", "is-missed");
     const txt = label.querySelector(".choice-text");
     const c = q.choices[i];
@@ -909,18 +917,20 @@ function feedback(q) {
   box.replaceChildren();
   box.hidden = !s.submitted;
   if (!s.submitted) return;
+  const order = orderOf(q, s);
+  const L = labelsFor(order, LETTERS); // 元の番号 → 表示ラベル
   const head = el("div", `feedback-head ${s.correct ? "good" : "bad"}`);
   head.append(
     el("h3", s.correct ? "feedback-correct" : "feedback-wrong", s.correct ? "✓ 正解です" : "もう一度、考え方を整理しましょう"),
     el(
       "p",
       "",
-      `正解：${q.choices.map((c, i) => (c.correct ? LETTERS[i] : null)).filter(Boolean).join("・")}` +
-        (s.correct ? "" : `　／　あなたの回答：${[...s.sel].sort().map((i) => LETTERS[i]).join("・")}`),
+      `正解：${order.filter((i) => q.choices[i].correct).map((i) => L[i]).join("・")}` +
+        (s.correct ? "" : `　／　あなたの回答：${order.filter((i) => s.sel.has(i)).map((i) => L[i]).join("・")}`),
     ),
   );
   // 選んだ不正解の選択肢が「危険」「不適切」だったとき
-  if (!s.correct) head.append(chosenAlert(q, s.sel, LETTERS));
+  if (!s.correct) head.append(chosenAlert(q, s.sel, L));
   box.append(head);
   // 論点・トピック
   if (q.concept) {
@@ -959,9 +969,10 @@ function feedback(q) {
   }
   exp.append(el("p", "eyebrow", q.choices.some((c) => c.explanation) ? "ALL CHOICES · 選択肢ごとの理由" : "CHOICES · 選択肢"));
   exp.append(rateSummary(q));
-  q.choices.forEach((choice, i) => {
+  order.forEach((i) => {
+    const choice = q.choices[i];
     const row = el("div", choice.correct ? "explanation is-correct" : s.sel.has(i) ? "explanation is-chosen" : "explanation");
-    row.append(el("strong", "", `${LETTERS[i]} · ${choice.correct ? "正解" : "不正解"}${s.sel.has(i) ? " / あなたの回答" : ""}`));
+    row.append(el("strong", "", `${L[i]} · ${choice.correct ? "正解" : "不正解"}${s.sel.has(i) ? " / あなたの回答" : ""}`));
     row.append(choice.correct ? linkify(choice.text, el("p", "choice-recap")) : markedText(choice.text, choice.marks, el("p", "choice-recap"), true));
     if (choice.explanation) {
       const why = el("p", choice.correct ? "" : "why-text");
@@ -1012,7 +1023,7 @@ function syncButtons() {
     ? ""
     : q.selectCount === 1
       ? selections.size
-        ? `${LETTERS[[...selections][0]]} を選択`
+        ? `${labelsFor(orderOf(q, s), LETTERS)[[...selections][0]]} を選択`
         : "選択肢を選んでください（キー 1〜" + LETTERS[q.choices.length - 1] + "）"
       : `${selections.size} / ${q.selectCount} 選択 · あと ${q.selectCount - selections.size} つ選ぶと採点します`;
 }
@@ -1072,7 +1083,8 @@ function render() {
   else termify(q.prompt, $("quiz-prompt"), termSeen); // 問題文の専門用語はクリックで解説を開ける
   $("quiz-choices").replaceChildren();
   $("quiz-choices").append(el("legend", "", q.selectCount === 1 ? "1つ選んでください" : `${q.selectCount}つ選んでください`));
-  q.choices.forEach((choice, i) => {
+  orderOf(q, s).forEach((i, pos) => {
+    const choice = q.choices[i];
     const label = el("label", "choice");
     const input = el("input");
     input.type = q.selectCount === 1 ? "radio" : "checkbox";
@@ -1090,7 +1102,7 @@ function render() {
       // 規定数を選んだ時点で採点する(単一選択は選んだ直後、複数選択は指定数がそろった時点)
       if (selections.size === q.selectCount) $("answer-form").requestSubmit();
     });
-    label.append(input, el("span", "choice-letter", LETTERS[i]), el("span", "choice-text", choice.text));
+    label.append(input, el("span", "choice-letter", LETTERS[pos]), el("span", "choice-text", choice.text));
     $("quiz-choices").append(label);
   });
   renderChoiceMarks(q);
@@ -1102,6 +1114,8 @@ function render() {
 function goTo(i, focus = true) {
   if (i < 0 || i >= session.length) return;
   position = i;
+  // 未回答の問題は表示するたびに選択肢の並びを変える(回答済み・結果の確認中は並びを保つ)
+  if (!states[i].submitted && !finished) states[i].order = null;
   render();
   const top = $("quiz-workspace").getBoundingClientRect().top + scrollY - 8 - dockOffset();
   if (scrollY > top) scrollTo({ top, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
@@ -1205,7 +1219,7 @@ function savePaused() {
     ids: session.map((q) => q.id),
     position,
     maxVisited,
-    states: states.map((s) => ({ sel: [...s.sel], submitted: s.submitted, correct: s.correct, visited: s.visited })),
+    states: states.map((s) => ({ sel: [...s.sel], submitted: s.submitted, correct: s.correct, visited: s.visited, order: s.submitted ? s.order || null : null })),
   });
   return true;
 }
@@ -1217,7 +1231,7 @@ function resumePaused() {
   const p = readPaused();
   if (!p) return renderPaused();
   session = p.ids.map((id) => questionMap.get(id));
-  states = p.states.map((s) => ({ sel: new Set(s.sel || []), submitted: !!s.submitted, correct: !!s.correct, visited: !!s.visited }));
+  states = p.states.map((s) => ({ sel: new Set(s.sel || []), submitted: !!s.submitted, correct: !!s.correct, visited: !!s.visited, order: s.submitted && Array.isArray(s.order) ? s.order : null }));
   position = Math.min(session.length - 1, Math.max(0, p.position || 0));
   maxVisited = p.maxVisited ?? -1;
   sessionLabel = p.label || "";

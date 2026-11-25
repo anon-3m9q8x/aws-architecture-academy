@@ -116,4 +116,21 @@ export function searchClear(input) {
   sync();
 }
 
+/** 選択肢の表示順(表示位置 → 元の選択肢番号)を Fisher-Yates でランダムに作る。
+ *  正誤判定・記録・選択率は元の番号のまま扱い、表示とラベル(1, 2, …)だけをこの順に従わせる。 */
+export function shuffledOrder(n) {
+  const a = Array.from({ length: n }, (_, i) => i);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+/** 表示順から「元の番号 → 表示ラベル」の配列を作る */
+export function labelsFor(order, letters) {
+  const out = [];
+  order.forEach((orig, pos) => (out[orig] = letters[pos]));
+  return out;
+}
+
 export { store } from "./storage.js";
