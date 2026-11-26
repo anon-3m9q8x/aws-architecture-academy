@@ -563,7 +563,7 @@ function openDetail(s) {
         const it = el("button", "kind-item");
         it.type = "button";
         it.setAttribute("aria-haspopup", "dialog");
-        it.append(el("b", "", v[0]), el("p", "", plainMarks(v[2])), el("span", "kind-more", "詳しく ›"));
+        it.append(el("b", "", v[0]), el("p", "", plainMarks(v[2])), ...(v[6]?.length ? [el("p", "kind-excerpt", plainMarks(v[3]))] : []), el("span", "kind-more", v[6]?.length ? `詳しく(仕様 ${v[6].length} 点・違い) ›` : "詳しく ›"));
         it.addEventListener("click", () => openKind(s, s.variants.indexOf(v)));
         ul.append(it);
       });
@@ -1013,7 +1013,7 @@ function openKind(s, i, from = "variants") {
   const list = from === "features" ? featureItems(s) : s.variants;
   const v = list[i];
   if (!v) return;
-  const [name, kind, short, detail, use, point] = v;
+  const [name, kind, short, detail, use, point, specs, vs] = v;
   const d = kindDialog();
   if (!d.open) d.ret = document.activeElement;
   const box = el("div", "kind-dlg-body");
@@ -1040,8 +1040,22 @@ function openKind(s, i, from = "variants") {
   us.append(el("h3", "", "使いどころ"), richMarks("p", use));
   const pt = el("div", "ex-box tip wide");
   pt.append(el("h3", "", "試験・設計のポイント"), richMarks("p", point));
-  grid.append(ov, us, pt);
-  if (/==|!!/.test(detail + use + point)) head.append(legend);
+  grid.append(ov);
+  // 押さえる仕様(箇条書き)と、混同しやすいものとの違い。種類・発展形・関連機能の項目だけが持つ
+  if (Array.isArray(specs) && specs.length) {
+    const sp = el("div", "ex-box wide kind-specs");
+    const ul = el("ul", "");
+    specs.forEach((t) => ul.append(richMarks("li", t)));
+    sp.append(el("h3", "", "押さえる仕様"), ul);
+    grid.append(sp);
+  }
+  grid.append(us, pt);
+  if (vs) {
+    const cf = el("div", "ex-box wide kind-vs");
+    cf.append(el("h3", "", "混同しやすいもの・違い"), richMarks("p", vs));
+    grid.append(cf);
+  }
+  if (/==|!!/.test(detail + use + point + (vs || "") + (specs || []).join(""))) head.append(legend);
   const foot = el("footer", "kind-dlg-foot");
   const prev = el("button", "button secondary", "‹ 前へ");
   const next = el("button", "button secondary", "次へ ›");

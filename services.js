@@ -9,7 +9,7 @@ import { EXTRA_SAP } from "./data/services-sap.js";
 import { EXTRA_2026 } from "./data/services-2026.js";
 import { LINKS_SAP } from "./data/links-sap.js";
 import { PATTERNS } from "./data/sap-patterns.js";
-import { VARIANTS } from "./data/variants.js";
+import { VARIANTS } from "./data/variants.js?v=20261126a";
 import { FEATURES } from "./data/features.js";
 import { COMPARE } from "./data/compare-groups.js";
 const EXTRA_ALL = { ...EXTRA, ...EXTRA_SAP, ...EXTRA_2026 };

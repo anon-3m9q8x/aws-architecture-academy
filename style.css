@@ -4280,3 +4280,13 @@ body.page-scrolled .topbar {
 .fp-ty.t-set { background: var(--ac-set); }
 .fp-tag.t-set { color: var(--ac-set); background: color-mix(in srgb, var(--ac-set) 14%, transparent); }
 @media (prefers-reduced-motion: reduce) { .fp-node.is-new .fp-in, .fp-chip.is-new { animation: none; } }
+
+/* ===== 種類・発展形・関連機能(Edition 10.12): カードに概要の抜粋、ダイアログに「押さえる仕様」「混同しやすいもの・違い」 ===== */
+button.kind-item p { flex: none; }
+button.kind-item .kind-excerpt { flex: 1; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--glass-line, rgba(0,0,0,.12)); font-size: 12.5px; line-height: 1.7; color: var(--aaa-muted, #5b6b82); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.kind-list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.kind-dialog .kind-specs ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.kind-dialog .kind-specs li { position: relative; padding: 8px 12px 8px 30px; border-radius: 10px; background: color-mix(in srgb, var(--study-blue, #3985ff) 7%, transparent); font-size: 14px; line-height: 1.75; }
+.kind-dialog .kind-specs li::before { content: ""; position: absolute; left: 12px; top: 1.05em; width: 8px; height: 8px; border-radius: 2px; background: var(--study-blue, #3985ff); transform: rotate(45deg); }
+.kind-dialog .kind-vs { border-left: 4px solid #8b5cf6; }
+.kind-dialog .kind-vs h3::before { content: "⇄ "; color: #8b5cf6; }
