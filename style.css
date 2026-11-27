@@ -4322,3 +4322,44 @@ button.kind-item .kind-excerpt { flex: 1; margin-top: 6px; padding-top: 6px; bor
 .result-time.over span { color: var(--ac-ng); }
 @media (max-width: 560px) { .quiz-timer .qt-q { display: none; } }
 @media (prefers-reduced-motion: reduce) { .quiz-timer.low .qt-main { animation: none; } }
+
+/* ===================================================================
+   低負荷化(2026-11-27): 使用中に PC がフリーズした件の対策
+   - backdrop-filter(背景ぼかし)は要素ごとに毎フレーム背後を再計算するため、
+     サービスカード 260 枚・パネル多数に付いていると GPU を使い切る。繰り返し要素からは外し、
+     代わりに背景色の不透明度を上げて見た目を保つ。固定ヘッダー/サイドバーだけ軽いぼかしを残す。
+   - background-attachment: fixed はスクロールのたびに全面を再描画するので、固定配置の疑似要素に移す。
+   - 無限アニメーションは、タブが裏にある間・動きを減らす設定の時は止める。装飾目的のものは数回で止める。
+   =================================================================== */
+:root {
+  --glass: color-mix(in srgb, var(--aaa-panel) 82%, transparent);
+  --glass-strong: color-mix(in srgb, var(--aaa-panel) 90%, transparent);
+}
+.panel, .ex-card, .ex-hero, .ex-box, .fp-stage, .resume-link, .ex-tabs, .quiz-dock {
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.topbar, .sidebar, body.page-scrolled .topbar { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+body { background-attachment: scroll; }
+body::before {
+  background:
+    radial-gradient(1100px 650px at 8% 45%, color-mix(in srgb, var(--study-blue) 14%, transparent), transparent 60%),
+    radial-gradient(900px 600px at 105% 55%, color-mix(in srgb, #8b5cf6 11%, transparent), transparent 60%),
+    radial-gradient(900px 700px at 60% 115%, color-mix(in srgb, #10b981 12%, transparent), transparent 60%);
+  opacity: 1; filter: none;
+}
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: url("assets/study-workspace.jpg") center / cover no-repeat;
+  opacity: 0.07; filter: none;
+}
+/* ホームの連携カードの線: 背景位置アニメ(毎フレーム再描画)をやめ、静止したグラデーションにする */
+.pair-line { animation: none; background-size: 100% 100%; }
+/* 不正解マーカーの点滅(box-shadow の再描画)は 3 回で止める */
+.qm.miss { animation-iteration-count: 3; }
+/* 停止中の問題パネル: 子要素ごとのぼかしをやめ、1 枚の不透明な覆いで隠す */
+#quiz-workspace.timer-paused .question-panel > * { filter: none; visibility: hidden; }
+/* タブが裏に回っている間はすべてのアニメーションを止める(script.js が html.is-hidden を付ける) */
+html.is-hidden *, html.is-hidden *::before, html.is-hidden *::after { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-iteration-count: 1 !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

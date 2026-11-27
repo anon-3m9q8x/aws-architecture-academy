@@ -187,6 +187,13 @@
         if (!canAutoRefresh() && (!interactive || !confirm('別の端末の最新データで画面を再読み込みします。未提出の回答と再生位置は引き継がれません。続けますか？'))) {
           status = '別の端末の更新があります。「同期する」で読み込めます。'; draw(); return;
         }
+        // 自動の再読み込みは 1 分に 1 回まで(同期の不整合で再読み込みが繰り返され、重くなるのを防ぐ)
+        if (!interactive) {
+          let lastAuto = 0;
+          try { lastAuto = Number(sessionStorage.getItem('aaa.autoReloadAt')) || 0; } catch {}
+          if (Date.now() - lastAuto < 60000) { status = '別の端末の更新があります。「同期する」で読み込めます。'; draw(); return; }
+          try { sessionStorage.setItem('aaa.autoReloadAt', String(Date.now())); } catch {}
+        }
         adopt(row); publish();
       }
       else { status = '同期済み'; draw(); }

@@ -1643,7 +1643,13 @@ document.addEventListener("keydown", (e) => {
     goTo(position - 1);
   }
 });
-window.addEventListener("resize", () => session.length && renderMap());
+// リサイズ中は 1 フレームに 1 回だけ描き直す(連続した resize イベントで問題マップを作り直し続けない)
+let mapResizeQueued = false;
+window.addEventListener("resize", () => {
+  if (mapResizeQueued || !session.length) return;
+  mapResizeQueued = true;
+  requestAnimationFrame(() => { mapResizeQueued = false; if (session.length) renderMap(); });
+}, { passive: true });
 // 演習中の上部(問題番号・正誤の集計・問題マップ)を、画面上部に固定されたヘッダーの真下に固定する。
 // ヘッダーの高さは画面幅で変わるため実測して CSS 変数に入れる(横長のバーだけを数え、PC の縦型サイドバーは除く)
 function dockOffset() {
