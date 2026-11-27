@@ -37,6 +37,28 @@ const splitName = (s) => {
   return best.lines;
 };
 
+// カテゴリ(色)ごとの線画アイコン(24×24)
+const ICONS = {
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5c.8-3.6 3.8-5.5 7.5-5.5s6.7 1.9 7.5 5.5',
+  onprem: 'M4 21V5l8-2v18M12 8h8v13M7 8h2M7 12h2M7 16h2M15 12h2M15 16h2M2 21h20',
+  violet: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3c2.5 2.5 3.6 5.5 3.6 9s-1.1 6.5-3.6 9c-2.5-2.5-3.6-5.5-3.6-9S9.5 5.5 12 3z',
+  orange: 'M7 7h10v10H7zM10 10h4v4h-4zM9 3v4M15 3v4M9 17v4M15 17v4M3 9h4M3 15h4M17 9h4M17 15h4',
+  blue: 'M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
+  green: 'M4 6h16l-1.6 13.2a2 2 0 0 1-2 1.8H7.6a2 2 0 0 1-2-1.8L4 6zM4 6c0-1.7 3.6-3 8-3s8 1.3 8 3',
+  red: 'M12 3l8 3v5.5c0 4.7-3.4 8.4-8 9.5-4.6-1.1-8-4.8-8-9.5V6l8-3zM9 12l2 2 4-4',
+  pink: 'M3 6h18v12H3zM3 7l9 6 9-6',
+  teal: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+  slate: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 4.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 19.4 9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 2z',
+  sky: 'M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16',
+  amber: 'M4 12h14M13 6l6 6-6 6M4 5v14',
+  purple: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z',
+  lime: 'M5 12a7 7 0 0 1 14 0M8.5 12a3.5 3.5 0 0 1 7 0M12 12v8M9 20h6',
+  rose: 'M4 5h16v14H4zM10 9l5 3-5 3V9z',
+  cyan: 'M3 5h18v12H3zM8 21h8M12 17v4',
+  olive: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6v12',
+  gray: 'M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM12 12l8-4.5M12 12v9M12 12L4 7.5',
+};
+
 export class ArchPlayer {
   constructor(host, opts = {}) {
     this.host = host;
@@ -66,27 +88,30 @@ export class ArchPlayer {
     this.cap.append(this.capHead, this.capDesc);
     this.cap.setAttribute('aria-live', 'polite');
     this.stage = h('div', 'ap-stage');
+    const head = h('div', 'ap-head');
+    const ht = h('div', 'ap-head-t');
+    this.titleEl = h('div', 'ap-title');
+    ht.append(h('div', 'ap-eyebrow', 'AWS ARCHITECTURE LAB'), this.titleEl);
+    this.statusEl = h('span', 'ap-status', 'PAUSED');
+    head.append(ht, this.statusEl);
+    this.headEl = head;
     this.notesEl = h('div', 'ap-notes');
     this.legendEl = h('div', 'ap-legend');
 
     const bar = h('div', 'ap-controls');
-    this.btnPlay = h('button', 'ap-btn ap-btn-primary', '▶ 再生');
-    this.btnStep = h('button', 'ap-btn', 'ステップ ⏭');
-    this.btnReset = h('button', 'ap-btn', '↺ リセット');
+    this.btnPlay = h('button', 'ap-btn ap-btn-primary', '▶ 通信開始');
+    this.btnStep = h('button', 'ap-btn', '次の工程');
+    this.btnReset = h('button', 'ap-btn ap-btn-icon', '↺');
+    this.btnReset.setAttribute('aria-label', '最初に戻す');
     for (const b of [this.btnPlay, this.btnStep, this.btnReset]) b.type = 'button';
     this.btnStep.title = '1ステップ進める (→)';
     this.btnReset.title = '最初に戻す (Home)';
     this.btnPlay.title = '再生 / 一時停止 (Space)';
-    const seg = h('div', 'ap-speed');
-    seg.setAttribute('role', 'group');
+    const seg = h('select', 'ap-btn ap-speed');
     seg.setAttribute('aria-label', '再生速度');
-    this.speedBtns = SPEEDS.map((s) => {
-      const b = h('button', 'ap-btn ap-seg', `${s}×`);
-      b.type = 'button';
-      b.dataset.speed = s;
-      seg.appendChild(b);
-      return b;
-    });
+    for (const sp of SPEEDS) { const o = h('option', null, `${sp}× 速度`); o.value = sp; seg.append(o); }
+    this.speedSel = seg;
+    this.speedBtns = [];
     this.progress = h('span', 'ap-progress', '0 / 0');
     bar.append(this.btnPlay, this.btnStep, this.btnReset, seg, this.progress);
 
@@ -108,10 +133,13 @@ export class ArchPlayer {
     this.logEl.setAttribute('aria-live', 'polite');
     const main = h('div', 'ap-main');
     main.append(this.stage, listBox);
+    this.progBar = h('div', 'ap-progbar');
+    this.progFill = h('i');
+    this.progBar.append(this.progFill);
     const below = h('div', 'ap-below');
-    below.append(this.legendEl, this.notesEl, bar, this.info);
+    below.append(bar, this.progBar, this.legendEl, this.notesEl, this.info);
 
-    host.append(main, below);
+    host.append(head, main, below);
 
     // listeners
     this._on = [];
@@ -128,7 +156,7 @@ export class ArchPlayer {
       this.go(+li.dataset.k);
       if (wasPlaying) this.play();
     });
-    this.speedBtns.forEach((b) => on(b, 'click', () => this.setSpeed(+b.dataset.speed)));
+    on(this.speedSel, 'change', () => this.setSpeed(+this.speedSel.value));
     on(host, 'keydown', (e) => {
       if (e.target.closest && e.target.closest('button') && (e.key === ' ' || e.key === 'Enter')) return;
       if (e.target.closest && e.target.closest('.ap-node') && e.key === 'Enter') return;
@@ -158,6 +186,7 @@ export class ArchPlayer {
     this.steps = [...(this.arch.steps || [])]
       .filter((s) => this.nodeMap.has(s.source) && this.nodeMap.has(s.target))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    this.titleEl.textContent = this.arch.title || '通信フロー';
     this._renderSvg();
     this._renderNotes();
     this._renderLegend();
@@ -248,7 +277,7 @@ export class ArchPlayer {
     this.t = 0;
     this.arrowLayer.textContent = '';
     this._renderSteps();
-    for (let k = 0; k < i; k++) this._drawArrow(this.steps[k], false);
+
     this._hidePacket();
     this._clearActive();
     if (this.playing && i < n) this._beginStep();
@@ -278,14 +307,14 @@ export class ArchPlayer {
     if (n._box) return n._box;
     const name = String(n.name ?? n.id);
     let lines = [name];
-    let fs = 13;
+    let fs = 14;
     if (textW(name) + 24 > 150) {
       const sp = splitName(name);
       if (sp.length === 2) lines = sp;
       else fs = Math.max(10, Math.floor(13 * 150 / (textW(name) + 24)));
     }
     const w = Math.max(104, Math.ceil(Math.max(...lines.map((l) => textW(l, fs)))) + 28);
-    const hh = lines.length > 1 ? 70 : 58;
+    const hh = lines.length > 1 ? 72 : 60;
     n._box = { w, h: hh, lines, fs };
     return n._box;
   }
@@ -315,6 +344,21 @@ export class ArchPlayer {
       el('line', { x1: p.x, y1: p.y, x2: q.x, y2: q.y, class: 'ap-extra-hit' }, g);
       el('title', {}, g).textContent = `${c.label || KIND_LABEL[c.kind] || c.kind || '関連'}: ${s.name} ↔ ${t.name}`;
     }
+    // 通信する組み合わせを、細い灰色の点線で最初から表示する
+    const ll = el('g', { class: 'ap-links' }, svg);
+    const pairs = new Set();
+    for (const st of this.steps || []) {
+      const ids = [st.source, ...(st.via || []), st.target];
+      for (let i = 1; i < ids.length; i++) {
+        const k = [ids[i - 1], ids[i]].sort().join('|');
+        if (ids[i - 1] === ids[i] || pairs.has(k)) continue;
+        pairs.add(k);
+        const s1 = this.nodeMap.get(ids[i - 1]), t1 = this.nodeMap.get(ids[i]);
+        if (!s1 || !t1) continue;
+        const [p, q] = this._clipSeg(s1, t1);
+        el('line', { x1: p.x, y1: p.y, x2: q.x, y2: q.y, class: 'ap-link' }, ll);
+      }
+    }
     this.arrowLayer = el('g', { class: 'ap-arrows' }, svg);
     const nl = el('g', { class: 'ap-nodes' }, svg);
     this.nodeEls = new Map();
@@ -326,11 +370,11 @@ export class ArchPlayer {
       // サービスの所属(カテゴリ)ごとに枠の色を分け、アイコン(略称)を上に表示
       const m = this._meta(n);
       g.classList.add('c-' + m.color);
-      const icon = el('text', { x: 0, y: -b.h / 2 + 18, class: 'ap-node-icon', 'text-anchor': 'middle', 'dominant-baseline': 'central' }, g);
-      icon.textContent = m.abbr;
-      icon.setAttribute('font-size', m.abbr.length > 3 ? 11 : m.abbr.length > 2 ? 13 : 17);
+      const ik = n.svc === 'onprem' ? 'onprem' : (!n.svc || n.svc === 'user' || n.svc === 'internet') ? 'user' : (ICONS[m.color] ? m.color : 'gray');
+      const ig = el('g', { class: 'ap-node-icon', transform: `translate(-11,${-b.h / 2 + 7}) scale(0.92)` }, g);
+      el('path', { d: ICONS[ik], fill: 'none', 'stroke-width': 1.7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, ig);
       const lh = b.fs + 3;
-      const top = -b.h / 2 + 38;
+      const top = -b.h / 2 + 41;
       b.lines.forEach((l, i) => {
         const t = el('text', { x: 0, y: top + i * lh, class: 'ap-node-text', 'font-size': b.fs, 'dominant-baseline': 'central', 'text-anchor': 'middle' }, g);
         t.textContent = l;
@@ -349,9 +393,9 @@ export class ArchPlayer {
     {
       const xs = [], ys = [];
       (a.zones || []).forEach((z) => { xs.push(z.x, z.x + z.width); ys.push(z.y, z.y + z.height); });
-      (a.nodes || []).forEach((n) => { const b = n._box || { w: 96, h: 40 }; xs.push(n.x - b.w / 2 - 6, n.x + b.w / 2 + 6); ys.push(n.y - b.h / 2 - 22, n.y + b.h / 2 + 8); });
+      (a.nodes || []).forEach((n) => { const b = n._box || { w: 96, h: 40 }; xs.push(n.x - b.w / 2 - 6, n.x + b.w / 2 + 6); ys.push(n.y - b.h / 2 - 8, n.y + b.h / 2 + 6); });
       if (xs.length) {
-        const pad = 14;
+        const pad = 6;
         const x0 = Math.max(0, Math.min(...xs) - pad), y0 = Math.max(0, Math.min(...ys) - pad);
         const x1 = Math.min(W, Math.max(...xs) + pad), y1 = Math.min(H, Math.max(...ys) + pad);
         if (x1 - x0 > 80 && y1 - y0 > 60) svg.setAttribute('viewBox', `${x0} ${y0} ${x1 - x0} ${y1 - y0}`);
@@ -547,7 +591,7 @@ export class ArchPlayer {
 
   _completeStep() {
     const k = this.idx;
-    if (this._curArrow) this._curArrow.classList.remove('ap-arrow-current');
+    if (this._curArrow) this._curArrow.remove();
     this._curArrow = null;
     this._appendLog(k);
     this.idx++;
@@ -652,17 +696,14 @@ export class ArchPlayer {
     this.capDesc.textContent = st.description ? `${route} — ${st.description}` : route;
   }
 
-  _syncSpeed() {
-    for (const b of this.speedBtns) {
-      const on = +b.dataset.speed === this.speed;
-      b.classList.toggle('ap-on', on);
-      b.setAttribute('aria-pressed', on);
-    }
-  }
+  _syncSpeed() { if (this.speedSel) this.speedSel.value = String(this.speed); }
 
   _ui() {
     const n = this.steps?.length || 0;
-    this.btnPlay.textContent = this.playing ? '⏸ 一時停止' : '▶ 再生';
+    this.btnPlay.textContent = this.playing ? '⏸ 一時停止' : (this.idx > 0 && this.idx < n ? '▶ 再開' : '▶ 通信開始');
+    this.statusEl.textContent = this.playing ? 'PLAYING' : this.idx >= n && n ? 'COMPLETE' : 'PAUSED';
+    this.statusEl.dataset.s = this.statusEl.textContent.toLowerCase();
+    this.progFill.style.width = n ? `${(Math.min(this.idx, n) / n) * 100}%` : '0%';
     this.btnPlay.setAttribute('aria-pressed', this.playing);
     this.btnStep.disabled = this.idx >= n;
     this.progress.textContent = `${Math.min(this.idx, n)} / ${n}`;

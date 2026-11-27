@@ -3,7 +3,7 @@ import { TERMS, renderGlossary, openTerm, termById } from "./glossary.js?v=20261
 import { SERVICES, CATS, byId, relsOf, compsOf, extOf, metaOf, serviceCount, patternsOf, groupsOf, COMPARE } from "./services.js";
 import { memo } from "./memo.js";
 import { normalizeScene, serviceScene, problemScene } from "./flow.js";
-import { ArchPlayer } from "./arch-player.js?v=20261127h";
+import { ArchPlayer } from "./arch-player.js?v=20261127j";
 import { sceneToArch, prepArch } from "./arch-adapter.js?v=20261127c";
 import { ARCHITECTURES } from "./data/architectures.js?v=20261127c";
 const svcDesc = (id) => byId.get(id)?.summary || "";
