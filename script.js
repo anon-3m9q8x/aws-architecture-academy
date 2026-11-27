@@ -2,7 +2,7 @@
 // ページ単位のスクリプトには ?v= を付け、公開更新のたびに index.html の script.js?v= と一緒に上げる(古いキャッシュとの混在で動かなくなるのを防ぐ)
 import { SERVICES, byId, relsOf, serviceCount } from "./services.js";
 import { BUILD } from "./data/build.js";
-import "./practice.js?v=20261127a";
+import "./practice.js?v=20261127b";
 import "./home.js?v=20261117b";
 import "./explorer.js?v=20261126a";
 import "./command-lab.js?v=20261125a";

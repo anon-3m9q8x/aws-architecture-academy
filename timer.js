@@ -53,8 +53,8 @@ const st = { total: 0, per: [], limit: 0, running: false, last: 0, pos: 0, warne
 let iv = 0;
 // 残りわずかとみなす時間: 制限時間の 10%(30 秒〜5 分)
 const lowAt = () => Math.min(5 * 60000, Math.max(30000, st.limit * 0.1));
-const ICON_PAUSE = '<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><rect x="2" y="1.5" width="2.8" height="9" rx="0.8" fill="currentColor"/><rect x="7.2" y="1.5" width="2.8" height="9" rx="0.8" fill="currentColor"/></svg>';
-const ICON_PLAY = '<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M3 1.6v8.8a.6.6 0 0 0 .9.5l7-4.4a.6.6 0 0 0 0-1L3.9 1.1a.6.6 0 0 0-.9.5z" fill="currentColor"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true"><rect x="2" y="1.5" width="2.8" height="9" rx="0.8" fill="currentColor"/><rect x="7.2" y="1.5" width="2.8" height="9" rx="0.8" fill="currentColor"/></svg>';
+const ICON_PLAY = '<svg viewBox="0 0 12 12" width="14" height="14" aria-hidden="true"><path d="M3 1.6v8.8a.6.6 0 0 0 .9.5l7-4.4a.6.6 0 0 0 0-1L3.9 1.1a.6.6 0 0 0-.9.5z" fill="currentColor"/></svg>';
 let ui = null; // { box, main, label, q, toggle, reset, workspace }
 
 export function mount(box, workspace) {
@@ -74,8 +74,27 @@ export function mount(box, workspace) {
   clock.setAttribute("role", "timer");
   clock.append(label, main);
   box.append(clock, q, toggle, reset);
-  toggle.addEventListener("click", () => (st.running ? pause() : resume()));
-  reset.addEventListener("click", () => {
+  const flip = () => { if (!st.active || st.frozen) return; st.running ? pause() : resume(); };
+  // タイマーの表示部分のどこを押しても一時停止/再開(リセットボタンだけは別)
+  box.tabIndex = 0;
+  box.setAttribute("role", "button");
+  box.addEventListener("click", (e) => { if (e.target.closest(".qt-reset")) return; flip(); });
+  box.addEventListener("keydown", (e) => {
+    if (e.target !== box || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    flip();
+  });
+  // 一時停止中は、ぼかした問題パネルを押しても再開できる
+  workspace?.addEventListener("click", (e) => {
+    if (!workspace.classList.contains("timer-paused") || !e.target.closest(".question-panel")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resume();
+  }, true);
+  toggle.tabIndex = -1;
+  reset.classList.add("qt-reset");
+  reset.addEventListener("click", (e) => {
+    e.stopPropagation();
     st.total = 0;
     st.per = st.per.map(() => 0);
     st.warned = st.over = false;
@@ -112,6 +131,7 @@ function paint() {
   ui.toggle.innerHTML = st.running ? ICON_PAUSE : ICON_PLAY;
   ui.toggle.title = st.running ? "タイマーを一時停止" : "タイマーを再開";
   ui.toggle.setAttribute("aria-label", ui.toggle.title);
+  ui.box.setAttribute("aria-label", (st.running ? "タイマーを一時停止" : "タイマーを再開") + "(タイマーを押す)");
   ui.toggle.hidden = st.frozen;
   ui.reset.hidden = st.frozen;
   ui.workspace?.classList.toggle("timer-paused", !st.running && st.active && !st.frozen);

@@ -8,7 +8,7 @@ import { findTerms, termButton, termify } from "./glossary.js?v=20261119a";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
 import { rateTag, rateSummary, chosenAlert } from "./choice-rate.js?v=20261118e";
 import { shuffledOrder, labelsFor } from "./ui.js";
-import * as timer from "./timer.js?v=20261127a";
+import * as timer from "./timer.js?v=20261127b";
 import { goalCodes, goalDate, haveCodes, daysLeft, focusOn, setFocus, openGoalDialog } from "./goal.js?v=20261117c";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
