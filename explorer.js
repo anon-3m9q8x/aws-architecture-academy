@@ -3,10 +3,11 @@ import { TERMS, renderGlossary, openTerm, termById } from "./glossary.js?v=20261
 import { SERVICES, CATS, byId, relsOf, compsOf, extOf, metaOf, serviceCount, patternsOf, groupsOf, COMPARE } from "./services.js";
 import { memo } from "./memo.js";
 import { normalizeScene, serviceScene, problemScene } from "./flow.js";
-import { ArchPlayer } from "./arch-player.js?v=20261127c";
+import { ArchPlayer } from "./arch-player.js?v=20261127g";
 import { sceneToArch, prepArch } from "./arch-adapter.js?v=20261127c";
 import { ARCHITECTURES } from "./data/architectures.js?v=20261127c";
 const svcDesc = (id) => byId.get(id)?.summary || "";
+const apMeta = (id) => ({ ...(metaOf(id) || {}), cat: byId.get(id)?.cat });
 const toArch = (sc) => sceneToArch(sc, svcDesc);
 import { BUILD } from "./data/build.js";
 import { LAB_QUESTIONS, CATEGORY as LAB_CAT, MODE as LAB_MODE } from "./data/command-lab/index.js";
@@ -487,7 +488,7 @@ function openDetail(s) {
     curAnim = k;
     pick.querySelectorAll(".ex-anim").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.k === k)));
     animSlide();
-    if (!player) player = new ArchPlayer(stage, { meta: metaOf, onNode: (id) => id !== s.id && byId.has(id) && (location.hash = `services/${id}`) });
+    if (!player) player = new ArchPlayer(stage, { meta: apMeta, onNode: (id) => id !== s.id && byId.has(id) && (location.hash = `services/${id}`) });
     player.load(a.arch ? a.scene() : toArch(a.scene()), { autoplay: auto });
     animNote.textContent = a.key === "auto"
       ? "利用者側から奥へ、連携を一連の流れとして再生します。つなぐ前に必要な設定は「＋」のチップで、IAM・KMS・監視などはあとから追加する機能として登場します。ノードをタップするとそのサービスの解説へ移動します。"
@@ -840,7 +841,7 @@ function openScene(sc) {
   detail.classList.remove("enter");
   void detail.offsetWidth;
   detail.classList.add("enter");
-  player = new ArchPlayer(stage, { meta: metaOf, onNode: (id) => byId.has(id) && (location.hash = `services/${id}`) });
+  player = new ArchPlayer(stage, { meta: apMeta, onNode: (id) => byId.has(id) && (location.hash = `services/${id}`) });
   player.load(toArch(sc));
   store.set("aaa.resume.scene", sc.id);
   window.scrollTo({ top: 0, behavior: "instant" });
@@ -905,7 +906,7 @@ function openPattern(p) {
   detail.classList.remove("enter");
   void detail.offsetWidth;
   detail.classList.add("enter");
-  player = new ArchPlayer(stage, { meta: metaOf, onNode: (id) => byId.has(id) && !["user", "onprem", "internet"].includes(id) && (location.hash = `services/${id}`) });
+  player = new ArchPlayer(stage, { meta: apMeta, onNode: (id) => byId.has(id) && !["user", "onprem", "internet"].includes(id) && (location.hash = `services/${id}`) });
   player.load(toArch(patternScene(p, metaOf)));
   window.scrollTo({ top: 0, behavior: "instant" });
   document.title = `${p.id} ${p.t} | 設計パターン | AWS Architecture Academy`;
