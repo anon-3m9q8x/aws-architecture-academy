@@ -4331,9 +4331,10 @@ button.kind-item .kind-excerpt { flex: 1; margin-top: 6px; padding-top: 6px; bor
    - background-attachment: fixed はスクロールのたびに全面を再描画するので、固定配置の疑似要素に移す。
    - 無限アニメーションは、タブが裏にある間・動きを減らす設定の時は止める。装飾目的のものは数回で止める。
    =================================================================== */
+/* 透過(半透明)はそのまま。半透明の重ね合わせは軽いので、透過率は元の値に戻す */
 :root {
-  --glass: color-mix(in srgb, var(--aaa-panel) 82%, transparent);
-  --glass-strong: color-mix(in srgb, var(--aaa-panel) 90%, transparent);
+  --glass: color-mix(in srgb, var(--aaa-panel) 46%, transparent);
+  --glass-strong: color-mix(in srgb, var(--aaa-panel) 62%, transparent);
 }
 .panel, .ex-card, .ex-hero, .ex-box, .fp-stage, .resume-link, .ex-tabs, .quiz-dock {
   backdrop-filter: none; -webkit-backdrop-filter: none;
@@ -4349,8 +4350,9 @@ body::before {
 }
 body::after {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: url("assets/study-workspace.jpg") center / cover no-repeat;
-  opacity: 0.07; filter: none;
+  /* すりガラス感は、あらかじめぼかした写真で出す(実行時のぼかし計算なし) */
+  background: url("assets/study-workspace-blur.jpg") center / cover no-repeat;
+  opacity: 0.14; filter: none;
 }
 /* ホームの連携カードの線: 背景位置アニメ(毎フレーム再描画)をやめ、静止したグラデーションにする */
 .pair-line { animation: none; background-size: 100% 100%; }
