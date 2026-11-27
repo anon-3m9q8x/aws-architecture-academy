@@ -270,6 +270,35 @@ function buildsFor(ids) {
 }
 
 /* ---------- 類似サービス比較 ---------- */
+/* ---------- 類似サービスの説明で重要な箇所に下線(マーカー)を引く ---------- */
+// 文を「、」「。」で区切り、違いを決める言い回し(だけ・特化・できない・数値・〜なら など)を含む部分を選んで <mark> で囲む
+const KEY_STRONG = /だけ|のみ|特化|専用|ではなく|できない|できません|使えない|使わない|向かない|向いていない|不向き|苦手|対象外|不可|唯一|必須|しかない/;
+const KEY_NUM = /\d[\d,.]*\s*(ミリ秒|ms|秒|分|時間|日|か月|年|GB|TB|PB|MB|KB|%|％|リージョン|AZ|台|件|回|倍|Gbps|Mbps)/;
+const KEY_COND = /なら|場合は|ときは|には/;
+const KEY_MID = /必要|不要|自動|サーバーレス|低遅延|高速|安価|安い|無制限|リアルタイム|非同期|同期|グローバル|マルチリージョン|書き込み|読み取り/;
+function keyScore(t) {
+  return (KEY_STRONG.test(t) ? 3 : 0) + (KEY_NUM.test(t) ? 2 : 0) + (KEY_COND.test(t) ? 2 : 0) + (KEY_MID.test(t) ? 1 : 0);
+}
+function markKey(text, tag = "span", cls = "") {
+  const node = el(tag, cls);
+  const str = String(text || "");
+  const parts = str.match(/[^、。]+[、。]?/g) || [str];
+  const scored = parts.map((p, i) => ({ i, sc: keyScore(p), len: p.length }));
+  const many = parts.length > 1;
+  const max = str.length > 90 ? 2 : 1;
+  let pick = new Set(scored.filter((x) => x.sc >= (many ? 2 : 3) && x.len >= 4).sort((a, b) => b.sc - a.sc || a.i - b.i).slice(0, max).map((x) => x.i));
+  // 長い説明で何も選ばれなかったときは、いちばん要点らしい部分を 1 つ選ぶ
+  if (!pick.size && many && str.length > 60) {
+    const best = scored.filter((x) => x.sc >= 1 && x.len >= 6).sort((a, b) => b.sc - a.sc || a.i - b.i)[0];
+    if (best) pick = new Set([best.i]);
+  }
+  parts.forEach((p, i) => {
+    if (!pick.has(i)) { node.append(p); return; }
+    const m = p.match(/^(.*?)([、。]?)$/s);
+    node.append(el("mark", "ex-key", m[1]), m[2]);
+  });
+  return node;
+}
 function compareBlock(g, hl, compact) {
   const box = el("section", "panel cmp-block");
   const h = el("div", "cmp-head");
@@ -283,7 +312,7 @@ function compareBlock(g, hl, compact) {
     r.rel = "noopener noreferrer";
     h.append(r);
   }
-  box.append(h, el("p", "muted cmp-intro", g.intro));
+  box.append(h, markKey(g.intro, "p", "muted cmp-intro"));
   // 各サービスの得意なこと / 選ばないとき
   const tbl = el("div", "cmp-table");
   const hd = el("div", "cmp-row cmp-th");
@@ -295,7 +324,7 @@ function compareBlock(g, hl, compact) {
     const n = el("a", "ex-rel-name");
     n.href = `#services/${id}`;
     n.append(glyph(sv), el("b", "", sv.name));
-    row.append(n, el("span", "cmp-good", good), el("span", "cmp-bad", bad));
+    row.append(n, markKey(good, "span", "cmp-good"), markKey(bad, "span", "cmp-bad"));
     tbl.append(row);
   });
   box.append(tbl);
@@ -308,7 +337,7 @@ function compareBlock(g, hl, compact) {
     const n = el("a", "ex-rel-name");
     n.href = `#services/${id}`;
     n.append(glyph(sv), el("b", "", sv.name));
-    row.append(el("span", "cmp-use", use), el("i", "pt-arrow", "→"), n, el("small", "muted", why));
+    row.append(el("span", "cmp-use", use), el("i", "pt-arrow", "→"), n, markKey(why, "small", "muted"));
     cs.append(row);
   });
   box.append(cs);
@@ -601,9 +630,9 @@ function openDetail(s) {
         if (c.same || c.diff) {
           // 補充分の比較: 共通点・違い・選び方
           const dl = el("dl", "ex-cmp-dl");
-          for (const [k2, t] of [["same", "共通点"], ["diff", "違い"], ["choose", "選び方"]]) if (c[k2]) dl.append(el("dt", "", t), el("dd", "", c[k2]));
+          for (const [k2, t] of [["same", "共通点"], ["diff", "違い"], ["choose", "選び方"]]) if (c[k2]) dl.append(el("dt", "", t), markKey(c[k2], "dd"));
           row.append(dl);
-        } else row.append(el("p", "", c.text));
+        } else row.append(markKey(c.text, "p"));
         b.append(row);
       });
       secS.append(b);
@@ -615,7 +644,7 @@ function openDetail(s) {
         const row = el("div", "ex-cmp ex-cmp-ext");
         const h = el("p", "ex-ext-h");
         h.append(el("b", "", name), el("span", "muted", ` · ${vendor}`));
-        row.append(h, el("p", "", text));
+        row.append(h, markKey(text, "p"));
         b.append(row);
       });
       b.append(el("p", "muted ex-anim-note", "AWS 以外のサービスは、学習の参考としての位置づけです。機能や提供形態は各社の情報を確認してください。"));

@@ -4461,3 +4461,6 @@ html.is-hidden *, html.is-hidden *::before, html.is-hidden *::after { animation-
   .ap-btn-primary { min-width: 100px; }
 }
 @media (prefers-reduced-motion: reduce) { .ap-node.ap-pulse .ap-node-glow { animation: none; stroke-opacity: .6; } .ap-arrow-current line { animation: none; } }
+
+/* 類似サービスの説明: 重要な箇所のマーカー */
+mark.ex-key { color: inherit; font-weight: 700; background: linear-gradient(transparent 58%, color-mix(in srgb, var(--aaa-orange) 42%, transparent) 58%); padding: 0 1px; border-radius: 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
