@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800&amp;display=swap" />
-    <link rel="stylesheet" href="style.css?v=20261126a" />
+    <link rel="stylesheet" href="style.css?v=20261127a" />
     <link rel="stylesheet" href="account.css?v=20261119a" />
     <!-- 資格問題演習の大きな問題データを先に並行して読み込む(import の連鎖を待たずに取得し、表示までの時間を短くする) -->
     <link rel="modulepreload" href="data/bank/AIB-C01.js" />
@@ -288,8 +288,18 @@
                   <option value="real">実試験と同じ問題数</option>
                   <option value="1000">該当するすべて</option>
                 </select></label
+              ><label
+                >タイマー<select id="quiz-timer-mode">
+                  <option value="up">経過時間を計る</option>
+                  <option value="exam">本番ペースで制限(試験時間 ÷ 問題数)</option>
+                  <option value="custom">制限時間を指定</option>
+                  <option value="off">表示しない</option>
+                </select></label
+              ><label id="quiz-timer-min-wrap" hidden
+                >制限時間(分)<input id="quiz-timer-min" type="number" min="1" max="600" step="1" inputmode="numeric" value="20" /></label
               >
             </div>
+            <p id="quiz-timer-hint" class="timer-hint muted"></p>
             <div id="exam-overview" class="exam-overview"></div>
             <p id="preset-chip" class="preset-chip" hidden>出題中：<b id="preset-label"></b> <button id="preset-clear" type="button">条件を解除</button></p>
             <div id="weak-box" class="weak-box"></div>
@@ -305,6 +315,7 @@
               <div class="quiz-toolbar">
                 <span id="quiz-position"></span>
                 <span id="quiz-tally" class="quiz-tally" aria-live="polite"></span>
+                <span id="quiz-timer" class="quiz-timer" hidden></span>
                 <button id="quiz-miss" class="warn-button" type="button" hidden>⚠ 未回答 <b>0</b>問へ</button>
                 <button id="quiz-pause" type="button" class="pause-button" title="途中の状態を保存して設定画面に戻ります。設定画面の「続きから」で再開できます。">⏸ 一時中断</button>
                 <button id="quiz-exit" type="button" title="この演習を終了します（回答済みの問題は記録されます）">終了</button>
@@ -362,6 +373,6 @@
     <script src="config.js"></script>
     <script src="vendor/supabase.js"></script>
     <script src="account.js?v=20261119c"></script>
-    <script src="script.js?v=20261126a" type="module"></script>
+    <script src="script.js?v=20261127a" type="module"></script>
   </body>
 </html>

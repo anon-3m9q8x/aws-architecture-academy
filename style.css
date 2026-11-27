@@ -4290,3 +4290,32 @@ button.kind-item .kind-excerpt { flex: 1; margin-top: 6px; padding-top: 6px; bor
 .kind-dialog .kind-specs li::before { content: ""; position: absolute; left: 12px; top: 1.05em; width: 8px; height: 8px; border-radius: 2px; background: var(--study-blue, #3985ff); transform: rotate(45deg); }
 .kind-dialog .kind-vs { border-left: 4px solid #8b5cf6; }
 .kind-dialog .kind-vs h3::before { content: "⇄ "; color: #8b5cf6; }
+
+/* ===== 演習タイマー(経過時間・1問ごとの時間・制限時間のカウントダウン) ===== */
+.quiz-timer { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 10px; border: 1px solid var(--aaa-border); border-radius: 999px; background: var(--aaa-panel); font-size: 10.5px; color: var(--aaa-muted); font-variant-numeric: tabular-nums; transition: background 0.2s, border-color 0.2s, color 0.2s; }
+.quiz-timer[hidden] { display: none; }
+.quiz-timer .qt-clock { display: inline-flex; align-items: baseline; gap: 4px; }
+.quiz-timer .qt-label { font-size: 9.5px; font-weight: 800; letter-spacing: 0.04em; }
+.quiz-timer .qt-main { font-size: 12.5px; font-weight: 800; color: var(--aaa-text); letter-spacing: 0.02em; }
+.quiz-timer .qt-q { padding-left: 6px; border-left: 1px solid var(--aaa-border); white-space: nowrap; }
+.quiz-dock .quiz-toolbar .quiz-timer .qt-btn { width: 22px; height: 22px; padding: 0; border-radius: 50%; display: inline-grid; place-items: center; font-size: 10px; line-height: 1; }
+.quiz-timer.low { border-color: var(--ac-warn); background: color-mix(in srgb, var(--ac-warn) 16%, var(--aaa-panel)); }
+.quiz-timer.low .qt-main, .quiz-timer.low .qt-label { color: color-mix(in srgb, var(--ac-warn) 55%, var(--aaa-text)); }
+.quiz-timer.low .qt-main { animation: qt-pulse 1.4s ease-in-out infinite; }
+.quiz-timer.over { border-color: var(--ac-ng); background: color-mix(in srgb, var(--ac-ng) 13%, var(--aaa-panel)); }
+.quiz-timer.over .qt-main, .quiz-timer.over .qt-label { color: var(--ac-ng); }
+.quiz-timer.paused .qt-main { opacity: 0.55; }
+@keyframes qt-pulse { 50% { opacity: 0.55; } }
+#quiz-workspace.timer-paused .question-panel { position: relative; }
+#quiz-workspace.timer-paused .question-panel > * { filter: blur(6px); pointer-events: none; user-select: none; }
+#quiz-workspace.timer-paused .question-panel::after {
+  content: "⏸ タイマーを一時停止中 — 上部のタイマーの再生ボタンで再開"; position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center;
+  font-weight: 800; font-size: 14px; color: var(--aaa-text); background: color-mix(in srgb, var(--aaa-bg) 45%, transparent); border-radius: inherit;
+}
+.timer-hint { margin: 6px 0 0; font-size: 12px; }
+.timer-hint:empty { display: none; }
+#quiz-timer-min { width: 100%; }
+.result-time { margin: 8px 0 0; font-weight: 700; font-size: 13.5px; }
+.result-time.over span { color: var(--ac-ng); }
+@media (max-width: 560px) { .quiz-timer .qt-q { display: none; } }
+@media (prefers-reduced-motion: reduce) { .quiz-timer.low .qt-main { animation: none; } }

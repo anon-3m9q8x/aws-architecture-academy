@@ -8,6 +8,7 @@ import { findTerms, termButton, termify } from "./glossary.js?v=20261119a";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
 import { rateTag, rateSummary, chosenAlert } from "./choice-rate.js?v=20261118e";
 import { shuffledOrder, labelsFor } from "./ui.js";
+import * as timer from "./timer.js?v=20261127a";
 import { goalCodes, goalDate, haveCodes, daysLeft, focusOn, setFocus, openGoalDialog } from "./goal.js?v=20261117c";
 const $ = (id) => document.getElementById(id);
 const key = "aaa.practice.attempts.v1";
@@ -815,6 +816,14 @@ $("preset-clear")?.addEventListener("click", () => {
   updatePool();
 });
 
+/* ---------- タイマー ---------- */
+// 本番ペース用に、選んだ資格の実試験 [問題数, 試験時間(分)] を渡す(資格を選んでいないときは 2 分/問)
+function timerReal() {
+  const code = $("quiz-cert").value;
+  return examByCode.get(code === "goal" ? goalsWithQs()[0] : code)?.real || null;
+}
+timer.bindSetup($("quiz-timer-mode"), $("quiz-timer-min"), $("quiz-timer-min-wrap"), $("quiz-timer-hint"));
+timer.mount($("quiz-timer"), $("quiz-workspace"));
 /* ---------- セッション ---------- */
 let session = [], // 問題
   states = [], // { sel:Set, submitted, correct, visited, order } sel は元の選択肢番号。order は表示順(表示位置 → 元の番号)
@@ -1034,6 +1043,7 @@ function render() {
   if (position > maxVisited) maxVisited = position;
   selections = new Set(s.sel);
   submitted = s.submitted;
+  if (!finished) timer.at(position);
   $("quiz-position").textContent = `QUESTION ${String(position + 1).padStart(2, "0")} / ${session.length}`;
   $("quiz-progress").max = session.length;
   $("quiz-progress").value = states.filter((x) => x.submitted).length;
@@ -1152,6 +1162,7 @@ $("quiz-start").addEventListener("click", () => {
   $("quiz-result").hidden = true;
   $("quiz-workspace").hidden = false;
   document.body.classList.add("in-quiz");
+  timer.start(session.length, timerReal());
   render();
   $("quiz-prompt").setAttribute("tabindex", "-1");
   $("quiz-prompt").focus();
@@ -1190,6 +1201,7 @@ function settings() {
   $("quiz-result").hidden = true;
   $("practice-setup").hidden = false;
   document.body.classList.remove("in-quiz");
+  timer.stop();
   session = [];
   states = [];
   results = [];
@@ -1220,6 +1232,7 @@ function savePaused() {
     position,
     maxVisited,
     states: states.map((s) => ({ sel: [...s.sel], submitted: s.submitted, correct: s.correct, visited: s.visited, order: s.submitted ? s.order || null : null })),
+    timer: timer.snapshot(),
   });
   return true;
 }
@@ -1250,6 +1263,7 @@ function resumePaused() {
     const next = states.findIndex((s) => !s.submitted);
     if (next >= 0) position = next;
   }
+  timer.start(session.length, null, p.timer && typeof p.timer === "object" ? p.timer : { total: 0, per: [], limit: 0, off: false });
   render();
   $("quiz-prompt").setAttribute("tabindex", "-1");
   $("quiz-prompt").focus({ preventScroll: true });
@@ -1426,6 +1440,7 @@ $("quiz-next").addEventListener("click", () => {
 });
 function showResult() {
   finished = true;
+  const tm = timer.finish();
   if (store.get(PAUSE_KEY, null)) store.set(PAUSE_KEY, null);
   saveLast();
   lastIdx = 0;
@@ -1451,6 +1466,12 @@ function showResult() {
       `回答 ${done.length}問 · 未回答 ${session.length - done.length}問 — このセッションの正答率です。AWS 公式試験のスコアではありません。`,
     ),
   );
+  if (tm.total >= 1000) {
+    const avg = done.length ? tm.total / done.length : 0;
+    const tp = el("p", `result-time${tm.limit && tm.total > tm.limit ? " over" : ""}`, `⏱ 所要時間 ${timer.fmt(tm.total)}${done.length ? ` · 1問あたり平均 ${timer.fmt(avg)}` : ""}`);
+    if (tm.limit) tp.append(el("span", "", tm.total <= tm.limit ? ` · 制限時間 ${timer.fmt(tm.limit)} 以内（残り ${timer.fmt(tm.limit - tm.total)}）` : ` · 制限時間 ${timer.fmt(tm.limit)} を ${timer.fmt(tm.total - tm.limit)} 超過`));
+    box.append(tp);
+  }
   const list = el("ul", "session-summary");
   session.forEach((q, i) => {
     const s = states[i];
@@ -1465,6 +1486,7 @@ function showResult() {
         : el("span", `sum-tag band-${probBand(probability(q, examFor(q)))}`, `${examFor(q)} · ${DIFFICULTY[q.difficulty]} · 約${probability(q, examFor(q))}%`),
       el("span", "go", "見直す →"),
     );
+    if (tm.per[i] >= 1000) btn.querySelector(".sum-tag")?.append(` · ⏱ ${timer.fmt(tm.per[i])}`);
     btn.addEventListener("click", () => {
       box.hidden = true;
       $("quiz-workspace").hidden = false;
