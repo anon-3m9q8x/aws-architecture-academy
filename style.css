@@ -4365,3 +4365,64 @@ html.is-hidden *, html.is-hidden *::before, html.is-hidden *::after { animation-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-iteration-count: 1 !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ===== ArchPlayer (arch-player.js) — 通信アニメーションプレーヤー ===== */
+.ap-root { display: grid; gap: 10px; color: var(--aaa-text); outline: none; min-width: 0; }
+.ap-root:focus-visible { outline: 2px solid var(--aaa-blue); outline-offset: 4px; border-radius: 12px; }
+.ap-caption { background: var(--aaa-panel); border: 1px solid var(--aaa-border); border-radius: 12px; padding: 10px 14px; min-height: 58px; }
+.ap-cap-head { font-weight: 700; font-size: 15px; line-height: 1.45; }
+.ap-cap-step { color: var(--aaa-orange); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.ap-cap-op { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--aaa-blue); }
+.ap-cap-desc { color: var(--aaa-muted); font-size: 13px; margin-top: 2px; line-height: 1.5; }
+.ap-stage { background: var(--aaa-panel); border: 1px solid var(--aaa-border); border-radius: 12px; padding: 6px; overflow: hidden; }
+.ap-svg { display: block; width: 100%; height: auto; font-family: inherit; }
+.ap-zone { fill: var(--aaa-text); fill-opacity: .035; stroke: var(--aaa-border); stroke-width: 1.5; }
+.ap-zone-az { fill-opacity: .025; stroke-dasharray: 6 5; stroke: var(--aaa-muted); stroke-opacity: .55; }
+.ap-zone-label { fill: var(--aaa-muted); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.ap-extra line { stroke: var(--aaa-muted); stroke-opacity: .5; stroke-width: 1.5; stroke-dasharray: 4 5; }
+.ap-extra line.ap-extra-hit { stroke: transparent; stroke-width: 12; stroke-dasharray: none; cursor: help; }
+.ap-arrow line { stroke-width: 2; stroke-opacity: .55; stroke-linecap: round; }
+.ap-arrow-current line { stroke-width: 2.6; stroke-opacity: 1; }
+.ap-node { cursor: pointer; outline: none; }
+.ap-node-box { fill: var(--aaa-bg); stroke: var(--aaa-border); stroke-width: 1.5; transition: stroke .2s, fill .2s; }
+.ap-node-glow { fill: none; stroke: none; }
+.ap-node-text { fill: var(--aaa-text); font-weight: 600; pointer-events: none; }
+.ap-node:hover .ap-node-box, .ap-node:focus-visible .ap-node-box { stroke: var(--aaa-blue); }
+.ap-node.ap-active .ap-node-box { stroke: var(--aaa-orange); stroke-width: 2; }
+.ap-node.ap-selected .ap-node-box { stroke: var(--aaa-blue); stroke-width: 2.5; fill: var(--aaa-panel-hover); }
+.ap-node.ap-pulse .ap-node-glow { stroke: var(--aaa-orange); stroke-width: 3; animation: ap-pulse 1s ease-in-out infinite; }
+@keyframes ap-pulse { 0%, 100% { stroke-opacity: .15; } 50% { stroke-opacity: .8; } }
+.ap-packet circle { stroke: var(--aaa-bg); stroke-width: 2; filter: drop-shadow(0 0 4px #ffb34799); }
+.ap-packet-label { fill: var(--aaa-text); font-size: 11px; font-weight: 700; paint-order: stroke; stroke: var(--aaa-bg); stroke-width: 3.5px; stroke-linejoin: round; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.ap-notes { display: flex; gap: 8px; font-size: 12.5px; color: var(--aaa-muted); line-height: 1.55; padding: 0 4px; }
+.ap-notes-head { flex: none; font-weight: 700; color: var(--aaa-text); }
+.ap-notes-list { margin: 0; padding: 0; list-style: none; }
+.ap-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ap-btn { min-height: 36px; min-width: 36px; padding: 6px 14px; border-radius: 9px; border: 1px solid var(--aaa-border); background: var(--aaa-panel); color: var(--aaa-text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.ap-btn:hover:not(:disabled) { background: var(--aaa-panel-hover); }
+.ap-btn:focus-visible { outline: 2px solid var(--aaa-blue); outline-offset: 2px; }
+.ap-btn:disabled { opacity: .45; cursor: default; }
+.ap-btn-primary { border-color: var(--aaa-orange); color: var(--aaa-orange); min-width: 116px; }
+.ap-speed { display: inline-flex; border: 1px solid var(--aaa-border); border-radius: 9px; overflow: hidden; }
+.ap-speed .ap-seg { border: 0; border-radius: 0; padding: 6px 12px; background: transparent; }
+.ap-speed .ap-seg + .ap-seg { border-left: 1px solid var(--aaa-border); }
+.ap-speed .ap-seg.ap-on { background: var(--aaa-blue); color: var(--aaa-bg); }
+.ap-progress { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--aaa-muted); font-weight: 700; }
+.ap-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 10px; }
+.ap-info, .ap-logbox { background: var(--aaa-panel); border: 1px solid var(--aaa-border); border-radius: 12px; padding: 10px 14px; min-width: 0; }
+.ap-sub { font-size: 12px; font-weight: 700; color: var(--aaa-muted); letter-spacing: .04em; margin-bottom: 6px; }
+.ap-info-name { font-weight: 700; font-size: 15px; }
+.ap-info-desc, .ap-info-empty { margin: 4px 0 8px; font-size: 13.5px; line-height: 1.6; color: var(--aaa-muted); }
+.ap-btn-link { border-color: var(--aaa-blue); color: var(--aaa-blue); }
+.ap-log { margin: 0; padding: 0; list-style: none; max-height: 190px; overflow-y: auto; font-size: 13px; line-height: 1.5; }
+.ap-log-item { padding: 3px 0 3px 10px; border-left: 3px solid var(--ap-c, var(--aaa-orange)); margin-bottom: 4px; }
+@media (max-width: 560px) {
+  .ap-cols { grid-template-columns: 1fr; }
+  .ap-cap-head { font-size: 13.5px; }
+  .ap-cap-desc { font-size: 12px; }
+  .ap-caption { padding: 8px 10px; }
+  .ap-stage { padding: 2px; }
+  .ap-btn { padding: 6px 10px; font-size: 13px; }
+  .ap-btn-primary { min-width: 100px; }
+}
+@media (prefers-reduced-motion: reduce) { .ap-node.ap-pulse .ap-node-glow { animation: none; stroke-opacity: .6; } }

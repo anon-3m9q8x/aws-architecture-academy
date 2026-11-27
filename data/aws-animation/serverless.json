@@ -1,0 +1,120 @@
+{
+  "id": "serverless",
+  "title": "サーバーレス API",
+  "canvas": {
+    "width": 660,
+    "height": 450
+  },
+  "zones": [],
+  "nodes": [
+    {
+      "id": "u",
+      "name": "User",
+      "x": 90,
+      "y": 200,
+      "description": "クライアント"
+    },
+    {
+      "id": "api",
+      "name": "API Gateway",
+      "x": 250,
+      "y": 200,
+      "description": "API受付とルーティング"
+    },
+    {
+      "id": "lambda",
+      "name": "Lambda",
+      "x": 420,
+      "y": 200,
+      "description": "イベントに応じたコード実行"
+    },
+    {
+      "id": "db",
+      "name": "DynamoDB",
+      "x": 575,
+      "y": 90,
+      "description": "キーによるデータ読み書き"
+    },
+    {
+      "id": "logs",
+      "name": "CloudWatch Logs",
+      "x": 575,
+      "y": 330,
+      "description": "実行ログ記録"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "source": "u",
+      "target": "api",
+      "title": "APIリクエスト",
+      "operation": "HTTPS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 2,
+      "source": "api",
+      "target": "lambda",
+      "title": "関数呼び出し",
+      "operation": "Invoke",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 3,
+      "source": "lambda",
+      "target": "db",
+      "title": "データ取得",
+      "operation": "GetItem",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 4,
+      "source": "db",
+      "target": "lambda",
+      "title": "データ応答",
+      "operation": "API",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 5,
+      "source": "lambda",
+      "target": "logs",
+      "title": "実行ログ出力（応答とは独立）",
+      "operation": "Logs",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 6,
+      "source": "lambda",
+      "target": "api",
+      "title": "処理結果",
+      "operation": "Invoke response",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 7,
+      "source": "api",
+      "target": "u",
+      "title": "APIレスポンス",
+      "operation": "HTTPS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    }
+  ],
+  "extra_connections": [],
+  "notes": "ログ出力はAPI応答の必須同期工程ではない。"
+}

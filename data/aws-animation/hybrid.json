@@ -1,0 +1,172 @@
+{
+  "id": "hybrid",
+  "title": "ハイブリッドネットワーク",
+  "canvas": {
+    "width": 660,
+    "height": 450
+  },
+  "zones": [
+    {
+      "x": 15,
+      "y": 55,
+      "width": 145,
+      "height": 350,
+      "label": "On-premises"
+    },
+    {
+      "x": 190,
+      "y": 55,
+      "width": 455,
+      "height": 350,
+      "label": "AWS Cloud"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "pc",
+      "name": "Client",
+      "x": 87,
+      "y": 120,
+      "description": "社内端末"
+    },
+    {
+      "id": "cgw",
+      "name": "Customer GW",
+      "x": 87,
+      "y": 300,
+      "description": "オンプレミス側VPN装置"
+    },
+    {
+      "id": "vpn",
+      "name": "Site-to-Site VPN",
+      "x": 285,
+      "y": 300,
+      "description": "IPsec暗号化通信"
+    },
+    {
+      "id": "tgw",
+      "name": "Transit Gateway",
+      "x": 495,
+      "y": 300,
+      "description": "ネットワーク間ルーティング集約"
+    },
+    {
+      "id": "vpc",
+      "name": "VPC Attachment",
+      "x": 495,
+      "y": 200,
+      "description": "TGWとVPCの接続"
+    },
+    {
+      "id": "ec2",
+      "name": "Private EC2",
+      "x": 495,
+      "y": 100,
+      "description": "プライベートサブネット内のサーバー"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "source": "pc",
+      "target": "cgw",
+      "title": "社内通信",
+      "operation": "IP",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 2,
+      "source": "cgw",
+      "target": "vpn",
+      "title": "暗号化通信",
+      "operation": "IPsec",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 3,
+      "source": "vpn",
+      "target": "tgw",
+      "title": "VPNアタッチメント経由",
+      "operation": "IP",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 4,
+      "source": "tgw",
+      "target": "vpc",
+      "title": "TGWルートテーブルによる転送",
+      "operation": "Route",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 5,
+      "source": "vpc",
+      "target": "ec2",
+      "title": "VPC内通信",
+      "operation": "IP",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 6,
+      "source": "ec2",
+      "target": "vpc",
+      "title": "応答パケット",
+      "operation": "IP",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 7,
+      "source": "vpc",
+      "target": "tgw",
+      "title": "戻りのルーティング",
+      "operation": "Route",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 8,
+      "source": "tgw",
+      "target": "vpn",
+      "title": "VPN向け転送",
+      "operation": "IP",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 9,
+      "source": "vpn",
+      "target": "cgw",
+      "title": "暗号化された応答",
+      "operation": "IPsec",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 10,
+      "source": "cgw",
+      "target": "pc",
+      "title": "通信完了",
+      "operation": "IP",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    }
+  ],
+  "extra_connections": [],
+  "notes": "双方向のルート、SG、NACL等が適切に設定済みと仮定。"
+}

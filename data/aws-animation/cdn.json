@@ -1,0 +1,116 @@
+{
+  "id": "cdn",
+  "title": "静的コンテンツ配信：キャッシュミス",
+  "canvas": {
+    "width": 660,
+    "height": 450
+  },
+  "zones": [],
+  "nodes": [
+    {
+      "id": "u",
+      "name": "User",
+      "x": 75,
+      "y": 90,
+      "description": "クライアント"
+    },
+    {
+      "id": "dns",
+      "name": "Route 53",
+      "x": 270,
+      "y": 90,
+      "description": "DNS名前解決"
+    },
+    {
+      "id": "cf",
+      "name": "CloudFront",
+      "x": 270,
+      "y": 245,
+      "description": "エッジキャッシュと配信"
+    },
+    {
+      "id": "waf",
+      "name": "AWS WAF",
+      "x": 500,
+      "y": 95,
+      "description": "Web ACLによるリクエスト検査"
+    },
+    {
+      "id": "s3",
+      "name": "Amazon S3",
+      "x": 510,
+      "y": 245,
+      "description": "オブジェクト保存"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "source": "u",
+      "target": "dns",
+      "title": "名前解決",
+      "operation": "DNS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 2,
+      "source": "dns",
+      "target": "u",
+      "title": "DNS応答",
+      "operation": "DNS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 3,
+      "source": "u",
+      "target": "cf",
+      "title": "コンテンツ要求・関連付けられたWeb ACLによる検査",
+      "operation": "HTTPS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 4,
+      "source": "cf",
+      "target": "s3",
+      "title": "OAC署名付きオリジン取得",
+      "operation": "GetObject",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 5,
+      "source": "s3",
+      "target": "cf",
+      "title": "オブジェクト応答・キャッシュ格納",
+      "operation": "HTTPS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 6,
+      "source": "cf",
+      "target": "u",
+      "title": "コンテンツ配信",
+      "operation": "HTTPS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    }
+  ],
+  "extra_connections": [
+    {
+      "source": "cf",
+      "target": "waf",
+      "kind": "association"
+    }
+  ],
+  "notes": "WAFはCloudFrontに関連付けられる。独立した転送ホップではない。キャッシュヒット時はS3取得不要。"
+}

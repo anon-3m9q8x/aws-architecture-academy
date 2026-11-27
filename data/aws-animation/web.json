@@ -1,0 +1,182 @@
+{
+  "id": "web",
+  "title": "Web 3層構成",
+  "canvas": {
+    "width": 660,
+    "height": 450
+  },
+  "zones": [
+    {
+      "x": 157,
+      "y": 105,
+      "width": 481,
+      "height": 321,
+      "label": "AWS VPC"
+    },
+    {
+      "x": 180,
+      "y": 217,
+      "width": 211,
+      "height": 195,
+      "label": "Availability Zone A"
+    },
+    {
+      "x": 402,
+      "y": 217,
+      "width": 214,
+      "height": 195,
+      "label": "Availability Zone B"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "u",
+      "name": "User",
+      "x": 80,
+      "y": 46,
+      "description": "クライアント"
+    },
+    {
+      "id": "dns",
+      "name": "Route 53",
+      "x": 270,
+      "y": 46,
+      "description": "DNS名前解決"
+    },
+    {
+      "id": "alb",
+      "name": "ALB",
+      "x": 397,
+      "y": 155,
+      "description": "正常なターゲットへの負荷分散"
+    },
+    {
+      "id": "a",
+      "name": "EC2 / AZ-A",
+      "x": 286,
+      "y": 264,
+      "description": "アプリケーション処理"
+    },
+    {
+      "id": "b",
+      "name": "EC2 / AZ-B",
+      "x": 510,
+      "y": 264,
+      "description": "別AZのアプリケーション処理"
+    },
+    {
+      "id": "db",
+      "name": "RDS Primary",
+      "x": 286,
+      "y": 365,
+      "description": "SQL処理と永続化"
+    },
+    {
+      "id": "standby",
+      "name": "RDS Standby",
+      "x": 510,
+      "y": 365,
+      "description": "同期複製先。通常の読み取り先ではない"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "source": "u",
+      "target": "dns",
+      "title": "DNS問い合わせ",
+      "operation": "DNS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 2,
+      "source": "dns",
+      "target": "u",
+      "title": "DNS応答",
+      "operation": "DNS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 3,
+      "source": "u",
+      "target": "alb",
+      "title": "HTTPSリクエスト",
+      "operation": "HTTPS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 4,
+      "source": "alb",
+      "target": "a",
+      "title": "正常なターゲットへ負荷分散",
+      "operation": "HTTP(S)",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 5,
+      "source": "a",
+      "target": "db",
+      "title": "SQL更新",
+      "operation": "SQL",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 6,
+      "source": "db",
+      "target": "standby",
+      "title": "同期レプリケーション",
+      "operation": "Sync",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 7,
+      "source": "db",
+      "target": "a",
+      "title": "DB応答",
+      "operation": "SQL",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 8,
+      "source": "a",
+      "target": "alb",
+      "title": "アプリケーション応答",
+      "operation": "HTTP(S)",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 9,
+      "source": "alb",
+      "target": "u",
+      "title": "HTTPSレスポンス",
+      "operation": "HTTPS",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    }
+  ],
+  "extra_connections": [
+    {
+      "source": "alb",
+      "target": "b",
+      "kind": "alternate_route"
+    }
+  ],
+  "notes": "DNSは再帰リゾルバー等を省略。RDS Multi-AZ DBインスタンスの例。"
+}

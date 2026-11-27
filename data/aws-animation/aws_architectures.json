@@ -1,0 +1,740 @@
+{
+  "schema_version": "1.0.0",
+  "language": "ja",
+  "animation": {
+    "default_duration_ms": 1900,
+    "speeds": [
+      0.5,
+      1,
+      2
+    ],
+    "motion": "linear",
+    "controls": [
+      "play",
+      "pause",
+      "step",
+      "reset",
+      "speed",
+      "inspect"
+    ]
+  },
+  "architectures": [
+    {
+      "id": "web",
+      "title": "Web 3層構成",
+      "canvas": {
+        "width": 660,
+        "height": 450
+      },
+      "zones": [
+        {
+          "x": 157,
+          "y": 105,
+          "width": 481,
+          "height": 321,
+          "label": "AWS VPC"
+        },
+        {
+          "x": 180,
+          "y": 217,
+          "width": 211,
+          "height": 195,
+          "label": "Availability Zone A"
+        },
+        {
+          "x": 402,
+          "y": 217,
+          "width": 214,
+          "height": 195,
+          "label": "Availability Zone B"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "u",
+          "name": "User",
+          "x": 80,
+          "y": 46,
+          "description": "クライアント"
+        },
+        {
+          "id": "dns",
+          "name": "Route 53",
+          "x": 270,
+          "y": 46,
+          "description": "DNS名前解決"
+        },
+        {
+          "id": "alb",
+          "name": "ALB",
+          "x": 397,
+          "y": 155,
+          "description": "正常なターゲットへの負荷分散"
+        },
+        {
+          "id": "a",
+          "name": "EC2 / AZ-A",
+          "x": 286,
+          "y": 264,
+          "description": "アプリケーション処理"
+        },
+        {
+          "id": "b",
+          "name": "EC2 / AZ-B",
+          "x": 510,
+          "y": 264,
+          "description": "別AZのアプリケーション処理"
+        },
+        {
+          "id": "db",
+          "name": "RDS Primary",
+          "x": 286,
+          "y": 365,
+          "description": "SQL処理と永続化"
+        },
+        {
+          "id": "standby",
+          "name": "RDS Standby",
+          "x": 510,
+          "y": 365,
+          "description": "同期複製先。通常の読み取り先ではない"
+        }
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "source": "u",
+          "target": "dns",
+          "title": "DNS問い合わせ",
+          "operation": "DNS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 2,
+          "source": "dns",
+          "target": "u",
+          "title": "DNS応答",
+          "operation": "DNS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 3,
+          "source": "u",
+          "target": "alb",
+          "title": "HTTPSリクエスト",
+          "operation": "HTTPS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 4,
+          "source": "alb",
+          "target": "a",
+          "title": "正常なターゲットへ負荷分散",
+          "operation": "HTTP(S)",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 5,
+          "source": "a",
+          "target": "db",
+          "title": "SQL更新",
+          "operation": "SQL",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 6,
+          "source": "db",
+          "target": "standby",
+          "title": "同期レプリケーション",
+          "operation": "Sync",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 7,
+          "source": "db",
+          "target": "a",
+          "title": "DB応答",
+          "operation": "SQL",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 8,
+          "source": "a",
+          "target": "alb",
+          "title": "アプリケーション応答",
+          "operation": "HTTP(S)",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 9,
+          "source": "alb",
+          "target": "u",
+          "title": "HTTPSレスポンス",
+          "operation": "HTTPS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        }
+      ],
+      "extra_connections": [
+        {
+          "source": "alb",
+          "target": "b",
+          "kind": "alternate_route"
+        }
+      ],
+      "notes": "DNSは再帰リゾルバー等を省略。RDS Multi-AZ DBインスタンスの例。"
+    },
+    {
+      "id": "serverless",
+      "title": "サーバーレス API",
+      "canvas": {
+        "width": 660,
+        "height": 450
+      },
+      "zones": [],
+      "nodes": [
+        {
+          "id": "u",
+          "name": "User",
+          "x": 90,
+          "y": 200,
+          "description": "クライアント"
+        },
+        {
+          "id": "api",
+          "name": "API Gateway",
+          "x": 250,
+          "y": 200,
+          "description": "API受付とルーティング"
+        },
+        {
+          "id": "lambda",
+          "name": "Lambda",
+          "x": 420,
+          "y": 200,
+          "description": "イベントに応じたコード実行"
+        },
+        {
+          "id": "db",
+          "name": "DynamoDB",
+          "x": 575,
+          "y": 90,
+          "description": "キーによるデータ読み書き"
+        },
+        {
+          "id": "logs",
+          "name": "CloudWatch Logs",
+          "x": 575,
+          "y": 330,
+          "description": "実行ログ記録"
+        }
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "source": "u",
+          "target": "api",
+          "title": "APIリクエスト",
+          "operation": "HTTPS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 2,
+          "source": "api",
+          "target": "lambda",
+          "title": "関数呼び出し",
+          "operation": "Invoke",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 3,
+          "source": "lambda",
+          "target": "db",
+          "title": "データ取得",
+          "operation": "GetItem",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 4,
+          "source": "db",
+          "target": "lambda",
+          "title": "データ応答",
+          "operation": "API",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 5,
+          "source": "lambda",
+          "target": "logs",
+          "title": "実行ログ出力（応答とは独立）",
+          "operation": "Logs",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 6,
+          "source": "lambda",
+          "target": "api",
+          "title": "処理結果",
+          "operation": "Invoke response",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 7,
+          "source": "api",
+          "target": "u",
+          "title": "APIレスポンス",
+          "operation": "HTTPS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        }
+      ],
+      "extra_connections": [],
+      "notes": "ログ出力はAPI応答の必須同期工程ではない。"
+    },
+    {
+      "id": "cdn",
+      "title": "静的コンテンツ配信：キャッシュミス",
+      "canvas": {
+        "width": 660,
+        "height": 450
+      },
+      "zones": [],
+      "nodes": [
+        {
+          "id": "u",
+          "name": "User",
+          "x": 75,
+          "y": 90,
+          "description": "クライアント"
+        },
+        {
+          "id": "dns",
+          "name": "Route 53",
+          "x": 270,
+          "y": 90,
+          "description": "DNS名前解決"
+        },
+        {
+          "id": "cf",
+          "name": "CloudFront",
+          "x": 270,
+          "y": 245,
+          "description": "エッジキャッシュと配信"
+        },
+        {
+          "id": "waf",
+          "name": "AWS WAF",
+          "x": 500,
+          "y": 95,
+          "description": "Web ACLによるリクエスト検査"
+        },
+        {
+          "id": "s3",
+          "name": "Amazon S3",
+          "x": 510,
+          "y": 245,
+          "description": "オブジェクト保存"
+        }
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "source": "u",
+          "target": "dns",
+          "title": "名前解決",
+          "operation": "DNS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 2,
+          "source": "dns",
+          "target": "u",
+          "title": "DNS応答",
+          "operation": "DNS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 3,
+          "source": "u",
+          "target": "cf",
+          "title": "コンテンツ要求・関連付けられたWeb ACLによる検査",
+          "operation": "HTTPS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 4,
+          "source": "cf",
+          "target": "s3",
+          "title": "OAC署名付きオリジン取得",
+          "operation": "GetObject",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 5,
+          "source": "s3",
+          "target": "cf",
+          "title": "オブジェクト応答・キャッシュ格納",
+          "operation": "HTTPS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 6,
+          "source": "cf",
+          "target": "u",
+          "title": "コンテンツ配信",
+          "operation": "HTTPS",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        }
+      ],
+      "extra_connections": [
+        {
+          "source": "cf",
+          "target": "waf",
+          "kind": "association"
+        }
+      ],
+      "notes": "WAFはCloudFrontに関連付けられる。独立した転送ホップではない。キャッシュヒット時はS3取得不要。"
+    },
+    {
+      "id": "event",
+      "title": "イベント駆動型データ処理",
+      "canvas": {
+        "width": 660,
+        "height": 450
+      },
+      "zones": [],
+      "nodes": [
+        {
+          "id": "s3",
+          "name": "Amazon S3",
+          "x": 95,
+          "y": 100,
+          "description": "オブジェクト保存"
+        },
+        {
+          "id": "sqs",
+          "name": "Amazon SQS",
+          "x": 330,
+          "y": 100,
+          "description": "メッセージ保持と疎結合化"
+        },
+        {
+          "id": "lambda",
+          "name": "Lambda",
+          "x": 560,
+          "y": 100,
+          "description": "イベントに応じたコード実行"
+        },
+        {
+          "id": "db",
+          "name": "DynamoDB",
+          "x": 560,
+          "y": 320,
+          "description": "キーによるデータ読み書き"
+        },
+        {
+          "id": "sns",
+          "name": "Amazon SNS",
+          "x": 330,
+          "y": 320,
+          "description": "購読先への通知"
+        },
+        {
+          "id": "u",
+          "name": "Subscriber",
+          "x": 95,
+          "y": 320,
+          "description": "通知受信"
+        }
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "source": "s3",
+          "target": "sqs",
+          "title": "オブジェクト作成イベント通知",
+          "operation": "Event",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 2,
+          "source": "lambda",
+          "target": "sqs",
+          "title": "イベントソースマッピングによるポーリング",
+          "operation": "Poll",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 3,
+          "source": "sqs",
+          "target": "lambda",
+          "title": "バッチを関数へ渡す",
+          "operation": "Batch",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 4,
+          "source": "lambda",
+          "target": "db",
+          "title": "処理結果の保存",
+          "operation": "PutItem",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 5,
+          "source": "lambda",
+          "target": "sns",
+          "title": "通知発行",
+          "operation": "Publish",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 6,
+          "source": "sns",
+          "target": "u",
+          "title": "購読先へ通知配信",
+          "operation": "Notify",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 7,
+          "source": "lambda",
+          "target": "sqs",
+          "title": "正常終了後にイベントソースマッピングが削除",
+          "operation": "Delete",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        }
+      ],
+      "extra_connections": [],
+      "notes": "ポーリングと削除はLambdaサービスのイベントソースマッピングが実行。SNS配送と削除の順序は保証しない。SQS Standardを想定。"
+    },
+    {
+      "id": "hybrid",
+      "title": "ハイブリッドネットワーク",
+      "canvas": {
+        "width": 660,
+        "height": 450
+      },
+      "zones": [
+        {
+          "x": 15,
+          "y": 55,
+          "width": 145,
+          "height": 350,
+          "label": "On-premises"
+        },
+        {
+          "x": 190,
+          "y": 55,
+          "width": 455,
+          "height": 350,
+          "label": "AWS Cloud"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "pc",
+          "name": "Client",
+          "x": 87,
+          "y": 120,
+          "description": "社内端末"
+        },
+        {
+          "id": "cgw",
+          "name": "Customer GW",
+          "x": 87,
+          "y": 300,
+          "description": "オンプレミス側VPN装置"
+        },
+        {
+          "id": "vpn",
+          "name": "Site-to-Site VPN",
+          "x": 285,
+          "y": 300,
+          "description": "IPsec暗号化通信"
+        },
+        {
+          "id": "tgw",
+          "name": "Transit Gateway",
+          "x": 495,
+          "y": 300,
+          "description": "ネットワーク間ルーティング集約"
+        },
+        {
+          "id": "vpc",
+          "name": "VPC Attachment",
+          "x": 495,
+          "y": 200,
+          "description": "TGWとVPCの接続"
+        },
+        {
+          "id": "ec2",
+          "name": "Private EC2",
+          "x": 495,
+          "y": 100,
+          "description": "プライベートサブネット内のサーバー"
+        }
+      ],
+      "steps": [
+        {
+          "order": 1,
+          "source": "pc",
+          "target": "cgw",
+          "title": "社内通信",
+          "operation": "IP",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 2,
+          "source": "cgw",
+          "target": "vpn",
+          "title": "暗号化通信",
+          "operation": "IPsec",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 3,
+          "source": "vpn",
+          "target": "tgw",
+          "title": "VPNアタッチメント経由",
+          "operation": "IP",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 4,
+          "source": "tgw",
+          "target": "vpc",
+          "title": "TGWルートテーブルによる転送",
+          "operation": "Route",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 5,
+          "source": "vpc",
+          "target": "ec2",
+          "title": "VPC内通信",
+          "operation": "IP",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 6,
+          "source": "ec2",
+          "target": "vpc",
+          "title": "応答パケット",
+          "operation": "IP",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 7,
+          "source": "vpc",
+          "target": "tgw",
+          "title": "戻りのルーティング",
+          "operation": "Route",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 8,
+          "source": "tgw",
+          "target": "vpn",
+          "title": "VPN向け転送",
+          "operation": "IP",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 9,
+          "source": "vpn",
+          "target": "cgw",
+          "title": "暗号化された応答",
+          "operation": "IPsec",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        },
+        {
+          "order": 10,
+          "source": "cgw",
+          "target": "pc",
+          "title": "通信完了",
+          "operation": "IP",
+          "duration_ms": 1900,
+          "packet_color": "#ffb347",
+          "edge_color": "#ed922b"
+        }
+      ],
+      "extra_connections": [],
+      "notes": "双方向のルート、SG、NACL等が適切に設定済みと仮定。"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "id": "event",
+  "title": "イベント駆動型データ処理",
+  "canvas": {
+    "width": 660,
+    "height": 450
+  },
+  "zones": [],
+  "nodes": [
+    {
+      "id": "s3",
+      "name": "Amazon S3",
+      "x": 95,
+      "y": 100,
+      "description": "オブジェクト保存"
+    },
+    {
+      "id": "sqs",
+      "name": "Amazon SQS",
+      "x": 330,
+      "y": 100,
+      "description": "メッセージ保持と疎結合化"
+    },
+    {
+      "id": "lambda",
+      "name": "Lambda",
+      "x": 560,
+      "y": 100,
+      "description": "イベントに応じたコード実行"
+    },
+    {
+      "id": "db",
+      "name": "DynamoDB",
+      "x": 560,
+      "y": 320,
+      "description": "キーによるデータ読み書き"
+    },
+    {
+      "id": "sns",
+      "name": "Amazon SNS",
+      "x": 330,
+      "y": 320,
+      "description": "購読先への通知"
+    },
+    {
+      "id": "u",
+      "name": "Subscriber",
+      "x": 95,
+      "y": 320,
+      "description": "通知受信"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "source": "s3",
+      "target": "sqs",
+      "title": "オブジェクト作成イベント通知",
+      "operation": "Event",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 2,
+      "source": "lambda",
+      "target": "sqs",
+      "title": "イベントソースマッピングによるポーリング",
+      "operation": "Poll",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 3,
+      "source": "sqs",
+      "target": "lambda",
+      "title": "バッチを関数へ渡す",
+      "operation": "Batch",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 4,
+      "source": "lambda",
+      "target": "db",
+      "title": "処理結果の保存",
+      "operation": "PutItem",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 5,
+      "source": "lambda",
+      "target": "sns",
+      "title": "通知発行",
+      "operation": "Publish",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 6,
+      "source": "sns",
+      "target": "u",
+      "title": "購読先へ通知配信",
+      "operation": "Notify",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    },
+    {
+      "order": 7,
+      "source": "lambda",
+      "target": "sqs",
+      "title": "正常終了後にイベントソースマッピングが削除",
+      "operation": "Delete",
+      "duration_ms": 1900,
+      "packet_color": "#ffb347",
+      "edge_color": "#ed922b"
+    }
+  ],
+  "extra_connections": [],
+  "notes": "ポーリングと削除はLambdaサービスのイベントソースマッピングが実行。SNS配送と削除の順序は保証しない。SQS Standardを想定。"
+}

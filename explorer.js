@@ -2,7 +2,12 @@
 import { TERMS, renderGlossary, openTerm, termById } from "./glossary.js?v=20261119a";
 import { SERVICES, CATS, byId, relsOf, compsOf, extOf, metaOf, serviceCount, patternsOf, groupsOf, COMPARE } from "./services.js";
 import { memo } from "./memo.js";
-import { FlowPlayer, normalizeScene, serviceScene, problemScene } from "./flow.js";
+import { normalizeScene, serviceScene, problemScene } from "./flow.js";
+import { ArchPlayer } from "./arch-player.js?v=20261127c";
+import { sceneToArch, prepArch } from "./arch-adapter.js?v=20261127c";
+import { ARCHITECTURES } from "./data/architectures.js?v=20261127c";
+const svcDesc = (id) => byId.get(id)?.summary || "";
+const toArch = (sc) => sceneToArch(sc, svcDesc);
 import { BUILD } from "./data/build.js";
 import { LAB_QUESTIONS, CATEGORY as LAB_CAT, MODE as LAB_MODE } from "./data/command-lab/index.js";
 import { PATTERNS, EXERCISES, patternScene } from "./data/sap-patterns.js";
@@ -366,6 +371,8 @@ function section(id, title, eyebrow) {
 function animsFor(s) {
   const list = [];
   const rels = relsOf(s.id);
+  // 資料(サービス間通信アニメーション)の構成に登場するサービスは、その構成を先頭に置く
+  ARCHITECTURES.filter((a) => a.nodes.some((n) => n.svc === s.id)).forEach((a) => list.push({ key: "arch-" + a.id, label: `通信: ${a.title}`, arch: true, scene: () => prepArch(a, svcDesc) }));
   if (rels.length) list.push({ key: "auto", label: `${s.name} の連携`, scene: () => serviceScene(s, rels, metaOf) });
   scenes.filter((sc) => sc.nodes.some((n) => n.svc === s.id)).forEach((sc) => list.push({ key: sc.id, label: sc.title, scene: () => sc }));
   patternsOf(s.id).forEach((p) => list.push({ key: "pt-" + p.id, label: `${p.id} ${p.t}`, scene: () => patternScene(p, metaOf), pattern: p }));
@@ -480,10 +487,11 @@ function openDetail(s) {
     curAnim = k;
     pick.querySelectorAll(".ex-anim").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.k === k)));
     animSlide();
-    if (!player) player = new FlowPlayer(stage, { meta: metaOf, onNode: (id) => id !== s.id && byId.has(id) && (location.hash = `services/${id}`) });
-    player.load(a.scene(), { autoplay: auto });
+    if (!player) player = new ArchPlayer(stage, { meta: metaOf, onNode: (id) => id !== s.id && byId.has(id) && (location.hash = `services/${id}`) });
+    player.load(a.arch ? a.scene() : toArch(a.scene()), { autoplay: auto });
     animNote.textContent = a.key === "auto"
       ? "利用者側から奥へ、連携を一連の流れとして再生します。つなぐ前に必要な設定は「＋」のチップで、IAM・KMS・監視などはあとから追加する機能として登場します。ノードをタップするとそのサービスの解説へ移動します。"
+      : a.arch ? "実際の通信の順番どおりに、送信元から宛先へパケットが移動します。ステップで 1 つずつ進められ、ノードを押すと役割を確認できます。"
       : a.pb ? `構築問題「${a.pb.title}」の模範解答の動きです。`
       : a.pattern ? `SAP 設計パターン ${a.pattern.id}: ${a.pattern.why}` : (a.scene().rule || "");
   }
@@ -832,8 +840,8 @@ function openScene(sc) {
   detail.classList.remove("enter");
   void detail.offsetWidth;
   detail.classList.add("enter");
-  player = new FlowPlayer(stage, { meta: metaOf, onNode: (id) => byId.has(id) && (location.hash = `services/${id}`) });
-  player.load(sc);
+  player = new ArchPlayer(stage, { meta: metaOf, onNode: (id) => byId.has(id) && (location.hash = `services/${id}`) });
+  player.load(toArch(sc));
   store.set("aaa.resume.scene", sc.id);
   window.scrollTo({ top: 0, behavior: "instant" });
 }
@@ -897,8 +905,8 @@ function openPattern(p) {
   detail.classList.remove("enter");
   void detail.offsetWidth;
   detail.classList.add("enter");
-  player = new FlowPlayer(stage, { meta: metaOf, onNode: (id) => byId.has(id) && !["user", "onprem", "internet"].includes(id) && (location.hash = `services/${id}`) });
-  player.load(patternScene(p, metaOf));
+  player = new ArchPlayer(stage, { meta: metaOf, onNode: (id) => byId.has(id) && !["user", "onprem", "internet"].includes(id) && (location.hash = `services/${id}`) });
+  player.load(toArch(patternScene(p, metaOf)));
   window.scrollTo({ top: 0, behavior: "instant" });
   document.title = `${p.id} ${p.t} | 設計パターン | AWS Architecture Academy`;
   $("page-label").textContent = `サービス図鑑 / ${p.id} ${p.t}`;
