@@ -104,14 +104,14 @@ export class ArchPlayer {
     listBox.append(h('div', 'ap-sub', 'ステップの説明(押すとそのステップへ)'));
     this.logEl = h('ol', 'ap-log ap-steps');
     listBox.append(this.logEl);
-    const side = h('div', 'ap-side');
-    side.append(listBox, this.info);
-    const left = h('div', 'ap-left');
-    left.append(this.cap, this.stage, this.legendEl, this.notesEl, bar);
+    // 図の上の STEP 表示は使わない(説明は右のステップ一覧に集約)。図と一覧は同じ高さにそろえる
+    this.logEl.setAttribute('aria-live', 'polite');
     const main = h('div', 'ap-main');
-    main.append(left, side);
+    main.append(this.stage, listBox);
+    const below = h('div', 'ap-below');
+    below.append(this.legendEl, this.notesEl, bar, this.info);
 
-    host.append(main);
+    host.append(main, below);
 
     // listeners
     this._on = [];
