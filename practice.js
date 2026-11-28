@@ -4,7 +4,7 @@ import { serviceQuestions } from "./data/service-questions.js";
 import { expertQuestions } from "./data/expert-questions.js?v=20261118p";
 import { byId as svcById } from "./services.js";
 import { findServices, servicesIn } from "./data/service-terms.js";
-import { findTerms, termButton, termify } from "./glossary.js?v=20261119a";
+import { findTerms, termButton, termify } from "./glossary.js?v=20261128a";
 import { EXAMS, LEVELS, examByCode, probability, probBand, BAND_LABEL, primaryExam, TIER } from "./data/exams.js";
 import { rateTag, rateSummary, chosenAlert } from "./choice-rate.js?v=20261118e";
 import { shuffledOrder, labelsFor } from "./ui.js";

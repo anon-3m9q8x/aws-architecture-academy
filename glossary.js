@@ -23,6 +23,8 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const RE = forms.length ? new RegExp(forms.map(([f]) => esc(f)).join("|"), "gi") : null;
 const lookup = new Map(forms.map(([f, id]) => [f.toLowerCase(), id]));
 const isAsciiWord = (c) => !!c && /[A-Za-z0-9]/.test(c);
+// カタカナの用語はカタカナ語の途中では一致させない(例:「コントロール」の中の「ロール」を IAM ロールにしない)
+const isKana = (c) => !!c && /[\u30A1-\u30FA\u30FC]/.test(c);
 
 /** 文章中の用語の位置 [{ start, end, id }](英字の用語は単語の途中では一致させない) */
 export function findTerms(text) {
@@ -34,6 +36,8 @@ export function findTerms(text) {
     const s = m.index, e = s + m[0].length;
     if (/^[A-Za-z0-9]/.test(m[0]) && isAsciiWord(text[s - 1])) continue;
     if (/[A-Za-z0-9]$/.test(m[0]) && isAsciiWord(text[e])) continue;
+    if (isKana(m[0][0]) && isKana(text[s - 1])) continue;
+    if (isKana(m[0][m[0].length - 1]) && isKana(text[e])) continue;
     out.push({ start: s, end: e, id });
   }
   return out;
